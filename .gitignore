@@ -1,0 +1,11 @@
+# user files
+upload.py
+pack.py
+torchslime.egg-info
+.eggs
+build
+dist
+test
+
+# pycache files
+**/__pycache__
