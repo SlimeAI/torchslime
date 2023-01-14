@@ -1,10 +1,11 @@
 import os
 
 from torchslime.util import is_nothing
-from . import Callback
-from ..core.context import Context
-from ..log.directory import get_checkpoint_path, join_path, get_metric_path, safe_makedirs
-from ..log import logger
+from torchslime.callback import Callback, DistributedCallbackWrapper
+from torchslime.core.context import Context
+from torchslime.log.directory import get_checkpoint_path, join_path, get_metric_path, safe_makedirs
+from torchslime.log import logger
+from torchslime.util.type import INT_SEQ_N
 import torch
 from typing import Sequence, Union, Callable
 import json
@@ -78,9 +79,35 @@ class SaveCheckpoint(Callback):
             return ctx.epoch.current + 1
 
 
+class DistributedSaveCheckpoint(DistributedCallbackWrapper):
+
+    def __init__(
+        self,
+        save_per: EPOCH_SEQ,
+        checkpoint_name: Union[str, Callable[[Context], str]]=None,
+        save_model: bool = True,
+        save_optimizer: bool = False,
+        save_epoch: bool = False,
+        exec_ranks: INT_SEQ_N = None
+    ):
+        wrapped_callback = SaveCheckpoint(
+            save_per,
+            checkpoint_name,
+            save_model,
+            save_optimizer,
+            save_epoch
+        )
+        super().__init__(wrapped_callback, exec_ranks)
+
+
 class SaveMetrics(Callback):
 
-    def __init__(self, save_train: bool = True, save_eval: bool = True, save_per: EPOCH_SEQ = 1):
+    def __init__(
+        self,
+        save_train: bool = True,
+        save_eval: bool = True,
+        save_per: EPOCH_SEQ = 1
+    ):
         super().__init__()
         self.metric_path = get_metric_path()
         self.save_per = save_per
@@ -124,3 +151,20 @@ class SaveMetrics(Callback):
         with open(self.metric_path, 'w') as f:
             json.dump(history, f, indent=4)
         return len(history)
+
+
+class DistributedSaveMetrics(DistributedCallbackWrapper):
+
+    def __init__(
+        self,
+        save_train: bool = True,
+        save_eval: bool = True,
+        save_per: EPOCH_SEQ = 1,
+        exec_ranks: INT_SEQ_N = None
+    ):
+        wrapped_callback = SaveMetrics(
+            save_train,
+            save_eval,
+            save_per
+        )
+        super().__init__(wrapped_callback, exec_ranks)

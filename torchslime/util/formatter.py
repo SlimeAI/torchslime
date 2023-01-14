@@ -2,7 +2,7 @@
 """
 from typing import Tuple, Union
 import time
-import torchslime.util.terminal as Cursor
+from torchslime.util import terminal as Cursor
 
 
 class ProgressStyle:

@@ -1,7 +1,7 @@
 # TODO: refactor the util package
 from typing import Dict, Union, Tuple, Sequence
 from collections.abc import Iterator, Iterable
-from .type import T_M_SEQ, T_M
+from torchslime.util.type import T_M_SEQ, T_M
 from torch import Tensor
 from torch.nn import Module
 import threading
@@ -62,7 +62,7 @@ def Singleton(cls):
 
 
 # set import here to avoid import error
-from ..log import logger
+from torchslime.log import logger
 
 
 def InvocationDebug(module_name):
@@ -167,8 +167,16 @@ def is_nothing(obj):
     return NOTHING is obj
 
 
-def check_nothing(obj, x, y=NOTHING):
-    return x if is_nothing(obj) is False else y
+def is_none_or_nothing(obj):
+    """Check whether an object is None, Nothing or neither.
+    
+    Args:
+        obj (Any): object
+
+    Returns:
+        bool: check result.
+    """
+    return obj is None or is_nothing(obj)
 
 
 def dict_merge(dict1: Dict, dict2: Dict):
@@ -186,13 +194,16 @@ class Base:
     What's more, it allows its subclasses assign properties using a dict.
     """
 
-    def from_dict(self, kwargs: Dict):
+    def update(self, **kwargs):
+        self.from_dict(kwargs)
+
+    def from_dict(self, _dict: Dict):
         """assign properties to the object using a dict.
 
         Args:
             kwargs (Dict): property dict.
         """
-        self.__dict__ = dict_merge(self.__dict__, kwargs)
+        self.__dict__ = dict_merge(self.__dict__, _dict)
 
     def check(self, item: str):
         """check whether the object has a specific attribute.
@@ -210,7 +221,7 @@ class Base:
                 if is_nothing(temp):
                     return False
             except Exception:
-                # output error infomation
+                # output error information
                 self.process_exc()
                 return False
         return True
@@ -250,86 +261,17 @@ class Base:
             return
 
 
-class SingleConst:
+class Count:
     """
-    A class that defines a const value that cannot be changed.
-    Show Warnings when the value is attempted to be changed, and the change won't actually take effect.
-    Allow assigning the value to 'Nothing' when initialized, which means that you will assign the value later.
-    Once the value is not 'Nothing', it will never be changed.
-
-    *****
-    Note that the class property cannot be changed means every instance of the class shares the same property.
-    Not suitable for the property that varies from instance to instance.
-    *****
+    Count times of variable-get.
     """
 
-    def __init__(self, value=NOTHING):
-        # the default value will refer to the same 'Nothing'.
-        super().__init__()
-        self.value = value
-
-    def __set__(self, _, value):
-        # the value can be changed only when it's 'Nothing'
-        if is_nothing(self.value):
-            self.value = value
-        else:
-            # TODO: show warnings
-            print('the value cannot be changed.')
-
-    def __get__(self, *_):
-        return self.value
-
-
-class MultiConst:
-    """
-    Const constraint that varies from instances. Similar to 'SingleConst'.
-
-    *****
-    WARNING:
-    MultiConst is not in strict mode. Actually, for convenience, MultiConst will create a private property of
-    the same name using prefix '_' in the object. Thus it won't be able to prevent the direct assignment to 
-    the private property it creates.
-
-    e.g.
-    class Example:
-        attr = MultiConst()
-    
-    ex = Example()
-    ex.attr = 'a' # OK
-    ex.attr = 'b' # FAIL, cannot assign new value to a const value.
-    ex.attr # Now the property value is still 'a'.
-    ex._attr = 'c' # **** WARNING: OK, because the MultiConst cannot prevent assignment to this property. ****
-    ex.attr # Now the property value has become 'c'.
-    *****
-
-    *****
-    WARNING:
-    Do not use MultiConst to a property named already with prefix '_', for MultiConst will create a new property
-    with '__' as a prefix, making the attribute unaccessible through '__foo' outside the class.
-    *****
-    """
     def __init__(self):
         super().__init__()
-    
-    def __set_name__(self, _, name):
-        self.private_name = '_%s' % str(name)
+        self.value = 0
 
-    def __set__(self, instance, value):
-        temp = getattr(instance, self.private_name, NOTHING)
-        if is_nothing(temp):
-            setattr(instance, self.private_name, value)
-        else:
-            # TODO: show warnings
-            print('the value cannot be changed')
-
-    def __get__(self, instance, _):
-        return getattr(instance, self.private_name, NOTHING)
-
-
-class Count(SingleConst):
-
-    def __init__(self):
-        super().__init__(0)
+    def __set__(self, *_):
+        pass
 
     def __get__(self, *_):
         tmp = self.value
@@ -340,10 +282,46 @@ class Count(SingleConst):
 class BaseList(list):
 
     def __init__(self, list_like: Iterable=None):
-        if list_like is None or is_nothing(list_like):
+        if is_none_or_nothing(list_like):
             super().__init__()
         else:
             super().__init__(list_like if isinstance(list_like, Iterable) else [list_like])
+
+    @classmethod
+    def create(cls, list_like: Iterable=None):
+        """
+        If the list_like object is None or NOTHING, then return itself, otherwise return BaseList object.
+
+        ***
+        WARNING:
+        This changes the default behavior of BaseList, which creates an empty list when the list_like object is 
+        None of NOTHING.
+        ***
+        """
+        if is_none_or_nothing(list_like):
+            return list_like
+        else:
+            return cls(list_like)
+
+    @classmethod
+    def create_nothing(cls, list_like: Iterable=None):
+        """
+        Only when the list_like object is NOTHING is itself returned.
+        """
+        if is_nothing(list_like):
+            return list_like
+        else:
+            return cls(list_like)
+
+    @classmethod
+    def create_none(cls, list_like: Iterable=None):
+        """
+        Only when the list_like object is None is itself returned.
+        """
+        if list_like is None:
+            return list_like
+        else:
+            return cls(list_like)
 
 
 def get_device(obj: T_M):

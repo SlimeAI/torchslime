@@ -1,8 +1,8 @@
 from abc import abstractmethod
 from torch.utils.data import DataLoader
-from ..core.context import Context
-from ..util import list_take
-from ..log import logger
+from torchslime.core.context import Context
+from torchslime.util import list_take
+from torchslime.log import logger
 from typing import Sequence, Tuple, Any, Union
 
 
@@ -44,7 +44,7 @@ class DataParser:
     def __call__(self, ctx: Context) -> Tuple[Any, Any, Any]:
         batch = self.get(ctx)
         if isinstance(batch, tuple) is False or len(batch) != 3:
-            logger.warn('DataParser returns a non-tuple object or the tuple length is not 3, this may cause value-unpack excpetions.')
+            logger.warn('DataParser returns a non-tuple object or the tuple length is not 3, this may cause value-unpack exceptions.')
         return batch
 
 

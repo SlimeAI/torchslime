@@ -1,15 +1,14 @@
 """
 A convenient module register util that helps you parameterize network structure.
 """
-from ..util import NOTHING, MultiConst, Singleton, SingleConst
+from torchslime.util import NOTHING, Singleton
 from typing import Type, Any, Iterable
 import torch.nn as nn
-from .config import load_json
+from torchslime.module.config import load_json
 
 
 class Registry:
 
-    modules = MultiConst()
     def __init__(self, namespace: str) -> None:
         super().__init__()
         self.modules = {}
@@ -51,9 +50,9 @@ class Registry:
 @Singleton
 class RegistryMapper:
 
-    registries = SingleConst({})
     def __init__(self) -> None:
         super().__init__()
+        self.registries = {}
     
     def push(self, registry: Registry):
         self.registries[registry.namespace] = registry

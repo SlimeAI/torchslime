@@ -1,4 +1,4 @@
-from ..util import Singleton
+from torchslime.util import Singleton
 import sys
 
 
@@ -12,10 +12,10 @@ color_dict = {
     'w': 37  # white
 }
 
-info_prefix = '[TorchSlime INFO]'
-warn_prefix = '[TorchSlime WARN]'
-error_prefix = '[TorchSlime ERROR]'
-debug_prefix = '[TorchSlime DEBUG]'
+info_prefix = '[torchslime INFO]'
+warn_prefix = '[torchslime WARN]'
+error_prefix = '[torchslime ERROR]'
+debug_prefix = '[torchslime DEBUG]'
 
 
 def color_format(*args, color: str, sep: str = ' '):

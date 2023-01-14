@@ -1,11 +1,11 @@
-from ..util import Base, NOTHING, MultiConst
+from torchslime.util import Base, NOTHING, BaseList
 from torch.nn import Module
 from torch import device
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
-from ..util.type import NUMBER
+from torchslime.util.type import NUMBER
 from typing import Any, Sequence, Union, Dict, Tuple
-from ..log import logger
+from torchslime.log import logger
 from abc import abstractmethod
 
 
@@ -13,13 +13,6 @@ class Context(Base):
     """
     Context in the whole life time.
     """
-
-    run = MultiConst()
-    epoch = MultiConst()
-    step = MultiConst()
-    handler = MultiConst()
-    custom = MultiConst()
-    inner = MultiConst()
 
     def __init__(self):
         super().__init__()
@@ -32,7 +25,7 @@ class Context(Base):
         # model
         self.model: Module = NOTHING
         # proxy status(train, eval, etc.)
-        from .status import Status
+        from torchslime.core.status import Status
         self.status: Status = NOTHING
         # the current dataset for running
         self.dataset: DataLoader = NOTHING
@@ -48,6 +41,8 @@ class Context(Base):
         self.custom: CustomContext = CustomContext()
         # inner context
         self.inner: InnerContext = InnerContext()
+        # build context
+        self.build: BuildContext = BuildContext()
 
     def ctx_check(self, items: Union[str, Sequence[str]], silent: bool = True):
         # check single item
@@ -151,7 +146,7 @@ class RunContext(TempContext):
     
     def initialize(self):
         # handler containers that define the process of training, evaluating and predicting.
-        from .handler import HandlerContainer
+        from torchslime.core.handler import HandlerContainer
         self.train: HandlerContainer = NOTHING
         self.eval: HandlerContainer = NOTHING
         self.predict: HandlerContainer = NOTHING
@@ -167,18 +162,18 @@ class RunContext(TempContext):
         # learning rate decay
         self.lr_decay: Any = NOTHING
         # data provider
-        from ..data import DataProvider
+        from torchslime.data import DataProvider
         self.train_provider: DataProvider = NOTHING
         self.eval_provider: DataProvider = NOTHING
         # data parser
-        from ..data import DataParser, IndexParser
+        from torchslime.data import DataParser, IndexParser
         # the data parser should be set to IndexParser as default
         self.data_parser: DataParser = IndexParser()
         # run callback executor
-        from ..callback import CallbackContainer
+        from torchslime.callback import CallbackContainer
         self.callbacks: CallbackContainer = NOTHING
         # metric container
-        from ..metric import MetricContainer
+        from torchslime.metric import MetricContainer
         self.metrics: MetricContainer = NOTHING
 
 
@@ -188,7 +183,7 @@ class HandlerContext(TempContext):
         super().__init__()
     
     def initialize(self):
-        import torchslime.core.handler as handler
+        from torchslime.core import handler
         # handler class
         self.Container = handler.HandlerContainer
         self.EpochIteration = handler.EpochIterationHandler
@@ -212,6 +207,18 @@ class HandlerContext(TempContext):
         self.EpochEnd = handler.EpochEndHandler
 
 
+class DistributedHandlerContext(HandlerContext):
+
+    def __init__(self):
+        super().__init__()
+
+    def initialize(self):
+        super().initialize()
+
+        from torchslime.core import handler
+        self.MetricsGather = handler.MetricsGatherHandler
+
+
 class CustomContext(TempContext):
 
     def __init__(self):
@@ -230,3 +237,23 @@ class InnerContext(TempContext):
     def initialize(self):
         self.__dict__.clear()
         logger.debug('Inner context has been initialized.')
+
+
+class BuildContext(TempContext):
+
+    def __init__(self):
+        super().__init__()
+    
+    def initialize(self):
+        self.valid_mode = 'epoch'
+        self.train_mode = 'epoch'
+        self.lr_decay_mode = 'epoch'
+
+
+class DistributedContext(TempContext):
+
+    def __init__(self):
+        super().__init__()
+    
+    def initialize(self):
+        self.exec_ranks: BaseList = BaseList(0)

@@ -1,10 +1,12 @@
 from abc import abstractmethod
 from typing import Dict, Sequence, Union
-from ..util import BaseList, IterTool, NOTHING, is_nothing, safe_divide, type_cast, InvocationDebug, SmartWrapper
-import torchslime.util.terminal as Cursor
-from ..util.formatter import progress_format, eta_format
-from .context import Context
-from ..log import logger
+from torchslime.util import BaseList, IterTool, NOTHING, is_nothing, safe_divide, type_cast, \
+    InvocationDebug, SmartWrapper, terminal as Cursor
+from torchslime.util.formatter import progress_format, eta_format
+from torchslime.core.context import Context
+from torchslime.core import DistributedProxy
+from torchslime.log import logger
+from torchslime.util.type import INT_SEQ_N
 from torch import set_grad_enabled
 
 
@@ -51,6 +53,33 @@ class EmptyHandler(Handler):
         pass
 
 
+class DistributedHandler(Handler):
+
+    def __init__(self, exec_ranks: INT_SEQ_N = None):
+        super().__init__()
+        self.exec_ranks = BaseList.create(exec_ranks)
+
+    def __call__(self, ctx: DistributedProxy):
+        rank = ctx.get_rank()
+        if self.exec_ranks is not None and \
+            (is_nothing(self.exec_ranks) or rank in self.exec_ranks):
+            super().__call__(ctx)
+
+
+class DistributedHandlerWrapper(DistributedHandler):
+
+    def __init__(
+        self,
+        wrapped_handler: Handler,
+        exec_ranks: INT_SEQ_N = None
+    ):
+        super().__init__(exec_ranks)
+        self._wrapped_handler = wrapped_handler
+    
+    def handle(self, ctx: Context):
+        self._wrapped_handler(ctx)
+
+
 # handler or sequence of handlers
 C_SEQ = Union[Handler, Sequence[Handler]]
 
@@ -58,12 +87,27 @@ C_SEQ = Union[Handler, Sequence[Handler]]
 class HandlerContainer(Handler, BaseList):
 
     def __init__(self, handlers: C_SEQ = None):
-        super().__init__()
+        Handler.__init__(self)
         BaseList.__init__(self, handlers)
     
     def handle(self, ctx: Context):
         for handler in self:
             handler(ctx)
+
+
+class DistributedHandlerContainer(HandlerContainer):
+
+    def __init__(self, handlers: C_SEQ = None, default_exec_ranks: INT_SEQ_N = None):
+        super().__init__(handlers)
+        # the distributed handler container is always executed.
+        self.exec_ranks = NOTHING
+        # exec ranks that are set to its sub-handlers
+        self.default_exec_ranks = BaseList.create(default_exec_ranks)
+
+
+class DistributedHandlerContainerWrapper(DistributedHandlerContainer):
+
+    pass
 
 
 class EpochIterationHandler(HandlerContainer):
@@ -191,6 +235,16 @@ class MetricsHandler(Handler):
             ctx.step.metrics = ctx.run.metrics(ctx)
 
 
+class MetricsGatherHandler(Handler):
+
+    def __init__(self):
+        super().__init__()
+    
+    @InvocationDebug('MetricsGatherHandler')
+    def handle(self, ctx: Context):
+        return super().handle(ctx)
+
+
 # TODO: implementation to be optimized
 class AverageHandler(Handler):
 
@@ -299,7 +353,7 @@ class StatusHandler(Handler):
     def __init__(self, status: str = 'train'):
         super().__init__()
         # get status supported
-        from .status import proxy_status
+        from torchslime.core.status import proxy_status
         mode_supported = list(proxy_status.modules.keys())
         if status not in mode_supported:
             logger.warn('An unsupported status is set, this may cause some problems.')
@@ -312,7 +366,7 @@ class StatusHandler(Handler):
             'model'
         ], silent=False)
         # set status to the context
-        from .status import proxy_status
+        from torchslime.core.status import proxy_status
         ctx.status = proxy_status.build(self.status)
         # change pytorch model mode
         ctx.status.set_model_mode(ctx)
