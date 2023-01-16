@@ -59,6 +59,11 @@ class DistributedHandler(Handler):
         super().__init__()
         self.exec_ranks = BaseList.create(exec_ranks)
 
+    def set_exec_ranks(self, exec_ranks: INT_SEQ_N):
+        if self.exec_ranks is None or exec_ranks is None:
+            # the exec_ranks are changeable
+            self.exec_ranks = BaseList.create(exec_ranks)
+
     def __call__(self, ctx: DistributedProxy):
         rank = ctx.get_rank()
         if self.exec_ranks is not None and \
@@ -103,11 +108,33 @@ class DistributedHandlerContainer(HandlerContainer):
         self.exec_ranks = NOTHING
         # exec ranks that are set to its sub-handlers
         self.default_exec_ranks = BaseList.create(default_exec_ranks)
+    
+    def set_exec_ranks(self, exec_ranks: INT_SEQ_N):
+        if self.default_exec_ranks is None or exec_ranks is None:
+            # the default_exec_ranks are changeable
+            self.default_exec_ranks = BaseList.create(exec_ranks)
+        for handler in filter(lambda item: isinstance(item, DISTRIBUTED_CLASSES), self):
+            handler.set_exec_ranks(self.default_exec_ranks)
+
+    def __call__(self, ctx: DistributedProxy):
+        rank = ctx.get_rank()
+        if self.exec_ranks is not None and \
+            (is_nothing(self.exec_ranks) or rank in self.exec_ranks):
+            super().__call__(ctx)
 
 
 class DistributedHandlerContainerWrapper(DistributedHandlerContainer):
 
-    pass
+    def __init__(self, wrapped_handler_container: HandlerContainer, default_exec_ranks: INT_SEQ_N = None):
+        super().__init__(None, default_exec_ranks)
+        self._wrapped_handler_container = wrapped_handler_container
+        self._BaseList__list = wrapped_handler_container._BaseList__list
+
+    def handle(self, ctx: Context):
+        self._wrapped_handler_container(ctx)
+
+
+DISTRIBUTED_CLASSES = (DistributedHandler, DistributedHandlerContainer)
 
 
 class EpochIterationHandler(HandlerContainer):
@@ -126,6 +153,13 @@ class EpochIterationHandler(HandlerContainer):
             # output epoch info. TODO: change logger operation to a handler?
             logger.log('Epoch %d' % (ctx.epoch.current + 1))
             super().handle(ctx)
+
+
+class DistributedEpochIterationHandler(DistributedHandlerContainerWrapper):
+
+    def __init__(self, handlers: C_SEQ = None, exec_ranks: INT_SEQ_N = None):
+        wrapped_handler_container = EpochIterationHandler(handlers)
+        super().__init__(wrapped_handler_container, exec_ranks)
 
 
 class IterationHandler(HandlerContainer):
@@ -148,6 +182,13 @@ class IterationHandler(HandlerContainer):
                 })
                 # carry out the subsequent actions
                 super().handle(ctx)
+
+
+class DistributedIterationHandler(DistributedHandlerContainerWrapper):
+
+    def __init__(self, handlers: C_SEQ = None, default_exec_ranks: INT_SEQ_N = None):
+        wrapped_handler_container = IterationHandler(handlers)
+        super().__init__(wrapped_handler_container, default_exec_ranks)
 
 
 class ForwardHandler(Handler):
@@ -335,6 +376,13 @@ class DisplayHandler(Handler):
             )
 
 
+class DistributedDisplayHandler(DistributedHandlerWrapper):
+
+    def __init__(self, exec_ranks: INT_SEQ_N = None):
+        wrapped_handler = DisplayHandler()
+        super().__init__(wrapped_handler, exec_ranks)
+
+
 class DatasetHandler(Handler):
 
     def __init__(self):
@@ -383,86 +431,15 @@ class LRDecayHandler(Handler):
             ctx.run.lr_decay.step()
 
 
-# callback adapters
-class BeginHandler(Handler):
-    
-    def __init__(self):
-        super().__init__()
+class CallbackHandler(Handler):
 
-    @InvocationDebug('BeginHandler')
+    def __init__(self, hook: str):
+        super().__init__()
+        self._hook = hook
+
+    @InvocationDebug('CallbackHandler')
     def handle(self, ctx: Context):
-        # context check
         ctx.ctx_check([
             'run.callbacks'
         ])
-        ctx.run.callbacks.begin(ctx)
-
-
-class EndHandler(Handler):
-
-    def __init__(self):
-        super().__init__()
-    
-    @InvocationDebug('EndHandler')
-    def handle(self, ctx: Context):
-        # context check
-        ctx.ctx_check([
-            'run.callbacks'
-        ])
-        ctx.run.callbacks.end(ctx)
-
-
-class StepBeginHandler(Handler):
-
-    def __init__(self):
-        super().__init__()
-    
-    @InvocationDebug('StepBeginHandler')
-    def handle(self, ctx: Context):
-        # context check
-        ctx.ctx_check([
-            'run.callbacks'
-        ])
-        ctx.run.callbacks.step_begin(ctx)
-
-
-class StepEndHandler(Handler):
-
-    def __init__(self):
-        super().__init__()
-    
-    @InvocationDebug('StepEndHandler')
-    def handle(self, ctx: Context):
-        # context check
-        ctx.ctx_check([
-            'run.callbacks'
-        ])
-        ctx.run.callbacks.step_end(ctx)
-
-
-class EpochBeginHandler(Handler):
-
-    def __init__(self):
-        super().__init__()
-    
-    @InvocationDebug('EpochBeginHandler')
-    def handle(self, ctx: Context):
-        # context check
-        ctx.ctx_check([
-            'run.callbacks'
-        ])
-        ctx.run.callbacks.epoch_begin(ctx)
-
-
-class EpochEndHandler(Handler):
-
-    def __init__(self):
-        super().__init__()
-    
-    @InvocationDebug('EpochEndHandler')
-    def handle(self, ctx: Context):
-        # context check
-        ctx.ctx_check([
-            'run.callbacks'
-        ])
-        ctx.run.callbacks.epoch_end(ctx)
+        ctx.run.callbacks._exec_hook(self._hook, ctx)

@@ -1,7 +1,6 @@
 # TODO: refactor the util package
-from typing import Dict, Union, Tuple, Sequence
+from typing import Dict, Union, Tuple, Sequence, MutableSequence, Generic, TypeVar
 from collections.abc import Iterator, Iterable
-from torchslime.util.type import T_M_SEQ, T_M
 from torch import Tensor
 from torch.nn import Module
 import threading
@@ -283,9 +282,9 @@ class BaseList(list):
 
     def __init__(self, list_like: Iterable=None):
         if is_none_or_nothing(list_like):
-            super().__init__()
+            self.__list = []
         else:
-            super().__init__(list_like if isinstance(list_like, Iterable) else [list_like])
+            self.__list = list(list_like) if isinstance(list_like, Iterable) else [list_like]
 
     @classmethod
     def create(cls, list_like: Iterable=None):
@@ -322,6 +321,87 @@ class BaseList(list):
             return list_like
         else:
             return cls(list_like)
+
+    """
+    List operation adapter.
+    """
+    def append(self, __object) -> None:
+        return self.__list.append(__object)
+    
+    def clear(self) -> None:
+        return self.__list.clear()
+    
+    def copy(self):
+        return self.__list.copy()
+    
+    def count(self, __value) -> int:
+        return self.__list.count(__value)
+    
+    def extend(self, __iterable: Iterable) -> None:
+        return self.__list.extend(__iterable)
+    
+    def index(self, __value, __start=..., __stop=...) -> int:
+        return self.__list.index(__value, __start, __stop)
+    
+    def insert(self, __index, __object) -> None:
+        return self.__list.insert(__index, __object)
+    
+    def pop(self, __index=...):
+        return self.__list.pop(__index)
+    
+    def remove(self, __value) -> None:
+        return self.__list.remove(__value)
+    
+    def reverse(self) -> None:
+        return self.__list.reverse()
+    
+    def __setitem__(self, __i_s, __o):
+        return self.__list.__setitem__(__i_s, __o)
+    
+    def __getitem__(self, __i_s):
+        return self.__list.__getitem__(__i_s)
+
+    def __contains__(self, __o: object) -> bool:
+        return self.__list.__contains__(__o)
+
+    def __len__(self) -> int:
+        return self.__list.__len__()
+    
+    def __delitem__(self, __i) -> None:
+        return self.__list.__delitem__(__i)
+    
+    def __iadd__(self, __x: Iterable):
+        return self.__list.__iadd__(__x)
+    
+    def __imul__(self, __n):
+        return self.__list.__imul__(__n)
+    
+    def __iter__(self) -> Iterator:
+        return self.__list.__iter__()
+    
+    def __iadd__(self, __x: Iterable):
+        return self.__list.__iadd__(__x)
+    
+    def __add__(self, __x: list) -> list:
+        return self.__list.__add__(__x)
+    
+    def __reversed__(self) -> Iterator:
+        return self.__list.__reversed__()
+
+    def __mul__(self, __n) -> list:
+        return self.__list.__mul__(__n)
+
+    def __rmul__(self, __n):
+        return self.__list.__rmul__(__n)
+    
+    def __reduce__(self):
+        return self.__list.__reduce__()
+    
+    def __reduce_ex__(self, __protocol: int):
+        return self.__list.__reduce_ex__(__protocol)
+
+
+from torchslime.util.type import T_M_SEQ, T_M
 
 
 def get_device(obj: T_M):

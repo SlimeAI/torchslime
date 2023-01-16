@@ -199,12 +199,7 @@ class HandlerContext(TempContext):
         self.Dataset = handler.DatasetHandler
         self.Status = handler.StatusHandler
         self.LRDecay = handler.LRDecayHandler
-        self.Begin = handler.BeginHandler
-        self.End = handler.EndHandler
-        self.StepBegin = handler.StepBeginHandler
-        self.StepEnd = handler.StepEndHandler
-        self.EpochBegin = handler.EpochBeginHandler
-        self.EpochEnd = handler.EpochEndHandler
+        self.Callback = handler.CallbackHandler
 
 
 class DistributedHandlerContext(HandlerContext):
@@ -217,6 +212,9 @@ class DistributedHandlerContext(HandlerContext):
 
         from torchslime.core import handler
         self.MetricsGather = handler.MetricsGatherHandler
+        self.DistributedDisplay = handler.DistributedDisplayHandler
+        self.DistributedEpochIteration = handler.DistributedEpochIterationHandler
+        self.DistributedIteration = handler.DistributedIterationHandler
 
 
 class CustomContext(TempContext):

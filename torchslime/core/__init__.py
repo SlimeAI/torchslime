@@ -109,11 +109,11 @@ class Proxy(Context):
         # build training process using handlers
         self.run.train = handler.Container([
             # begin callback
-            handler.Begin(),
+            handler.Callback('begin'),
             # epoch iter
             handler.EpochIteration([
                 # epoch begin callback
-                handler.EpochBegin(),
+                handler.Callback('epoch_begin'),
                 # set status to 'train'
                 handler.Status('train'),
                 # get dataset
@@ -123,7 +123,7 @@ class Proxy(Context):
                 # dataset iter
                 handler.Iteration([
                     # step begin callback
-                    handler.StepBegin(),
+                    handler.Callback('step_begin'),
                     # forward
                     handler.Forward(),
                     # compute loss
@@ -139,7 +139,7 @@ class Proxy(Context):
                     # display in console or in log files
                     handler.Display(),
                     # step end callback
-                    handler.StepEnd()
+                    handler.Callback('step_end')
                 ]),
                 # apply learning rate decay
                 handler.LRDecay(),
@@ -163,10 +163,10 @@ class Proxy(Context):
                     handler.Display()
                 ]),
                 # epoch end callback
-                handler.EpochEnd()
+                handler.Callback('epoch_end')
             ]),
             # end callback
-            handler.End()
+            handler.Callback('end')
         ])
 
     @InvocationDebug('Proxy.PredictBuilder')
@@ -177,7 +177,7 @@ class Proxy(Context):
         # build predicting process using handlers
         self.run.predict = handler.Container([
             # begin callback
-            handler.Begin(),
+            handler.Callback('begin'),
             # set status to 'predict'
             handler.Status('predict'),
             # get dataset
@@ -185,16 +185,16 @@ class Proxy(Context):
             # dataset iteration
             handler.Iteration([
                 # step begin callback
-                handler.StepBegin(),
+                handler.Callback('step_begin'),
                 # forward
                 handler.Forward(),
                 # display
                 handler.Display(),
                 # step end callback
-                handler.StepEnd()
+                handler.Callback('step_end')
             ]),
             # end callback
-            handler.End()
+            handler.Callback('end')
         ])
 
     @InvocationDebug('Proxy.EvalBuilder')
@@ -205,7 +205,7 @@ class Proxy(Context):
         # build evaluating process using handlers
         self.run.eval = handler.Container([
             # begin callback
-            handler.Begin(),
+            handler.Callback('begin'),
             # set status to 'eval'
             handler.Status('eval'),
             # get dataset
@@ -215,7 +215,7 @@ class Proxy(Context):
             # dataset iteration
             handler.Iteration([
                 # step begin callback
-                handler.StepBegin(),
+                handler.Callback('step_begin'),
                 # forward
                 handler.Forward(),
                 # compute loss
@@ -227,10 +227,10 @@ class Proxy(Context):
                 # display
                 handler.Display(),
                 # step end callback
-                handler.StepEnd()
+                handler.Callback('step_end')
             ]),
             # end callback
-            handler.End()
+            handler.Callback('end')
         ])
 
     @InvocationDebug('Proxy.compile_loss')
