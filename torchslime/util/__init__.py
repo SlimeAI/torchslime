@@ -278,16 +278,16 @@ class Count:
         return tmp
 
 
-class BaseList(list):
+class BaseList:
 
-    def __init__(self, list_like: Iterable=None):
+    def __init__(self, list_like: Iterable = None):
         if is_none_or_nothing(list_like):
             self.__list = []
         else:
             self.__list = list(list_like) if isinstance(list_like, Iterable) else [list_like]
 
     @classmethod
-    def create(cls, list_like: Iterable=None):
+    def create(cls, list_like: Iterable = None):
         """
         If the list_like object is None or NOTHING, then return itself, otherwise return BaseList object.
 
@@ -303,7 +303,7 @@ class BaseList(list):
             return cls(list_like)
 
     @classmethod
-    def create_nothing(cls, list_like: Iterable=None):
+    def create_nothing(cls, list_like: Iterable = None):
         """
         Only when the list_like object is NOTHING is itself returned.
         """
@@ -313,7 +313,7 @@ class BaseList(list):
             return cls(list_like)
 
     @classmethod
-    def create_none(cls, list_like: Iterable=None):
+    def create_none(cls, list_like: Iterable = None):
         """
         Only when the list_like object is None is itself returned.
         """
@@ -379,9 +379,6 @@ class BaseList(list):
     def __iter__(self) -> Iterator:
         return self.__list.__iter__()
     
-    def __iadd__(self, __x: Iterable):
-        return self.__list.__iadd__(__x)
-    
     def __add__(self, __x: list) -> list:
         return self.__list.__add__(__x)
     
@@ -399,6 +396,27 @@ class BaseList(list):
     
     def __reduce_ex__(self, __protocol: int):
         return self.__list.__reduce_ex__(__protocol)
+
+
+class BaseDict(dict):
+
+    def __init__(self, _dict: Union[Dict, None, Nothing]):
+        self.__dict = _dict if isinstance(_dict, (dict, Dict)) else {}
+
+    def __contains__(self, __o: object) -> bool:
+        return self.__dict.__contains__(__o)
+
+
+class TorchComm:
+
+    def __init__(self) -> None:
+        pass
+
+    def gather(self):
+        pass
+    
+    def all_gather(self):
+        pass
 
 
 from torchslime.util.type import T_M_SEQ, T_M

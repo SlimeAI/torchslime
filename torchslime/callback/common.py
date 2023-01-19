@@ -130,12 +130,12 @@ class SaveMetrics(Callback):
         for key in save_options:
             if key == 'train':
                 item.update(**ctx.epoch.train_metrics)
-                if is_nothing(ctx.epoch.train_loss) is False:
-                    item.update(loss=ctx.epoch.train_loss)
+                if is_nothing(ctx.epoch.train_loss_value) is False:
+                    item.update(loss=ctx.epoch.train_loss_value)
             elif key == 'eval':
                 item.update(**ctx.epoch.eval_metrics)
-                if is_nothing(ctx.epoch.eval_loss) is False:
-                    item.update(val_loss=ctx.epoch.eval_loss)
+                if is_nothing(ctx.epoch.eval_loss_value) is False:
+                    item.update(val_loss=ctx.epoch.eval_loss_value)
         return item
 
     def append_list(self, item):

@@ -1,11 +1,11 @@
 from abc import abstractmethod
 from typing import Union, Dict, Sequence
 from torchslime.util.type import NUMBER, NUMBER_T
-from torchslime.util import Count, Nothing, is_nothing, dict_merge, NOTHING, BaseList
+from torchslime.util import Count, Nothing, is_nothing, dict_merge, NOTHING, BaseList, BaseDict
 from torchslime.core.context import Context
 
 
-class Metric():
+class Metric:
 
     count = Count()
     def __init__(self, name: str = None):
@@ -46,3 +46,14 @@ class MetricContainer(Metric, BaseList):
                 # TODO: change the dict merge operation
                 result = dict_merge(result, _res)
         return result
+
+
+class LossParser:
+
+    class LossWrapper(BaseDict):
+
+        pass
+
+    def get(self, loss):
+        pass
+

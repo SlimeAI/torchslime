@@ -276,12 +276,12 @@ class MetricsHandler(Handler):
             ctx.step.metrics = ctx.run.metrics(ctx)
 
 
-class MetricsGatherHandler(Handler):
+class GatherAverageHandler(Handler):
 
     def __init__(self):
         super().__init__()
     
-    @InvocationDebug('MetricsGatherHandler')
+    @InvocationDebug('GatherAverageHandler')
     def handle(self, ctx: Context):
         return super().handle(ctx)
 

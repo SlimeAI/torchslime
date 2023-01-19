@@ -297,19 +297,19 @@ class DistributedProxy(Proxy):
 
     def __init__(self, model, device=None, exec_ranks: INT_SEQ_N = 0):
         super().__init__(model, device)
-        self.set_distributed_context()
         self.distributed.exec_ranks = BaseList.create_nothing(exec_ranks)
 
     def set_exec_ranks(self, exec_ranks: INT_SEQ_N):
         # TODO: duck typing check?
         pass
 
-    def set_distributed_context(self):
-        from torchslime.core.context import DistributedContext, DistributedHandlerContext
-        self.distributed: DistributedContext = DistributedContext()
-        self.handler: DistributedHandlerContext = DistributedHandlerContext()
+    def is_distributed_context(self) -> bool:
+        """
+        Distributed Proxy belongs to distributed context.
+        """
+        return True
 
-    def check_distributed_ready(self):
+    def is_distributed_ready(self):
         """
         Check whether the torch distributed settings are ready.
         """
@@ -327,7 +327,76 @@ class DistributedProxy(Proxy):
     @InvocationDebug('DistributedProxy.TrainBuilder')
     @MethodChaining
     def build_train(self) -> DIST_T:
-        pass
+        # get handler classes from context
+        handler = self.handler
+        # build distributed training process using handlers
+        self.run.train = handler.DistributedContainer([
+            # begin callback
+            handler.Callback('begin'),
+            # epoch iter
+            handler.DistributedEpochIteration([
+                # epoch begin callback
+                handler.Callback('epoch_begin'),
+                # set status to 'train'
+                handler.Status('train'),
+                # get dataset
+                handler.Dataset(),
+                # clear average metrics
+                handler.Average('clear'),
+                # dataset iter
+                handler.DistributedIteration([
+                    # step begin callback
+                    handler.Callback('step_begin'),
+                    # forward
+                    handler.Forward(),
+                    # compute loss
+                    handler.Loss(),
+                    # backward and optimizer step
+                    handler.Optimizer([
+                        handler.Backward()
+                    ]),
+                    # compute metrics
+                    handler.Metrics(),
+                    # gather loss and metrics
+                    handler.GatherAverage(),
+                    # compute average metrics
+                    handler.Average('avg'),
+                    # display in console or in log files
+                    handler.DistributedDisplay(),
+                    # step end callback
+                    handler.Callback('step_end')
+                ]),
+                # apply learning rate decay
+                handler.LRDecay(),
+                # set status to 'val'
+                handler.Status('val'),
+                # get dataset
+                handler.Dataset(),
+                # clear average metrics
+                handler.Average('clear'),
+                # dataset iter
+                handler.Iteration([
+                    # forward
+                    handler.Forward(),
+                    # compute loss
+                    handler.Loss(),
+                    # metrics
+                    handler.Metrics(),
+                    # gather loss and metrics
+                    handler.GatherAverage(),
+                    # compute average metrics
+                    handler.Average('avg'),
+                    # display in console or in log files
+                    handler.DistributedDisplay()
+                ]),
+                # epoch end callback
+                handler.Callback('epoch_end')
+            ]),
+            # end callback
+            handler.Callback('end')
+        ])
+        # set exec ranks
+        self.run.train.set_exec_ranks(self.distributed.exec_ranks)
 
     @InvocationDebug('DistributedProxy.PredictBuilder')
     @MethodChaining

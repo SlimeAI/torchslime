@@ -1,4 +1,4 @@
-from torchslime.util import Base, NOTHING, BaseList
+from torchslime.util import Base, NOTHING, BaseList, Nothing, TorchComm
 from torch.nn import Module
 from torch import device
 from torch.optim.optimizer import Optimizer
@@ -36,13 +36,17 @@ class Context(Base):
         # information in one step
         self.step: StepContext = StepContext()
         # handler context
-        self.handler: HandlerContext = HandlerContext()
+        self.handler: Union[HandlerContext, DistributedHandlerContext] = \
+            DistributedHandlerContext() if self.is_distributed_context() is True else HandlerContext()
         # custom context
         self.custom: CustomContext = CustomContext()
         # inner context
         self.inner: InnerContext = InnerContext()
         # build context
         self.build: BuildContext = BuildContext()
+        # distributed context. If and only if self.is_distributed_context() is True is the variable set.
+        self.distributed: Union[Nothing, DistributedContext] = \
+            DistributedContext() if self.is_distributed_context() is True else NOTHING
 
     def ctx_check(self, items: Union[str, Sequence[str]], silent: bool = True):
         # check single item
@@ -65,6 +69,12 @@ class Context(Base):
         else:
             # single value
             return _check(str(items))
+    
+    def is_distributed_context(self) -> bool:
+        """
+        Whether distributed features are used in TorchSlime.
+        """
+        return False
 
 
 class TempContext(Base):
@@ -100,8 +110,10 @@ class StepContext(TempContext):
         self.y_true: Any = NOTHING
         # metrics of the step
         self.metrics: Dict = NOTHING
-        # loss of the step
+        # loss tensor(s) of the step
         self.loss = NOTHING
+        # loss value(s) of the step
+        self.loss_value = NOTHING
         # extra data passed to the context
         self.extra: Any = NOTHING
         # current iteration step
@@ -133,10 +145,10 @@ class EpochContext(TempContext):
         self.train_metrics: Dict = NOTHING
         # average eval metrics in one epoch
         self.eval_metrics: Dict = NOTHING
-        # average train loss in one epoch
-        self.train_loss = NOTHING
-        # average eval loss in one epoch
-        self.eval_loss = NOTHING
+        # average train loss value(s) in one epoch
+        self.train_loss_value = NOTHING
+        # average eval loss value(s) in one epoch
+        self.eval_loss_value = NOTHING
 
 
 class RunContext(TempContext):
@@ -177,6 +189,16 @@ class RunContext(TempContext):
         self.metrics: MetricContainer = NOTHING
 
 
+class GlobalContext(TempContext):
+    # TODO: rename
+
+    def __init__(self):
+        super().__init__()
+    
+    def initialize(self):
+        pass
+
+
 class HandlerContext(TempContext):
 
     def __init__(self):
@@ -211,10 +233,11 @@ class DistributedHandlerContext(HandlerContext):
         super().initialize()
 
         from torchslime.core import handler
-        self.MetricsGather = handler.MetricsGatherHandler
+        self.GatherAverage = handler.GatherAverageHandler
         self.DistributedDisplay = handler.DistributedDisplayHandler
         self.DistributedEpochIteration = handler.DistributedEpochIterationHandler
         self.DistributedIteration = handler.DistributedIterationHandler
+        self.DistributedContainer = handler.DistributedHandlerContainer
 
 
 class CustomContext(TempContext):
@@ -255,3 +278,4 @@ class DistributedContext(TempContext):
     
     def initialize(self):
         self.exec_ranks: BaseList = BaseList(0)
+        self.torch_comm: TorchComm = TorchComm()

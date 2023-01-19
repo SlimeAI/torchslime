@@ -63,8 +63,8 @@ class TrainStatus(Status):
 
     def get_avg_loss_and_metrics(self, ctx: Context) -> list:
         data = []
-        if is_nothing(ctx.epoch.train_loss) is False:
-            data.append('loss: {0:.5f}'.format(ctx.epoch.train_loss))
+        if is_nothing(ctx.epoch.train_loss_value) is False:
+            data.append('loss: {0:.5f}'.format(ctx.epoch.train_loss_value))
         for key, value in ctx.epoch.train_metrics.items():
             data.append('{0}: {1:.5f}'.format(key, value))
         return data
@@ -75,7 +75,7 @@ class TrainStatus(Status):
             ctx.inner[INNER_KEY]['train'] = self._get_avg_inner_init_item()
     
     def set_avg_loss_and_metrics(self, ctx: Context, loss, metrics):
-        ctx.epoch.train_loss = loss
+        ctx.epoch.train_loss_value = loss
         ctx.epoch.train_metrics = metrics
 
     def get_avg_inner_ctx(self, ctx: Context, INNER_KEY):
@@ -85,7 +85,7 @@ class TrainStatus(Status):
         super().clear_avg_info(ctx, INNER_KEY)
         ctx.inner[INNER_KEY]['train'] = self._get_avg_inner_init_item()
         ctx.epoch.train_metrics = NOTHING
-        ctx.epoch.train_loss = NOTHING
+        ctx.epoch.train_loss_value = NOTHING
 
     def __str__(self) -> str:
         return 'TRAIN'
@@ -106,8 +106,8 @@ class EvalStatus(Status):
 
     def get_avg_loss_and_metrics(self, ctx: Context):
         data = []
-        if is_nothing(ctx.epoch.eval_loss) is False:
-            data.append('loss: {0:.5f}'.format(ctx.epoch.eval_loss))
+        if is_nothing(ctx.epoch.eval_loss_value) is False:
+            data.append('loss: {0:.5f}'.format(ctx.epoch.eval_loss_value))
         for key, value in ctx.epoch.eval_metrics.items():
             data.append('{0}: {1:.5f}'.format(key, value))
         return data
@@ -118,7 +118,7 @@ class EvalStatus(Status):
             ctx.inner[INNER_KEY]['eval'] = self._get_avg_inner_init_item()
 
     def set_avg_loss_and_metrics(self, ctx: Context, loss, metrics):
-        ctx.epoch.eval_loss = loss
+        ctx.epoch.eval_loss_value = loss
         ctx.epoch.eval_metrics = metrics
     
     def get_avg_inner_ctx(self, ctx: Context, INNER_KEY):
@@ -128,7 +128,7 @@ class EvalStatus(Status):
         super().clear_avg_info(ctx, INNER_KEY)
         ctx.inner[INNER_KEY]['eval'] = self._get_avg_inner_init_item()
         ctx.epoch.eval_metrics = NOTHING
-        ctx.epoch.eval_loss = NOTHING
+        ctx.epoch.eval_loss_value = NOTHING
 
     def __str__(self) -> str:
         return 'EVAL'
@@ -141,7 +141,7 @@ class ValStatus(EvalStatus):
         super().__init__()
 
     def set_avg_loss_and_metrics(self, ctx: Context, loss, metrics):
-        ctx.epoch.eval_loss = loss
+        ctx.epoch.eval_loss_value = loss
         _metrics = {}
         for key, value in metrics.items():
             _metrics['val_{0}'.format(key)] = value
@@ -149,8 +149,8 @@ class ValStatus(EvalStatus):
 
     def get_avg_loss_and_metrics(self, ctx: Context):
         data = []
-        if is_nothing(ctx.epoch.eval_loss) is False:
-            data.append('val_loss: {0:.5f}'.format(ctx.epoch.eval_loss))
+        if is_nothing(ctx.epoch.eval_loss_value) is False:
+            data.append('val_loss: {0:.5f}'.format(ctx.epoch.eval_loss_value))
         for key, value in ctx.epoch.eval_metrics.items():
             data.append('{0}: {1:.5f}'.format(key, value))
         return data
