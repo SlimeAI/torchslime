@@ -1,5 +1,4 @@
-from torchslime.core import Proxy
-from torchslime.core.context import Context
+from torchslime.core import Context
 
 
 __version__ = '0.1.0'

@@ -2,7 +2,7 @@ import os
 
 from torchslime.util import is_nothing
 from torchslime.callback import Callback, DistributedCallbackWrapper
-from torchslime.core.context import Context
+from torchslime.core.context import BaseContext
 from torchslime.log.directory import get_checkpoint_path, join_path, get_metric_path, safe_makedirs
 from torchslime.log import logger
 from torchslime.util.type import INT_SEQ_N
@@ -18,7 +18,7 @@ class SaveCheckpoint(Callback):
     def __init__(
         self,
         save_per: EPOCH_SEQ,
-        checkpoint_name: Union[str, Callable[[Context], str]]=None,
+        checkpoint_name: Union[str, Callable[[BaseContext], str]]=None,
         save_model: bool = True,
         save_optimizer: bool = False,
         save_epoch: bool = False
@@ -43,7 +43,7 @@ class SaveCheckpoint(Callback):
         self.save_options = list(map(lambda item: item[0], filter(lambda item: item[1] is True, self.save_options)))
         assert len(self.save_options) > 0, 'You should choose at least one item to be saved when using the "SaveCheckpoint" Callback.'
     
-    def epoch_end(self, ctx: Context):
+    def epoch_end(self, ctx: BaseContext):
         if (isinstance(self.save_per, (list, tuple)) and (ctx.epoch.current + 1) in self.save_per)\
             or (ctx.epoch.current + 1) % self.save_per == 0:
             if len(self.save_options) > 1:
@@ -59,7 +59,7 @@ class SaveCheckpoint(Callback):
                 checkpoint_name = 'checkpoint_{0}.pth'.format(ctx.epoch.current + 1)
             torch.save(item, join_path(self.checkpoint_path, checkpoint_name))
 
-    def save_dict(self, ctx: Context, save_options):
+    def save_dict(self, ctx: BaseContext, save_options):
         item = {}
         for key in save_options:
             if key == 'model':
@@ -70,7 +70,7 @@ class SaveCheckpoint(Callback):
                 item['epoch'] = self.save_single(ctx, key)
         return item
     
-    def save_single(self, ctx: Context, key):
+    def save_single(self, ctx: BaseContext, key):
         if key == 'model':
             return ctx.model.state_dict()
         elif key == 'optimizer':
@@ -84,7 +84,7 @@ class DistributedSaveCheckpoint(DistributedCallbackWrapper):
     def __init__(
         self,
         save_per: EPOCH_SEQ,
-        checkpoint_name: Union[str, Callable[[Context], str]]=None,
+        checkpoint_name: Union[str, Callable[[BaseContext], str]]=None,
         save_model: bool = True,
         save_optimizer: bool = False,
         save_epoch: bool = False,
@@ -118,14 +118,14 @@ class SaveMetrics(Callback):
         self.save_options = list(map(lambda item: item[0], filter(lambda item: item[1] is True, self.save_options)))
         assert len(self.save_options) > 0, 'You should choose at least one item to be saved when using the "SaveMetrics" Callback.'
 
-    def epoch_end(self, ctx: Context):
+    def epoch_end(self, ctx: BaseContext):
         if (isinstance(self.save_per, (list, tuple)) and (ctx.epoch.current + 1) in self.save_per)\
             or (ctx.epoch.current + 1) % self.save_per == 0:
             list_len = self.append_list(self.parse(ctx, self.save_options))
             if list_len > ctx.epoch.current + 1:
                 logger.warn('The length of metric list is greater than number of epochs that have been executed, possibly there are some other items included in the list.')
 
-    def parse(self, ctx: Context, save_options):
+    def parse(self, ctx: BaseContext, save_options):
         item = {}
         for key in save_options:
             if key == 'train':

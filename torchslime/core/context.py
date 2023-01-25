@@ -1,17 +1,17 @@
 from torchslime.util import Base, NOTHING, BaseList, Nothing, TorchComm
 from torch.nn import Module
-from torch import device
+from torch import device, Tensor
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 from torchslime.util.type import NUMBER
-from typing import Any, Sequence, Union, Dict, Tuple
+from typing import Any, Sequence, Union, Dict, Tuple, Callable
 from torchslime.log import logger
 from abc import abstractmethod
 
 
-class Context(Base):
+class BaseContext(Base):
     """
-    Context in the whole life time.
+    Base Context in the whole life time.
     """
 
     def __init__(self):
@@ -44,14 +44,11 @@ class Context(Base):
         self.inner: InnerContext = InnerContext()
         # build context
         self.build: BuildContext = BuildContext()
-        # distributed context. If and only if self.is_distributed_context() is True is the variable set.
-        self.distributed: Union[Nothing, DistributedContext] = \
-            DistributedContext() if self.is_distributed_context() is True else NOTHING
 
     def ctx_check(self, items: Union[str, Sequence[str]], silent: bool = True):
         # check single item
         def _check(_item):
-            _result = super(Context, self).check(_item)
+            _result = super(BaseContext, self).check(_item)
             if _result is False:
                 msg = 'Context check failed: got NOTHING with key \'%s\'.' % _item
                 if silent is True:
@@ -111,9 +108,9 @@ class StepContext(TempContext):
         # metrics of the step
         self.metrics: Dict = NOTHING
         # loss tensor(s) of the step
-        self.loss = NOTHING
+        self.loss: Union[Tensor, Dict[Any, Tensor], Nothing] = NOTHING
         # loss value(s) of the step
-        self.loss_value = NOTHING
+        self.loss_value: Union[float, Dict[Any, float], Nothing] = NOTHING
         # extra data passed to the context
         self.extra: Any = NOTHING
         # current iteration step
@@ -146,9 +143,9 @@ class EpochContext(TempContext):
         # average eval metrics in one epoch
         self.eval_metrics: Dict = NOTHING
         # average train loss value(s) in one epoch
-        self.train_loss_value = NOTHING
+        self.train_loss_value: Union[float, Dict[Any, float], Nothing] = NOTHING
         # average eval loss value(s) in one epoch
-        self.eval_loss_value = NOTHING
+        self.eval_loss_value: Union[float, Dict[Any, float], Nothing] = NOTHING
 
 
 class RunContext(TempContext):
@@ -166,7 +163,7 @@ class RunContext(TempContext):
         # optimizer
         self.optimizer: Optimizer = NOTHING
         # loss_func
-        self.loss: Module = NOTHING
+        self.loss_func: Module = NOTHING
         # gradient accumulation
         self.grad_acc: int = 1
         # learning rate
@@ -187,6 +184,12 @@ class RunContext(TempContext):
         # metric container
         from torchslime.metric import MetricContainer
         self.metrics: MetricContainer = NOTHING
+        # loss parser
+        from torchslime.metric import LossParser
+        self.loss_parser = LossParser()
+        # loss reduction func
+        from torchslime.metric import LossReductionFactory
+        self.loss_reduction: Callable[[BaseContext], Tensor] = LossReductionFactory.get('mean')
 
 
 class GlobalContext(TempContext):
@@ -271,7 +274,7 @@ class BuildContext(TempContext):
         self.lr_decay_mode = 'epoch'
 
 
-class DistributedContext(TempContext):
+class DistributedConfigContext(TempContext):
 
     def __init__(self):
         super().__init__()

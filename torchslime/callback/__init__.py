@@ -1,4 +1,4 @@
-from torchslime.core.context import Context
+from torchslime.core.context import BaseContext
 from torchslime.util import BaseList, is_nothing, NOTHING
 from torchslime.util.type import INT_SEQ_N
 from typing import Union, Sequence
@@ -12,25 +12,25 @@ class Callback:
     def __init__(self):
         super().__init__()
 
-    def begin(self, ctx: Context):
+    def begin(self, ctx: BaseContext):
         pass
 
-    def end(self, ctx: Context):
+    def end(self, ctx: BaseContext):
         pass
 
-    def step_begin(self, ctx: Context):
+    def step_begin(self, ctx: BaseContext):
         pass
     
-    def step_end(self, ctx: Context):
+    def step_end(self, ctx: BaseContext):
         pass
 
-    def epoch_begin(self, ctx: Context):
+    def epoch_begin(self, ctx: BaseContext):
         pass
 
-    def epoch_end(self, ctx: Context):
+    def epoch_end(self, ctx: BaseContext):
         pass
 
-    def _exec_hook(self, _hook: str, ctx: Context):
+    def _exec_hook(self, _hook: str, ctx: BaseContext):
         """
         Used to dispatch callback hooks.
         """
@@ -50,27 +50,27 @@ class CallbackContainer(Callback, BaseList):
         Callback.__init__(self)
         BaseList.__init__(self, callbacks)
 
-    def begin(self, ctx: Context):
+    def begin(self, ctx: BaseContext):
         for callback in self:
             callback._exec_hook('begin', ctx)
     
-    def end(self, ctx: Context):
+    def end(self, ctx: BaseContext):
         for callback in self:
             callback._exec_hook('end', ctx)
     
-    def step_begin(self, ctx: Context):
+    def step_begin(self, ctx: BaseContext):
         for callback in self:
             callback._exec_hook('step_begin', ctx)
     
-    def step_end(self, ctx: Context):
+    def step_end(self, ctx: BaseContext):
         for callback in self:
             callback._exec_hook('step_end', ctx)
     
-    def epoch_begin(self, ctx: Context):
+    def epoch_begin(self, ctx: BaseContext):
         for callback in self:
             callback._exec_hook('epoch_begin', ctx)
     
-    def epoch_end(self, ctx: Context):
+    def epoch_end(self, ctx: BaseContext):
         for callback in self:
             callback._exec_hook('epoch_end', ctx)
 
@@ -89,7 +89,7 @@ class DistributedCallback(Callback):
             # the exec_ranks are changeable
             self.exec_ranks = BaseList.create(exec_ranks)
 
-    def _exec_hook(self, _hook: str, ctx: Context):
+    def _exec_hook(self, _hook: str, ctx: BaseContext):
         rank = ctx.get_rank()
         if self.exec_ranks is not None and \
             (is_nothing(self.exec_ranks) or rank in self.exec_ranks):
@@ -105,22 +105,22 @@ class DistributedCallbackWrapper(DistributedCallback):
         super().__init__(exec_ranks)
         self._wrapped_callback = wrapped_callback
     
-    def begin(self, ctx: Context):
+    def begin(self, ctx: BaseContext):
         self._wrapped_callback._exec_hook('begin', ctx)
     
-    def end(self, ctx: Context):
+    def end(self, ctx: BaseContext):
         self._wrapped_callback._exec_hook('end', ctx)
     
-    def step_begin(self, ctx: Context):
+    def step_begin(self, ctx: BaseContext):
         self._wrapped_callback._exec_hook('step_begin', ctx)
     
-    def step_end(self, ctx: Context):
+    def step_end(self, ctx: BaseContext):
         self._wrapped_callback._exec_hook('step_end', ctx)
     
-    def epoch_begin(self, ctx: Context):
+    def epoch_begin(self, ctx: BaseContext):
         self._wrapped_callback._exec_hook('epoch_begin', ctx)
     
-    def epoch_end(self, ctx: Context):
+    def epoch_end(self, ctx: BaseContext):
         self._wrapped_callback._exec_hook('epoch_end', ctx)
 
 
@@ -143,31 +143,31 @@ class DistributedCallbackContainer(CallbackContainer):
         for callback in filter(lambda item: isinstance(item, DISTRIBUTED_CLASSES), self):
             callback.set_exec_ranks(self.default_exec_ranks)
 
-    def begin(self, ctx: Context):
+    def begin(self, ctx: BaseContext):
         for callback in self:
             callback._exec_hook('begin', ctx)
     
-    def end(self, ctx: Context):
+    def end(self, ctx: BaseContext):
         for callback in self:
             callback._exec_hook('end', ctx)
     
-    def step_begin(self, ctx: Context):
+    def step_begin(self, ctx: BaseContext):
         for callback in self:
             callback._exec_hook('step_begin', ctx)
     
-    def step_end(self, ctx: Context):
+    def step_end(self, ctx: BaseContext):
         for callback in self:
             callback._exec_hook('step_end', ctx)
     
-    def epoch_begin(self, ctx: Context):
+    def epoch_begin(self, ctx: BaseContext):
         for callback in self:
             callback._exec_hook('epoch_begin', ctx)
     
-    def epoch_end(self, ctx: Context):
+    def epoch_end(self, ctx: BaseContext):
         for callback in self:
             callback._exec_hook('epoch_end', ctx)
 
-    def _exec_hook(self, _hook: str, ctx: Context):
+    def _exec_hook(self, _hook: str, ctx: BaseContext):
         rank = ctx.get_rank()
         if self.exec_ranks is not None and \
             (is_nothing(self.exec_ranks) or rank in self.exec_ranks):
@@ -181,22 +181,22 @@ class DistributedCallbackContainerWrapper(DistributedCallbackContainer):
         self._wrapped_callback_container = wrapped_callback_container
         self._BaseList__list = wrapped_callback_container._BaseList__list
 
-    def begin(self, ctx: Context):
+    def begin(self, ctx: BaseContext):
         self._wrapped_callback_container._exec_hook('begin', ctx)
     
-    def end(self, ctx: Context):
+    def end(self, ctx: BaseContext):
         self._wrapped_callback_container._exec_hook('end', ctx)
     
-    def step_begin(self, ctx: Context):
+    def step_begin(self, ctx: BaseContext):
         self._wrapped_callback_container._exec_hook('step_begin', ctx)
     
-    def step_end(self, ctx: Context):
+    def step_end(self, ctx: BaseContext):
         self._wrapped_callback_container._exec_hook('step_end', ctx)
     
-    def epoch_begin(self, ctx: Context):
+    def epoch_begin(self, ctx: BaseContext):
         self._wrapped_callback_container._exec_hook('epoch_begin', ctx)
     
-    def epoch_end(self, ctx: Context):
+    def epoch_end(self, ctx: BaseContext):
         self._wrapped_callback_container._exec_hook('epoch_end', ctx)
 
 

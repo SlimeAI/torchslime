@@ -1,6 +1,6 @@
 # TODO: refactor the util package
-from typing import Dict, Union, Tuple, Sequence, MutableSequence, Generic, TypeVar
-from collections.abc import Iterator, Iterable
+from typing import Dict, Union, Tuple, Sequence, MutableSequence, Generic, TypeVar, \
+    overload, Iterator, Iterable
 from torch import Tensor
 from torch.nn import Module
 import threading
@@ -149,6 +149,9 @@ class Nothing:
 
     def __float__(self):
         return 0.0
+    
+    def __bool__(self) -> bool:
+        return False
 
 
 NOTHING = Nothing()
@@ -182,8 +185,8 @@ def dict_merge(dict1: Dict, dict2: Dict):
     return { **dict1, **dict2 }
 
 
-def safe_divide(dividend, divisor):
-    return dividend / divisor if divisor != 0 else 0
+def safe_divide(dividend, divisor, default=0):
+    return dividend / divisor if divisor != 0 else default
 
 
 class Base:
@@ -390,21 +393,94 @@ class BaseList:
 
     def __rmul__(self, __n):
         return self.__list.__rmul__(__n)
-    
-    def __reduce__(self):
-        return self.__list.__reduce__()
-    
-    def __reduce_ex__(self, __protocol: int):
-        return self.__list.__reduce_ex__(__protocol)
+
+    def __str__(self) -> str:
+        return self.__list.__str__()
+
+    def __repr__(self) -> str:
+        return self.__list.__repr__()
 
 
-class BaseDict(dict):
+class BaseDict:
 
     def __init__(self, _dict: Union[Dict, None, Nothing]):
         self.__dict = _dict if isinstance(_dict, (dict, Dict)) else {}
 
+    """
+    Dict operation adapter.
+    """
+    @overload
+    def setdefault(self, __key): pass
+    @overload
+    def setdefault(self, __key, __default): pass
+    @overload
+    def get(self, __key): pass
+    @overload
+    def get(self, __key, __default): pass
+    @overload
+    def pop(self, __key): pass
+    @overload
+    def pop(self, __key, __default): pass
+
+    def copy(self):
+        return self.__dict.copy()
+
+    def keys(self):
+        return self.__dict.keys()
+
+    def values(self):
+        return self.__dict.values()
+
+    def items(self):
+        return self.__dict.items()
+    
+    def clear(self):
+        return self.__dict.clear()
+
+    def update(self, *args, **kwargs):
+        return self.__dict.update(*args, **kwargs)
+    
+    def setdefault(self, __key, __default=...):
+        if __default is ...:
+            return self.__dict.setdefault(__key)
+        else:
+            return self.__dict.setdefault(__key, __default)
+
+    def get(self, __key, __default=...):
+        if __default is ...:
+            return self.__dict.get(__key)
+        else:
+            return self.__dict.get(__key, __default)
+
+    def pop(self, __key, __default=...):
+        if __default is ...:
+            return self.__dict.pop(__key)
+        else:
+            return self.__dict.pop(__key, __default)
+
+    def __len__(self) -> int:
+        return self.__dict.__len__()
+    
+    def __getitem__(self, __key):
+        return self.__dict.__getitem__(__key)
+    
+    def __setitem__(self, __key, __value) -> None:
+        return self.__dict.__setitem__(__key, __value)
+    
+    def __delitem__(self, __key) -> None:
+        return self.__dict.__delitem__(__key)
+
+    def __iter__(self) -> Iterator:
+        return self.__dict.__iter__()
+
     def __contains__(self, __o: object) -> bool:
         return self.__dict.__contains__(__o)
+    
+    def __str__(self) -> str:
+        return self.__dict.__str__()
+    
+    def __repr__(self) -> str:
+        return self.__dict.__repr__()
 
 
 class TorchComm:
@@ -584,8 +660,9 @@ class IterTool(Iter):
 def count_params(model: Module, format: str = None, decimal: int = 2):
     format_dict = {
         None: 1,
-        'K': 1000,
-        'M': 1000000
+        'K': 1e3,
+        'M': 1e6,
+        'B': 1e9
     }
     divisor = format_dict.get(format, 1)
 

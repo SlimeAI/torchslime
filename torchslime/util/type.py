@@ -1,6 +1,6 @@
 """This python file defines common types that are used in the project.
 """
-from typing import Sequence, Union
+from typing import Sequence, Union, Callable
 from torch import Tensor
 from torch.nn import Module
 
@@ -15,6 +15,7 @@ NUMBER = Union[int, float]
 NUMBER_T = (int, float)
 # int or sequence of int
 INT_SEQ = Union[int, Sequence[int]]
-from torchslime.util import Nothing
+
 # int, sequence of int, None or NOTHING
+from torchslime.util import Nothing
 INT_SEQ_N = Union[INT_SEQ, None, Nothing]
