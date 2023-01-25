@@ -92,7 +92,7 @@ class LossReductionFactory:
         elif isinstance(item, (dict, Dict)):
             # weighted loss reduction
             return _weighted_loss_reduction(item)
-        elif inspect.isfunction(item):
+        elif inspect.isfunction(item) or inspect.ismethod(item):
             # user defined function
             return item
         else:
