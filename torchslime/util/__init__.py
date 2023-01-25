@@ -491,7 +491,25 @@ class TorchComm:
     def gather(self):
         pass
     
+    def gather_object(self):
+        pass
+
     def all_gather(self):
+        pass
+
+    def all_gather_object(self):
+        pass
+
+    def broadcast(self):
+        pass
+
+    def broadcast_object(self):
+        pass
+
+    def scatter(self):
+        pass
+
+    def scatter_object(self):
         pass
 
 

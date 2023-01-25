@@ -127,10 +127,12 @@ def _weighted_loss_reduction(weight: dict):
         # check keys intersection
         loss_keys = set(loss_dict.keys())
         weight_keys = set(_weight.keys())
-        result = 0 if len(loss_keys & weight_keys) > 0 else NOTHING
-        for key, value in _weight.items():
+        common_keys = loss_keys & weight_keys
+        # TODO: unused loss warning
+        result = 0 if len(common_keys) > 0 else NOTHING
+        for key in list(common_keys):
             if key in loss_dict:
-                result += value * loss_dict[key]
+                result += _weight[key] * loss_dict[key]
         if is_nothing(result):
             logger.warn('Weighted loss reduction got NOTHING. This may be caused by one of the following reasons:\n\
                 1. Values returned by the loss func contain NOTHING.\n\
