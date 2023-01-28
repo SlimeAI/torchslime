@@ -1,7 +1,7 @@
 from abc import abstractmethod
 from typing import Dict, Sequence, Union
 from torchslime.util import BaseList, IterTool, NOTHING, is_nothing, safe_divide, type_cast, \
-    InvocationDebug, SmartWrapper, terminal as Cursor
+    InvocationDebug, SmartWraps, terminal as Cursor
 from torchslime.util.formatter import progress_format, eta_format
 from torchslime.core.context import BaseContext
 from torchslime.core import DistributedContext
@@ -14,7 +14,7 @@ def TorchGrad(func):
     """
     Set grad enabled or not according to the context mode.
     """
-    @SmartWrapper(func)
+    @SmartWraps(func)
     def grad_switch(self, ctx: BaseContext):
         # only when context status is in ['TRAIN'] is the grad enabled
         with set_grad_enabled(str(ctx.status) in ['TRAIN']):
@@ -289,10 +289,14 @@ class GatherAverageHandler(Handler):
     
     @InvocationDebug('GatherAverageHandler')
     def handle(self, ctx: BaseContext):
-        return super().handle(ctx)
+        from torchslime.core import DistributedContext
+        ctx: DistributedContext = ctx
+        torch_comm = ctx.distributed.torch_comm
+        gathered_loss_values = torch_comm.all_gather_object(ctx.run.loss_parser(ctx.step.loss_value))
+        gathered_metrics = torch_comm.all_gather_object(ctx.step.metrics)
+        # TODO: implementation
 
 
-# TODO: implementation to be optimized
 class AverageHandler(Handler):
 
     # inner context key

@@ -96,17 +96,17 @@ class LossReductionFactory:
             # user defined function
             return item
         else:
-            raise NotImplementedError('Loss reduction type not supported. \
-                Use str, dict or (Context) -> Tensor function instead.')
+            raise NotImplementedError('Loss reduction type not supported. '
+                'Use str, dict or (Context) -> Tensor function instead.')
 
 
 def _mean_loss_reduction(ctx: BaseContext):
     loss_tensors = ctx.run.loss_parser.get(ctx.step.loss).values()
     result = safe_divide(sum(loss_tensors), len(loss_tensors), NOTHING)
     if is_nothing(result):
-        logger.warn('Mean loss reduction got NOTHING. This may be caused by one of the following reasons:\n\
-            1. Values returned by the loss func contain NOTHING.\n\
-            2. Length of loss values is 0.')
+        logger.warn('Mean loss reduction got NOTHING. This may be caused by one of the following reasons:\n'
+            '1. Values returned by the loss func contain NOTHING.\n'
+            '2. Length of loss values is 0.')
     return result
 
 
@@ -114,9 +114,9 @@ def _sum_loss_reduction(ctx: BaseContext):
     loss_tensors = ctx.run.loss_parser.get(ctx.step.loss).values()
     result = sum(loss_tensors) if len(loss_tensors) > 0 else NOTHING
     if is_nothing(result):
-        logger.warn('Sum loss reduction got NOTHING. This may be caused by one of the following reasons:\n\
-            1. Values returned by the loss func contain NOTHING.\n\
-            2. Length of loss values is 0.')
+        logger.warn('Sum loss reduction got NOTHING. This may be caused by one of the following reasons:\n'
+            '1. Values returned by the loss func contain NOTHING.\n'
+            '2. Length of loss values is 0.')
     return result
 
 
@@ -134,9 +134,9 @@ def _weighted_loss_reduction(weight: dict):
             if key in loss_dict:
                 result += _weight[key] * loss_dict[key]
         if is_nothing(result):
-            logger.warn('Weighted loss reduction got NOTHING. This may be caused by one of the following reasons:\n\
-                1. Values returned by the loss func contain NOTHING.\n\
-                2. Weight values contain NOTHING.\n\
-                3. There are no matched keys between loss keys and weight keys.')
+            logger.warn('Weighted loss reduction got NOTHING. This may be caused by one of the following reasons:\n'
+                '1. Values returned by the loss func contain NOTHING.\n'
+                '2. Weight values contain NOTHING.\n'
+                '3. There are no matched keys between loss keys and weight keys.')
         return result
     return _reduction

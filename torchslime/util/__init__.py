@@ -1,45 +1,90 @@
 # TODO: refactor the util package
 from typing import Dict, Union, Tuple, Sequence, MutableSequence, Generic, TypeVar, \
-    overload, Iterator, Iterable
+    overload, Iterator, Iterable, Any
 from torch import Tensor
+import torch
 from torch.nn import Module
 import threading
 from functools import wraps
 from time import time
 import traceback
 import inspect
+import pickle
+import io
+
+FUNC_WRAPPER = (staticmethod, classmethod)
 
 
-def SmartWrapper(cls):
+def SmartWraps(cls):
     """
     Smart wrapper that wraps functions and classes when using decorator.
-    It is smarter than functools.wraps, for it can recognize whether the decorated item is a class or a function and then applies
-    class wrapper or function wrapper respectively.
+    It is smarter than functools.wraps, for it can recognize whether the decorated item is a class or a
+    function and then applies class wrapper or function wrapper respectively.
     When it is used to a function, the result is the same as functools.wraps,
-    while when it is used to a class, you can get the original class by accessing the '_class' attribute,
+    while when it is used to a class, you can get the original class by accessing the '_wrapped_class' attribute,
     so you can use this feature to do other useful things, such as 'isinstance', etc.
+
+    WARNING: DO NOT use ``_wrapped_class`` or ``_wrapper_class`` as attribute name in the decorated class.
     """
     def decorator(func):
         if inspect.isclass(cls):
             class Wrapper:
                 def __init__(self, _class) -> None:
-                    self._class = _class
+                    super().__setattr__('_wrapped_class',
+                        # nested class decorator
+                        _class._wrapped_class if hasattr(_class, '_wrapped_class') else _class
+                    )
+                    super().__setattr__('_wrapper_class', self.__class__)
                 
                 def __call__(self, *args, **kwargs) -> None:
                     return func(*args, **kwargs)
                 
+                def __setattr__(self, __name: str, __value: Any) -> None:
+                    # Simultaneously set attributes to wrapper and wrapped class.
+                    setattr(self._wrapped_class, __name, __value)
+                    # staticmethod and classmethod bound
+                    if isinstance(__value, FUNC_WRAPPER):
+                        __value = __value.__get__(self._wrapped_class, self._wrapped_class)
+                    super().__setattr__(__name, __value)
+
                 def __repr__(self):
-                    return "Smart wrapper object: {}. (You can get the original decorated class by accessing the attribute '_class')".format(super().__repr__())
+                    return ('Smart wrapper object: {}. (You can get the original decorated '
+                        'class by accessing the attribute "_wrapped_class")').format(super().__repr__())
                 
                 def __str__(self):
-                    return "Smart wrapper object: {}. (You can get the original decorated class by accessing the attribute '_class')".format(super().__repr__())
-            return wraps(cls)(Wrapper(cls))
+                    return ('Smart wrapper object: {}. (You can get the original decorated '
+                        'class by accessing the attribute "_wrapped_class")').format(super().__repr__())
+            return _update_class_wrapper(cls)(Wrapper(cls))
         elif inspect.isfunction(cls) or inspect.ismethod(cls):
             @wraps(cls)
             def wrapper(*args, **kwargs):
                 return func(*args, **kwargs)
             return wrapper
     return decorator
+
+
+def _update_class_wrapper(wrapped):
+    WRAPPER_ASSIGNMENTS = ('__module__', '__name__', '__qualname__', '__doc__')
+    WRAPPER_UPDATES = ('__dict__',)
+
+    def _super_setattr(__wrapper, __name, __value):
+        super(__wrapper._wrapper_class, __wrapper).__setattr__(__name, __value)
+
+    def partial_func(wrapper):
+        for attr in WRAPPER_ASSIGNMENTS:
+            if hasattr(wrapped, attr):
+                _super_setattr(wrapper, attr, getattr(wrapped, attr))
+        for attr in WRAPPER_UPDATES:
+            if hasattr(wrapper, attr) is False:
+                _super_setattr(wrapper, attr, {})
+            for key, value in getattr(wrapped, attr, {}).items():
+                # staticmethod and classmethod bound
+                if isinstance(value, FUNC_WRAPPER):
+                    _super_setattr(wrapper, key, value.__get__(wrapper._wrapped_class, wrapper._wrapped_class))
+                else:
+                    getattr(wrapper, attr)[key] = value
+        return wrapper
+    return partial_func
 
 
 def Singleton(cls):
@@ -50,7 +95,7 @@ def Singleton(cls):
     _lock = threading.Lock()
     _instance = {}
     
-    @SmartWrapper(cls)
+    @SmartWraps(cls)
     def wrapper(*args, **kwargs):
         if cls not in _instance:
             with _lock:
@@ -71,7 +116,7 @@ def InvocationDebug(module_name):
         func (_type_): _description_
     """
     def decorator(func):
-        @wraps(func)
+        @SmartWraps(func)
         def wrapper(*args, **kwargs):
             logger.debug(module_name, 'begin.')
             result = func(*args, **kwargs)
@@ -292,13 +337,10 @@ class BaseList:
     @classmethod
     def create(cls, list_like: Iterable = None):
         """
-        If the list_like object is None or NOTHING, then return itself, otherwise return BaseList object.
+        If the ``list_like`` object is ``None`` or ``NOTHING``, then return itself, otherwise return ``BaseList`` object.
 
-        ***
-        WARNING:
-        This changes the default behavior of BaseList, which creates an empty list when the list_like object is 
-        None of NOTHING.
-        ***
+        WARNING: This changes the default behavior of ``BaseList``, which creates an empty list when the list_like object is 
+        ``None`` or ``NOTHING``.
         """
         if is_none_or_nothing(list_like):
             return list_like
@@ -483,34 +525,56 @@ class BaseDict:
         return self.__dict.__repr__()
 
 
+# TODO: implementation
 class TorchComm:
 
     def __init__(self) -> None:
-        pass
+        self._pickler = pickle.Pickler
+        self._unpickler = pickle.Unpickler
 
     def gather(self):
+        import torch.distributed as dist
         pass
     
-    def gather_object(self):
+    def gather_object(self, obj, dst=0, group=None):
+        import torch.distributed as dist
         pass
 
     def all_gather(self):
+        import torch.distributed as dist
         pass
 
-    def all_gather_object(self):
+    def all_gather_object(self, obj, group=None):
+        import torch.distributed as dist
+        dist.all_gather_object
         pass
 
     def broadcast(self):
+        import torch.distributed as dist
         pass
 
     def broadcast_object(self):
+        import torch.distributed as dist
         pass
 
     def scatter(self):
+        import torch.distributed as dist
         pass
 
     def scatter_object(self):
+        import torch.distributed as dist
         pass
+
+    def _object_to_tensor(self, obj, device):
+        f = io.BytesIO()
+        self._pickler(f).dump(obj)
+        byte_tensor = torch.ByteTensor(list(f.getvalue())).to(device)
+        local_size = torch.LongTensor([byte_tensor.numel()]).to(device)
+        return byte_tensor, local_size
+    
+    def _tensor_to_object(self, tensor, tensor_size):
+        byte_data = bytes(tensor.cpu().tolist())[:tensor_size]
+        return self._unpickler(io.BytesIO(byte_data)).load()
 
 
 from torchslime.util.type import T_M_SEQ, T_M
@@ -600,7 +664,7 @@ def list_take(list_like, index: Union[Sequence[int], int]):
 
 
 def MethodChaining(func):
-    @wraps(func)
+    @SmartWraps(func)
     def wrapper(self, *args, **kwargs):
         func(self, *args, **kwargs)
         return self

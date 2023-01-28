@@ -3,7 +3,7 @@ import os
 
 BASE_PATH = NOTHING
 NAMESPACE = NOTHING
-LOG_PATH = 'runtime.log'
+LOG_PATH = 'log.txt'
 METRIC_PATH = 'metrics.json'
 CHECKPOINT_PATH = 'checkpoint'
 
