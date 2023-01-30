@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Dict, Sequence, Union
+from typing import Dict, Sequence, Union, List
 from torchslime.util import BaseList, IterTool, NOTHING, is_nothing, safe_divide, type_cast, \
     InvocationDebug, SmartWraps, terminal as Cursor
 from torchslime.util.formatter import progress_format, eta_format
@@ -290,11 +290,14 @@ class GatherAverageHandler(Handler):
     @InvocationDebug('GatherAverageHandler')
     def handle(self, ctx: BaseContext):
         from torchslime.core import DistributedContext
+        from torchslime.metric import LossParser
         ctx: DistributedContext = ctx
         torch_comm = ctx.distributed.torch_comm
-        gathered_loss_values = torch_comm.all_gather_object(ctx.run.loss_parser(ctx.step.loss_value))
-        gathered_metrics = torch_comm.all_gather_object(ctx.step.metrics)
+        gathered_loss_values: List[LossParser.LossWrapper] = \
+            torch_comm.all_gather_object(ctx.run.loss_parser.get_copy(ctx.step.loss_value))
+        gathered_metrics: List[Dict] = torch_comm.all_gather_object(ctx.step.metrics)
         # TODO: implementation
+        # if and only if all loss values are single is gathered LossWrapper._LossWrapper__wrapped is True
 
 
 class AverageHandler(Handler):

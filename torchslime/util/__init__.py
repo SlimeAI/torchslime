@@ -1,6 +1,6 @@
 # TODO: refactor the util package
 from typing import Dict, Union, Tuple, Sequence, MutableSequence, Generic, TypeVar, \
-    overload, Iterator, Iterable, Any
+    overload, Iterator, Iterable, Any, List
 from torch import Tensor
 import torch
 from torch.nn import Module
@@ -531,23 +531,69 @@ class TorchComm:
     def __init__(self) -> None:
         self._pickler = pickle.Pickler
         self._unpickler = pickle.Unpickler
+        # use CUDA and NCCL backend by default.
+        self.device = torch.device('cuda', torch.cuda.current_device())
 
-    def gather(self):
+    def gather(self, tensor: Tensor, dst=0, group=None, async_op=False):
         import torch.distributed as dist
         pass
     
     def gather_object(self, obj, dst=0, group=None):
+        # code modified from torch.distributed.gather_object in PyTorch 1.13
         import torch.distributed as dist
-        pass
+        object_tensor, local_size = self._object_to_tensor(obj, self.device)
+        group_size = dist.get_world_size(group=group)
+        # get GLOBAL RANK here
+        rank = dist.get_rank()
+        # object sizes
+        object_size_list = self._all_gather_size(local_size, group_size, self.device, group)
+        # get max object size
+        max_object_size = int(max(object_size_list).item())
+        # resize object tensor to max size
+        object_tensor.resize_(max_object_size)
+        # output object tensors
+        output_tensors = self._make_tensor_group_list(
+            max_object_size, group_size, dtype=torch.uint8, device=self.device
+        ) if rank == dst else None
+        dist.gather(object_tensor, gather_list=output_tensors, dst=dst, group=group)
+        # return ``None`` if current rank is not destination rank
+        if rank != dst:
+            return
+        return self._transfer_objects(output_tensors, object_size_list, group_size)
 
-    def all_gather(self):
+    def all_gather(self, tensor: Tensor, group=None, async_op=False):
         import torch.distributed as dist
-        pass
+        group_size = dist.get_world_size(group=group)
+        # get ``tensor_size``
+        tensor_size = tuple(tensor.size())
+        # the original tensor device
+        tensor_device = tensor.device
+        tensor_list: List[Tensor] = self._make_tensor_group_list(tensor_size, group_size, tensor.dtype, self.device)
+        work = dist.all_gather(tensor_list, tensor.to(self.device), group=group, async_op=async_op)
+        if async_op is True:
+            return tensor_list, work
+        # set gathered tensor to original tensor device
+        tensor_list = [_tensor.to(tensor_device) for _tensor in tensor_list]
+        return tensor_list
 
     def all_gather_object(self, obj, group=None):
+        # code modified from torch.distributed.all_gather_object in PyTorch 1.13
         import torch.distributed as dist
-        dist.all_gather_object
-        pass
+        object_tensor, local_size = self._object_to_tensor(obj, self.device)
+        group_size = dist.get_world_size(group=group)
+        # object sizes
+        object_size_list = self._all_gather_size(local_size, group_size, self.device, group)
+        # get max object size
+        max_object_size = int(max(object_size_list).item())
+        # resize object tensor to max size
+        object_tensor.resize_(max_object_size)
+        # output object tensors
+        output_tensors = self._make_tensor_group_list(
+            max_object_size, group_size, dtype=torch.uint8, device=self.device
+        )
+        # all gather object tensors
+        dist.all_gather(output_tensors, object_tensor, group=group)
+        return self._transfer_objects(output_tensors, object_size_list, group_size)
 
     def broadcast(self):
         import torch.distributed as dist
@@ -565,6 +611,20 @@ class TorchComm:
         import torch.distributed as dist
         pass
 
+    def _all_gather_size(self, size_tensor, group_size: int, device, group):
+        import torch.distributed as dist
+        size_list = self._make_tensor_group_list(1, group_size, dtype=torch.long, device=device)
+        # gather object sizes into ``object_size_list``
+        dist.all_gather(size_list, size_tensor.type(torch.long).to(device), group=group)
+        return size_list
+
+    def _transfer_objects(self, output_tensors, object_size_list, group_size):
+        # The unpickled objects are gathered in ``object_list``
+        object_list = [NOTHING for _ in range(group_size)]
+        for i, tensor in enumerate(output_tensors):
+            object_list[i] = self._tensor_to_object(tensor, object_size_list[i].item())
+        return object_list
+
     def _object_to_tensor(self, obj, device):
         f = io.BytesIO()
         self._pickler(f).dump(obj)
@@ -573,8 +633,26 @@ class TorchComm:
         return byte_tensor, local_size
     
     def _tensor_to_object(self, tensor, tensor_size):
-        byte_data = bytes(tensor.cpu().tolist())[:tensor_size]
+        # cast the object tensor into uint8 type and cpu device
+        # cast the object uint8 list into bytes
+        byte_data = bytes(tensor.type(torch.uint8).cpu().tolist()[:tensor_size])
         return self._unpickler(io.BytesIO(byte_data)).load()
+    
+    def _make_tensor_group_list(
+        self,
+        size: Union[list, tuple, int],
+        group_size: int,
+        dtype,
+        device
+    ):
+        assert isinstance(size, (list, tuple, int)), 'size must be list, tuple or int, but not {}'.format(type(size).__qualname__)
+        tensor_size = (group_size,) + (
+            tuple(size) if isinstance(size, (list, tuple)) else (size,)
+        )
+        tensor_placeholder = torch.zeros(tensor_size, dtype=dtype, device=device)
+        return [
+            tensor_placeholder[i, :] for i in range(group_size)
+        ]
 
 
 from torchslime.util.type import T_M_SEQ, T_M
