@@ -38,6 +38,7 @@ class Status:
 
     @staticmethod
     def _get_avg_inner_init_item():
+        # TODO: loss_count, metrics_count, loss_dict
         return {
             'count': {},
             'loss': 0,

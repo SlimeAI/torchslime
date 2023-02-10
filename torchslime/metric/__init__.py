@@ -60,7 +60,13 @@ class LossParser:
             self.__wrapped = wrapped
 
         def decode(self):
-            return self._BaseDict__dict['loss'] if self.__wrapped is True else self._BaseDict__dict
+            return self.get_dict()['loss'] if self.__wrapped is True else self.get_dict()
+        
+        def set_wrapped(self, wrapped: bool):
+            self.__wrapped = wrapped
+        
+        def get_wrapped(self):
+            return self.__wrapped
 
     def get(self, loss) -> LossWrapper:
         is_dict_loss = self.is_dict_loss(loss)

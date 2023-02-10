@@ -179,7 +179,7 @@ class DistributedCallbackContainerWrapper(DistributedCallbackContainer):
     def __init__(self, wrapped_callback_container: CallbackContainer, default_exec_ranks: INT_SEQ_N = None):
         super().__init__(None, default_exec_ranks)
         self._wrapped_callback_container = wrapped_callback_container
-        self._BaseList__list = wrapped_callback_container._BaseList__list
+        self.set_list(wrapped_callback_container.get_list())
 
     def begin(self, ctx: BaseContext):
         self._wrapped_callback_container._exec_hook('begin', ctx)

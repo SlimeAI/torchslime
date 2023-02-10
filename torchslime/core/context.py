@@ -272,6 +272,10 @@ class BuildContext(TempContext):
         self.valid_mode = 'epoch'
         self.train_mode = 'epoch'
         self.lr_decay_mode = 'epoch'
+        
+        # plugins
+        from torchslime.core.plugin import PluginContainer
+        self.plugins: PluginContainer = PluginContainer()
 
 
 class DistributedConfigContext(TempContext):

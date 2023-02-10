@@ -367,6 +367,12 @@ class BaseList:
         else:
             return cls(list_like)
 
+    def set_list(self, _list: list):
+        self.__list = _list
+    
+    def get_list(self):
+        return self.__list
+
     """
     List operation adapter.
     """
@@ -447,6 +453,12 @@ class BaseDict:
 
     def __init__(self, _dict: Union[Dict, None, Nothing]):
         self.__dict = _dict if isinstance(_dict, (dict, Dict)) else {}
+
+    def set_dict(self, _dict: dict):
+        self.__dict = _dict
+    
+    def get_dict(self):
+        return self.__dict
 
     """
     Dict operation adapter.

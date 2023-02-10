@@ -128,7 +128,7 @@ class DistributedHandlerContainerWrapper(DistributedHandlerContainer):
     def __init__(self, wrapped_handler_container: HandlerContainer, default_exec_ranks: INT_SEQ_N = None):
         super().__init__(None, default_exec_ranks)
         self._wrapped_handler_container = wrapped_handler_container
-        self._BaseList__list = wrapped_handler_container._BaseList__list
+        self.set_list(wrapped_handler_container.get_list())
 
     def handle(self, ctx: BaseContext):
         self._wrapped_handler_container(ctx)
@@ -293,11 +293,41 @@ class GatherAverageHandler(Handler):
         from torchslime.metric import LossParser
         ctx: DistributedContext = ctx
         torch_comm = ctx.distributed.torch_comm
+        # gather data
         gathered_loss_values: List[LossParser.LossWrapper] = \
             torch_comm.all_gather_object(ctx.run.loss_parser.get_copy(ctx.step.loss_value))
         gathered_metrics: List[Dict] = torch_comm.all_gather_object(ctx.step.metrics)
-        # TODO: implementation
-        # if and only if all loss values are single is gathered LossWrapper._LossWrapper__wrapped is True
+        
+        """
+        Compute average loss values.
+        """
+        loss_values = ctx.run.loss_parser.get(self._avg_dict(gathered_loss_values))
+        # if and only if all gathered loss values wrapped, is ``loss_values.__wrapped`` is True
+        loss_values.set_wrapped(all(loss_value.get_wrapped() for loss_value in gathered_loss_values))
+        ctx.step.loss_value = loss_values.decode()
+        
+        """
+        Compute average metrics.
+        """
+        ctx.step.metrics = self._avg_dict(gathered_metrics)
+    
+    def _avg_dict(self, dict_list) -> dict:
+        item_dict = {}
+        item_count = {}
+        # iter every dict
+        for _dict in dict_list:
+            # iter every dict item
+            for key, value in _dict.items():
+                # sum dict value
+                item_dict.setdefault(key, 0)
+                item_dict[key] += value
+                # count occurrences of dict items
+                item_count.setdefault(key, 0)
+                item_count[key] += 1
+        # compute average values
+        for key, value in item_dict.items():
+            item_dict[key] = safe_divide(value, item_count.get(key, 0))
+        return item_dict
 
 
 class AverageHandler(Handler):
