@@ -36,13 +36,12 @@ class Status:
         if is_nothing(ctx.inner[INNER_KEY]):
             ctx.inner[INNER_KEY] = {}
 
-    @staticmethod
-    def _get_avg_inner_init_item():
-        # TODO: loss_count, metrics_count, loss_dict
+    def _get_avg_inner_init_item(self, ctx: BaseContext):
         return {
-            'count': {},
-            'loss': 0,
-            'metrics': {}
+            'loss_value': ctx.run.loss_wrapper.get_empty(),
+            'loss_value_count': {},
+            'metrics': {},
+            'metrics_count': {}
         }
 
     def __str__(self) -> str:
@@ -63,6 +62,7 @@ class TrainStatus(Status):
         ctx.dataset = ctx.run.train_provider(ctx)
 
     def get_avg_loss_and_metrics(self, ctx: BaseContext) -> list:
+        # TODO: loss dict
         data = []
         if is_nothing(ctx.epoch.train_loss_value) is False:
             data.append('loss: {0:.5f}'.format(ctx.epoch.train_loss_value))
@@ -73,7 +73,7 @@ class TrainStatus(Status):
     def init_avg_inner_ctx(self, ctx: BaseContext, INNER_KEY):
         super().init_avg_inner_ctx(ctx, INNER_KEY)
         if is_nothing(ctx.inner[INNER_KEY].get('train', NOTHING)):
-            ctx.inner[INNER_KEY]['train'] = self._get_avg_inner_init_item()
+            ctx.inner[INNER_KEY]['train'] = self._get_avg_inner_init_item(ctx)
     
     def set_avg_loss_and_metrics(self, ctx: BaseContext, loss, metrics):
         ctx.epoch.train_loss_value = loss
@@ -84,7 +84,7 @@ class TrainStatus(Status):
 
     def clear_avg_info(self, ctx: BaseContext, INNER_KEY):
         super().clear_avg_info(ctx, INNER_KEY)
-        ctx.inner[INNER_KEY]['train'] = self._get_avg_inner_init_item()
+        ctx.inner[INNER_KEY]['train'] = self._get_avg_inner_init_item(ctx)
         ctx.epoch.train_metrics = NOTHING
         ctx.epoch.train_loss_value = NOTHING
 
@@ -116,7 +116,7 @@ class EvalStatus(Status):
     def init_avg_inner_ctx(self, ctx: BaseContext, INNER_KEY):
         super().init_avg_inner_ctx(ctx, INNER_KEY)
         if is_nothing(ctx.inner[INNER_KEY].get('eval', NOTHING)):
-            ctx.inner[INNER_KEY]['eval'] = self._get_avg_inner_init_item()
+            ctx.inner[INNER_KEY]['eval'] = self._get_avg_inner_init_item(ctx)
 
     def set_avg_loss_and_metrics(self, ctx: BaseContext, loss, metrics):
         ctx.epoch.eval_loss_value = loss
@@ -127,7 +127,7 @@ class EvalStatus(Status):
 
     def clear_avg_info(self, ctx: BaseContext, INNER_KEY):
         super().clear_avg_info(ctx, INNER_KEY)
-        ctx.inner[INNER_KEY]['eval'] = self._get_avg_inner_init_item()
+        ctx.inner[INNER_KEY]['eval'] = self._get_avg_inner_init_item(ctx)
         ctx.epoch.eval_metrics = NOTHING
         ctx.epoch.eval_loss_value = NOTHING
 

@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Union, Dict, Sequence, Callable
+from typing import Union, Dict, Sequence, Callable, TypeVar
 from torchslime.util.type import NUMBER, NUMBER_T
 from torchslime.util import Count, Nothing, is_nothing, dict_merge, NOTHING, BaseList, BaseDict, safe_divide
 from torchslime.core.context import BaseContext
@@ -51,35 +51,43 @@ class MetricContainer(Metric, BaseList):
         return result
 
 
-class LossParser:
+T = TypeVar('T', bound='LossWrapper')
 
-    class LossWrapper(BaseDict):
 
-        def __init__(self, loss_dict: Dict, wrapped: bool):
-            super().__init__(loss_dict)
-            self.__wrapped = wrapped
+class LossWrapper(BaseDict):
 
-        def decode(self):
-            return self.get_dict()['loss'] if self.__wrapped is True else self.get_dict()
-        
-        def set_wrapped(self, wrapped: bool):
-            self.__wrapped = wrapped
-        
-        def get_wrapped(self):
-            return self.__wrapped
+    def __init__(self, loss_dict: Dict, wrapped: bool):
+        super().__init__(loss_dict)
+        self.__wrapped = wrapped
 
-    def get(self, loss) -> LossWrapper:
-        is_dict_loss = self.is_dict_loss(loss)
-        return self.LossWrapper(
+    @classmethod
+    def get(cls, loss) -> T:
+        is_dict_loss = cls.is_dict_loss(loss)
+        return cls(
             loss if is_dict_loss is True else {'loss': loss},
             not is_dict_loss
         )
 
-    def get_copy(self, loss) -> LossWrapper:
-        return self.get(dict(loss) if self.is_dict_loss(loss) is True else loss)
+    @classmethod
+    def get_copy(cls, loss) -> T:
+        return cls.get(dict(loss) if cls.is_dict_loss(loss) is True else loss)
 
-    def is_dict_loss(self, loss):
+    @classmethod
+    def get_empty(cls) -> T:
+        return cls({}, True)
+
+    @staticmethod
+    def is_dict_loss(loss):
         return isinstance(loss, (dict, Dict))
+
+    def decode(self):
+        return self.get_dict().get('loss', NOTHING) if self.__wrapped is True else self.get_dict()
+    
+    def set_wrapped(self, wrapped: bool):
+        self.__wrapped = wrapped
+    
+    def get_wrapped(self):
+        return self.__wrapped
 
 
 class LossReductionFactory:
@@ -107,7 +115,7 @@ class LossReductionFactory:
 
 
 def _mean_loss_reduction(ctx: BaseContext):
-    loss_tensors = ctx.run.loss_parser.get(ctx.step.loss).values()
+    loss_tensors = ctx.run.loss_wrapper.get(ctx.step.loss).values()
     result = safe_divide(sum(loss_tensors), len(loss_tensors), NOTHING)
     if is_nothing(result):
         logger.warn('Mean loss reduction got NOTHING. This may be caused by one of the following reasons:\n'
@@ -117,7 +125,7 @@ def _mean_loss_reduction(ctx: BaseContext):
 
 
 def _sum_loss_reduction(ctx: BaseContext):
-    loss_tensors = ctx.run.loss_parser.get(ctx.step.loss).values()
+    loss_tensors = ctx.run.loss_wrapper.get(ctx.step.loss).values()
     result = sum(loss_tensors) if len(loss_tensors) > 0 else NOTHING
     if is_nothing(result):
         logger.warn('Sum loss reduction got NOTHING. This may be caused by one of the following reasons:\n'
@@ -129,7 +137,7 @@ def _sum_loss_reduction(ctx: BaseContext):
 def _weighted_loss_reduction(weight: dict):
     _weight = dict(weight)
     def _reduction(ctx: BaseContext):
-        loss_dict = ctx.run.loss_parser.get(ctx.step.loss)
+        loss_dict = ctx.run.loss_wrapper.get(ctx.step.loss)
         # check keys intersection
         loss_keys = set(loss_dict.keys())
         weight_keys = set(_weight.keys())

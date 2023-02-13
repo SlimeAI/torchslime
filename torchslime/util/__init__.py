@@ -168,6 +168,9 @@ class Nothing:
     def __repr__(self) -> str:
         return 'NOTHING'
 
+    def __contains__(self) -> bool:
+        return False
+
     def __add__(self, _):
         return self
     

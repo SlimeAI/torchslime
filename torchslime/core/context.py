@@ -4,7 +4,7 @@ from torch import device, Tensor
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 from torchslime.util.type import NUMBER
-from typing import Any, Sequence, Union, Dict, Tuple, Callable
+from typing import Any, Sequence, Union, Dict, Tuple, Callable, Type
 from torchslime.log import logger
 from abc import abstractmethod
 
@@ -184,9 +184,9 @@ class RunContext(TempContext):
         # metric container
         from torchslime.metric import MetricContainer
         self.metrics: MetricContainer = NOTHING
-        # loss parser
-        from torchslime.metric import LossParser
-        self.loss_parser = LossParser()
+        # loss wrapper
+        from torchslime.metric import LossWrapper
+        self.loss_wrapper: Type[LossWrapper] = LossWrapper
         # loss reduction func
         from torchslime.metric import LossReductionFactory
         self.loss_reduction: Callable[[BaseContext], Tensor] = LossReductionFactory.get('mean')

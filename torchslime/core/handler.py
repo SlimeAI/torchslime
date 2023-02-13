@@ -231,7 +231,7 @@ class LossHandler(Handler):
             # compute loss
             loss = ctx.run.loss_func(ctx.step.y_pred, ctx.step.y_true)
             ctx.step.loss = loss
-            ctx.step.loss_value = self._parse_float(ctx.run.loss_parser.get_copy(loss)).decode()
+            ctx.step.loss_value = self._parse_float(ctx.run.loss_wrapper.get_copy(loss)).decode()
     
     def _parse_float(self, loss_dict):
         for key in loss_dict:
@@ -290,18 +290,18 @@ class GatherAverageHandler(Handler):
     @InvocationDebug('GatherAverageHandler')
     def handle(self, ctx: BaseContext):
         from torchslime.core import DistributedContext
-        from torchslime.metric import LossParser
+        from torchslime.metric import LossWrapper
         ctx: DistributedContext = ctx
         torch_comm = ctx.distributed.torch_comm
         # gather data
-        gathered_loss_values: List[LossParser.LossWrapper] = \
-            torch_comm.all_gather_object(ctx.run.loss_parser.get_copy(ctx.step.loss_value))
+        gathered_loss_values: List[LossWrapper] = \
+            torch_comm.all_gather_object(ctx.run.loss_wrapper.get_copy(ctx.step.loss_value))
         gathered_metrics: List[Dict] = torch_comm.all_gather_object(ctx.step.metrics)
         
         """
         Compute average loss values.
         """
-        loss_values = ctx.run.loss_parser.get(self._avg_dict(gathered_loss_values))
+        loss_values = ctx.run.loss_wrapper.get(self._avg_dict(gathered_loss_values))
         # if and only if all gathered loss values wrapped, is ``loss_values.__wrapped`` is True
         loss_values.set_wrapped(all(loss_value.get_wrapped() for loss_value in gathered_loss_values))
         ctx.step.loss_value = loss_values.decode()
@@ -351,42 +351,43 @@ class AverageHandler(Handler):
             self.clear(ctx)
 
     def average(self, ctx: BaseContext):
+        from torchslime.metric import LossWrapper
         # get inner context variables
         summary = ctx.status.get_avg_inner_ctx(ctx, self.INNER_KEY)
-        # get average loss and metrics
-        avg_loss = self._compute_avg_loss(summary, ctx.step.loss)
-        avg_metrics = self._compute_avg_metrics(summary, ctx.step.metrics)
-        ctx.status.set_avg_loss_and_metrics(ctx, avg_loss, avg_metrics)
+        
+        """
+        Get average loss and metrics.
+        """
+        loss_value: LossWrapper = ctx.run.loss_wrapper.get(ctx.step.loss_value)
+        summary_loss_value: LossWrapper = summary['loss_value']
+        # update wrapped
+        summary_loss_value.set_wrapped(summary_loss_value.get_wrapped() and loss_value.get_wrapped())
+        summary_loss_value_count: dict = summary['loss_value_count']
+        avg_loss = self._compute_avg(
+            loss_value, summary_loss_value, summary_loss_value_count
+        )
+        avg_loss: LossWrapper = ctx.run.loss_wrapper.get(avg_loss)
+        avg_loss.set_wrapped(summary_loss_value.get_wrapped())
+        
+        avg_metrics = self._compute_avg(
+            ctx.step.metrics, summary['metrics'], summary['metrics_count']
+        )
+        ctx.status.set_avg_loss_and_metrics(ctx, avg_loss.decode(), avg_metrics)
 
     def clear(self, ctx: BaseContext):
         # reset avg info
         ctx.status.clear_avg_info(ctx, self.INNER_KEY)
 
-    @staticmethod
-    def _compute_avg_loss(summary, loss):
-        if 'loss' in summary and 'count' in summary and is_nothing(loss) is False:
-            summary['loss'] += float(loss)
-            summary['count'].setdefault('loss', 0)
-            summary['count']['loss'] += 1
-            return safe_divide(summary['loss'], summary['count']['loss'])
-        else:
-            return NOTHING
-
-    @staticmethod
-    def _compute_avg_metrics(summary: Dict, metrics: Dict):
-        if 'metrics' in summary and 'count' in summary:
-            temp = {}
-            _metrics = summary['metrics']
-            for key, value in metrics.items():
-                _metrics.setdefault(key, 0)
-                _metrics[key] += value
-                summary['count'].setdefault(key, 0)
-                summary['count'][key] += 1
-            for key, value in _metrics.items():
-                temp[key] = safe_divide(value, summary['count'].setdefault(key, 0))
-            return temp
-        else:
-            return NOTHING
+    def _compute_avg(self, item_dict: dict, value_dict: dict, count_dict: dict):
+        result = {}
+        for key, value in item_dict.items():
+            value_dict.setdefault(key, 0)
+            value_dict[key] += value
+            count_dict.setdefault(key, 0)
+            count_dict[key] += 1
+        for key, value in value_dict.items():
+            result[key] = safe_divide(value, count_dict.get(key, 0))
+        return result
 
 
 class DisplayHandler(Handler):
