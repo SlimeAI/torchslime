@@ -331,6 +331,7 @@ class Count:
 
 class BaseList:
 
+    # TODO: Typing extension to be changed, list_like: Iterable -> list_like: Union[Iterable, Non-Iterable]
     def __init__(self, list_like: Iterable = None):
         if is_none_or_nothing(list_like):
             self.__list = []

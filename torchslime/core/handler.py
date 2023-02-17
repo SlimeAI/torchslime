@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Dict, Sequence, Union, List
+from typing import Dict, Sequence, Union, List, Callable, Any
 from torchslime.util import BaseList, IterTool, NOTHING, is_nothing, safe_divide, type_cast, \
     InvocationDebug, SmartWraps, terminal as Cursor
 from torchslime.util.formatter import progress_format, eta_format
@@ -53,6 +53,22 @@ class EmptyHandler(Handler):
         pass
 
 
+# lambda or sequence of lambdas
+L_SEQ = Union[Callable[[BaseContext], Any], Sequence[Callable[[BaseContext], Any]]]
+
+
+class LambdaHandler(Handler, BaseList):
+    
+    def __init__(self, _lambda: L_SEQ):
+        Handler.__init__(self)
+        BaseList.__init__(self, _lambda)
+    
+    def handle(self, ctx: BaseContext):
+        # execute lambda functions
+        for _lambda in self:
+            _lambda(ctx)
+
+
 class DistributedHandler(Handler):
 
     def __init__(self, exec_ranks: INT_SEQ_N = None):
@@ -83,6 +99,15 @@ class DistributedHandlerWrapper(DistributedHandler):
     
     def handle(self, ctx: BaseContext):
         self._wrapped_handler(ctx)
+
+
+class DistributedLambdaHandler(DistributedHandlerWrapper, BaseList):
+    
+    def __init__(self, _lambda: L_SEQ, exec_ranks: INT_SEQ_N = None):
+        wrapped_handler = LambdaHandler(_lambda)
+        DistributedHandlerWrapper.__init__(self, wrapped_handler, exec_ranks)
+        BaseList.__init__(self, None)
+        self.set_list(wrapped_handler.get_list())
 
 
 # handler or sequence of handlers

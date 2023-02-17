@@ -225,6 +225,7 @@ class HandlerContext(TempContext):
         self.Status = handler.StatusHandler
         self.LRDecay = handler.LRDecayHandler
         self.Callback = handler.CallbackHandler
+        self.Lambda = handler.LambdaHandler
 
 
 class DistributedHandlerContext(HandlerContext):
@@ -241,6 +242,7 @@ class DistributedHandlerContext(HandlerContext):
         self.DistributedEpochIteration = handler.DistributedEpochIterationHandler
         self.DistributedIteration = handler.DistributedIterationHandler
         self.DistributedContainer = handler.DistributedHandlerContainer
+        self.DistributedLambda = handler.DistributedLambdaHandler
 
 
 class CustomContext(TempContext):
