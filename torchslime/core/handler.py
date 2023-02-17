@@ -445,8 +445,8 @@ class StatusHandler(Handler):
     def __init__(self, status: str = 'train'):
         super().__init__()
         # get status supported
-        from torchslime.core.status import proxy_status
-        mode_supported = list(proxy_status.modules.keys())
+        from torchslime.core.status import context_status
+        mode_supported = list(context_status.modules.keys())
         if status not in mode_supported:
             logger.warn('An unsupported status is set, this may cause some problems.')
         self.status = status
@@ -458,8 +458,8 @@ class StatusHandler(Handler):
             'model'
         ], silent=False)
         # set status to the context
-        from torchslime.core.status import proxy_status
-        ctx.status = proxy_status.build(self.status)
+        from torchslime.core.status import context_status
+        ctx.status = context_status.build(self.status)
         # change pytorch model mode
         ctx.status.set_model_mode(ctx)
 

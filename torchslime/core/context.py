@@ -24,7 +24,7 @@ class BaseContext(Base):
         self.device: Union[str, device] = NOTHING
         # model
         self.model: Module = NOTHING
-        # proxy status(train, eval, etc.)
+        # context status(train, eval, etc.)
         from torchslime.core.status import Status
         self.status: Status = NOTHING
         # the current dataset for running

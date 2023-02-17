@@ -5,7 +5,7 @@ from torchslime.util import NOTHING, is_nothing
 from torchslime.module import Registry
 from torchslime.core.context import BaseContext
 
-proxy_status = Registry('proxy_status')
+context_status = Registry('context_status')
 
 
 class Status:
@@ -48,7 +48,7 @@ class Status:
         return 'BASE STATUS'
 
 
-@proxy_status.register('train')
+@context_status.register('train')
 class TrainStatus(Status):
 
     def __init__(self) -> None:
@@ -92,7 +92,7 @@ class TrainStatus(Status):
         return 'TRAIN'
 
 
-@proxy_status.register('eval')
+@context_status.register('eval')
 class EvalStatus(Status):
 
     def __init__(self) -> None:
@@ -135,7 +135,7 @@ class EvalStatus(Status):
         return 'EVAL'
 
 
-@proxy_status.register('val')
+@context_status.register('val')
 class ValStatus(EvalStatus):
 
     def __init__(self) -> None:
@@ -160,7 +160,7 @@ class ValStatus(EvalStatus):
         return 'VAL'
 
 
-@proxy_status.register('predict')
+@context_status.register('predict')
 class PredictStatus(EvalStatus):
 
     def __init__(self) -> None:
