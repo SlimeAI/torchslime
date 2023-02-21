@@ -326,10 +326,10 @@ class GatherAverageHandler(Handler):
         """
         Compute average loss values.
         """
-        loss_values = ctx.run.loss_wrapper.get(self._avg_dict(gathered_loss_values))
+        loss_value = ctx.run.loss_wrapper.get(self._avg_dict(gathered_loss_values))
         # if and only if all gathered loss values wrapped, is ``loss_values.__wrapped`` is True
-        loss_values.set_wrapped(all(loss_value.get_wrapped() for loss_value in gathered_loss_values))
-        ctx.step.loss_value = loss_values.decode()
+        loss_value.set_wrapped(all(gathered_loss_value.get_wrapped() for gathered_loss_value in gathered_loss_values))
+        ctx.step.loss_value = loss_value.decode()
         
         """
         Compute average metrics.
@@ -397,7 +397,7 @@ class AverageHandler(Handler):
         avg_metrics = self._compute_avg(
             ctx.step.metrics, summary['metrics'], summary['metrics_count']
         )
-        ctx.status.set_avg_loss_and_metrics(ctx, avg_loss.decode(), avg_metrics)
+        ctx.status.set_avg_loss_value_and_metrics(ctx, avg_loss.decode(), avg_metrics)
 
     def clear(self, ctx: BaseContext):
         # reset avg info
@@ -425,7 +425,11 @@ class DisplayHandler(Handler):
         current = ctx.step.current
         total = ctx.step.total
 
-        data = ' '.join(ctx.status.get_avg_loss_and_metrics(ctx))
+        loss_value, metrics = ctx.status.get_avg_loss_value_and_metrics(ctx)
+        data = {**loss_value, **metrics}
+        data = ' - '.join(
+            list(map(lambda item: '{0}: {1:.5f}'.format(*item), data.items()))
+        )
 
         with Cursor.cursor_invisible():
             Cursor.refresh_print(

@@ -105,7 +105,7 @@ class SaveMetrics(Callback):
     def __init__(
         self,
         save_train: bool = True,
-        save_eval: bool = True,
+        save_val: bool = True,
         save_per: EPOCH_SEQ = 1
     ):
         super().__init__()
@@ -113,7 +113,7 @@ class SaveMetrics(Callback):
         self.save_per = save_per
         self.save_options = {
             'train': save_train,
-            'eval': save_eval
+            'val': save_val
         }.items()
         self.save_options = list(map(lambda item: item[0], filter(lambda item: item[1] is True, self.save_options)))
         assert len(self.save_options) > 0, 'You should choose at least one item to be saved when using the "SaveMetrics" Callback.'
@@ -126,16 +126,15 @@ class SaveMetrics(Callback):
                 logger.warn('The length of metric list is greater than number of epochs that have been executed, possibly there are some other items included in the list.')
 
     def parse(self, ctx: BaseContext, save_options):
+        from torchslime.core.status import context_status, Status
         item = {}
         for key in save_options:
-            if key == 'train':
-                item.update(**ctx.epoch.train_metrics)
-                if is_nothing(ctx.epoch.train_loss_value) is False:
-                    item.update(loss=ctx.epoch.train_loss_value)
-            elif key == 'eval':
-                item.update(**ctx.epoch.eval_metrics)
-                if is_nothing(ctx.epoch.eval_loss_value) is False:
-                    item.update(val_loss=ctx.epoch.eval_loss_value)
+            # use status to get loss value and metrics
+            temp_status: Status = context_status.get(key)
+            loss_value, metrics = temp_status.get_avg_loss_value_and_metrics(ctx)
+            # separately update to avoid same keys in loss value and metrics
+            item.update(**loss_value)
+            item.update(**metrics)
         return item
 
     def append_list(self, item):
@@ -158,13 +157,13 @@ class DistributedSaveMetrics(DistributedCallbackWrapper):
     def __init__(
         self,
         save_train: bool = True,
-        save_eval: bool = True,
+        save_val: bool = True,
         save_per: EPOCH_SEQ = 1,
         exec_ranks: INT_SEQ_N = None
     ):
         wrapped_callback = SaveMetrics(
             save_train,
-            save_eval,
+            save_val,
             save_per
         )
         super().__init__(wrapped_callback, exec_ranks)

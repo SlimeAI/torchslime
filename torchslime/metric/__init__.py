@@ -51,9 +51,6 @@ class MetricContainer(Metric, BaseList):
         return result
 
 
-T = TypeVar('T', bound='LossWrapper')
-
-
 class LossWrapper(BaseDict):
 
     def __init__(self, loss_dict: Dict, wrapped: bool):
@@ -61,7 +58,7 @@ class LossWrapper(BaseDict):
         self.__wrapped = wrapped
 
     @classmethod
-    def get(cls, loss) -> T:
+    def get(cls, loss):
         is_dict_loss = cls.is_dict_loss(loss)
         return cls(
             loss if is_dict_loss is True else {'loss': loss},
@@ -69,11 +66,11 @@ class LossWrapper(BaseDict):
         )
 
     @classmethod
-    def get_copy(cls, loss) -> T:
+    def get_copy(cls, loss):
         return cls.get(dict(loss) if cls.is_dict_loss(loss) is True else loss)
 
     @classmethod
-    def get_empty(cls) -> T:
+    def get_empty(cls):
         return cls({}, True)
 
     @staticmethod

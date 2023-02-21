@@ -30,7 +30,7 @@ class Context(BaseContext):
         self,
         train_dataset: DATASET,
         total_epochs: int = 1,
-        eval_dataset: DATASET = NOTHING,
+        val_dataset: DATASET = NOTHING,
         callbacks: C_SEQ = NOTHING,
         grad_acc: int = 1,
         log_option = None  # TODO: log system design
@@ -38,7 +38,7 @@ class Context(BaseContext):
         self.compile_total_epochs(total_epochs)
         self.compile_callbacks(callbacks)
         self.compile_dataset(train_dataset, 'train')
-        self.compile_dataset(eval_dataset, 'eval')
+        self.compile_dataset(val_dataset, 'eval')
         self.compile_grad_acc(grad_acc)
         logger.info('Using device {0} to train.'.format(str(self.device)))
         self.run.train(self)
