@@ -1,7 +1,7 @@
 from abc import abstractmethod
-from typing import Dict, Sequence, Union, List, Callable, Any
+from typing import Dict, Sequence, Union, List, Callable, Any, Iterable, Tuple
 from torchslime.util import BaseList, IterTool, NOTHING, is_nothing, safe_divide, type_cast, \
-    InvocationDebug, SmartWraps, terminal as Cursor
+    InvocationDebug, SmartWraps, Count, is_none_or_nothing, Nothing, terminal as Cursor
 from torchslime.util.formatter import progress_format, eta_format
 from torchslime.core.context import BaseContext
 from torchslime.core import DistributedContext
@@ -25,9 +25,13 @@ def TorchGrad(func):
 class Handler:
     """Base class for all handlers.
     """
-
-    def __init__(self):
+    
+    _handler_id_gen = Count()
+    def __init__(self, __id: Union[str, None] = None):
         super().__init__()
+        # TODO: thread-safe and process-safe
+        self.__id = __id if __id is not None else 'handler_{}'.format(self._handler_id_gen)
+        self.__parent: Union[HandlerContainer, Nothing] = NOTHING
 
     @abstractmethod
     def handle(self, ctx: BaseContext):
@@ -35,6 +39,93 @@ class Handler:
 
     def __call__(self, ctx: BaseContext):
         self.handle(ctx)
+    
+    def replace_self(self, handler) -> bool:
+        if self._verify_parent() is not True:
+            return False
+        parent = self.get_parent()
+        index = parent.index(self)
+        parent[index] = handler
+        return True
+    
+    def insert_before_self(self, handler) -> bool:
+        if self._verify_parent() is not True:
+            return False
+        parent = self.get_parent()
+        index = parent.index(self)
+        parent.insert(index, handler)
+        return True
+    
+    def insert_after_self(self, handler) -> bool:
+        if self._verify_parent() is not True:
+            return False
+        parent = self.get_parent()
+        index = parent.index(self)
+        parent.insert(index + 1, handler)
+        return True
+    
+    def remove_self(self) -> bool:
+        if self._verify_parent() is not True:
+            return False
+        parent = self.get_parent()
+        parent.remove(self)
+        return True
+    
+    def _verify_parent(self) -> bool:
+        if is_nothing(self.get_parent()) or self not in self.get_parent():
+            # root node, wild pointer or unmatched parent
+            logger.warn('')
+            self.del_parent()
+            return False
+        return True
+    
+    def get_by_id(self, __id: str, result: list = []):
+        if self.__id == __id:
+            if self in result:
+                # duplicate node
+                logger.warn('')
+            else:
+                result.append(self)
+        if len(result) > 1:
+            # duplicate id
+            logger.warn('')
+        return NOTHING if len(result) < 1 else result[0]
+    
+    def get_by_class(self, __class: Union[type, Tuple[type]], result: list = []):
+        if isinstance(self, __class):
+            if self in result:
+                # duplicate node
+                logger.warn('')
+            else:
+                result.append(self)
+        return result
+    
+    def get_by_filter(self, __function: Callable, result: list = []):
+        if __function(self) is True:
+            if self in result:
+                # duplicate node
+                logger.warn('')
+            else:
+                result.append(self)
+        return result
+    
+    def get_id(self) -> str:
+        return self.__id
+
+    def set_id(self, __id: str):
+        self.__id = __id
+    
+    def get_parent(self):
+        return self.__parent
+
+    def set_parent(self, __parent):
+        if is_nothing(self.__parent) is False:
+            # duplicate parent
+            logger.warn('')
+        self.__parent = __parent
+    
+    def del_parent(self):
+        self.__parent = NOTHING
 
 
 class EmptyHandler(Handler):
@@ -118,11 +209,92 @@ class HandlerContainer(Handler, BaseList):
 
     def __init__(self, handlers: C_SEQ = None):
         Handler.__init__(self)
-        BaseList.__init__(self, handlers)
+        # remove None and NOTHING
+        BaseList.__init__(
+            self,
+            filter(lambda item: is_none_or_nothing(item) is not True, handlers)
+        )
+        # set parent
+        for handler in self:
+            handler: Handler = handler
+            handler.set_parent(self)
     
     def handle(self, ctx: BaseContext):
         for handler in self:
             handler(ctx)
+    
+    def get_by_id(self, __id: str, result: list = []):
+        super().get_by_id(__id, result)
+        for handler in self:
+            handler: Handler = handler
+            handler.get_by_id(__id, result)
+        return NOTHING if len(result) < 1 else result[0]
+    
+    def get_by_class(self, __class: Union[type, Tuple[type]], result: list = []):
+        super().get_by_class(__class, result)
+        for handler in self:
+            handler: Handler = handler
+            handler.get_by_class(__class, result)
+        return result
+
+    def get_by_filter(self, __function: Callable, result: list = []):
+        super().get_by_filter(__function, result)
+        for handler in self:
+            handler: Handler = handler
+            handler.get_by_filter(__function, result)
+        return result
+    
+    def append(self, handler: Handler):
+        result = super().append(handler)
+        handler.set_parent(self)
+        return result
+    
+    def clear(self):
+        for handler in self:
+            handler: Handler = handler
+            handler.del_parent()
+        return super().clear()
+    
+    def extend(self, handlers: Iterable[Handler]):
+        result = super().extend(handlers)
+        for handler in handlers:
+            handler.set_parent(self)
+        return result
+    
+    def insert(self, __index, handler: Handler):
+        result = super().insert(__index, handler)
+        handler.set_parent(self)
+        return result
+    
+    def pop(self, __index=...):
+        item: Handler = super().pop(__index)
+        item.del_parent()
+        return item
+    
+    def remove(self, handler: Handler):
+        result = super().remove(handler)
+        handler.del_parent()
+        return result
+    
+    def __setitem__(self, __i_s, handler: Union[Handler, Iterable[Handler]]):
+        result = super().__setitem__(__i_s, handler)
+        if isinstance(__i_s, slice):
+            for _handler in handler:
+                _handler: Handler = _handler
+                _handler.set_parent(self)
+        else:
+            handler.set_parent(self)
+        return result
+    
+    def __delitem__(self, __i) -> None:
+        handler: Union[Handler, Iterable[Handler]] = super().__getitem__(__i)
+        if isinstance(__i, slice):
+            for _handler in handler:
+                _handler: Handler = _handler
+                _handler.del_parent()
+        else:
+            handler.del_parent()
+        return super().__delitem__(__i)
 
 
 class DistributedHandlerContainer(HandlerContainer):
@@ -355,27 +527,31 @@ class GatherAverageHandler(Handler):
         return item_dict
 
 
+class AverageInitHandler(Handler):
+    
+    # inner context key
+    INNER_KEY = 'AVERAGE_INNER'
+    
+    def __init__(self, __id: Union[str, None] = None):
+        super().__init__(__id)
+    
+    @InvocationDebug('AverageInitHandler')
+    def handle(self, ctx: BaseContext):
+        ctx.status.init_avg_inner_ctx(ctx, self.INNER_KEY)
+        # reset avg info
+        ctx.status.clear_avg_info(ctx, self.INNER_KEY)
+
+
 class AverageHandler(Handler):
 
     # inner context key
     INNER_KEY = 'AVERAGE_INNER'
 
-    def __init__(self, type: str = 'avg'):
+    def __init__(self):
         super().__init__()
-        type_supported = ['avg', 'clear']
-        if type not in type_supported:
-            logger.warn('An unsupported average handler type is set.')
-        self.type = type
     
     @InvocationDebug('AverageHandler')
     def handle(self, ctx: BaseContext):
-        ctx.status.init_avg_inner_ctx(ctx, self.INNER_KEY)
-        if self.type == 'avg':
-            self.average(ctx)
-        elif self.type == 'clear':
-            self.clear(ctx)
-
-    def average(self, ctx: BaseContext):
         from torchslime.metric import LossWrapper
         # get inner context variables
         summary = ctx.status.get_avg_inner_ctx(ctx, self.INNER_KEY)
@@ -398,10 +574,6 @@ class AverageHandler(Handler):
             ctx.step.metrics, summary['metrics'], summary['metrics_count']
         )
         ctx.status.set_avg_loss_value_and_metrics(ctx, avg_loss.decode(), avg_metrics)
-
-    def clear(self, ctx: BaseContext):
-        # reset avg info
-        ctx.status.clear_avg_info(ctx, self.INNER_KEY)
 
     def _compute_avg(self, item_dict: dict, value_dict: dict, count_dict: dict):
         result = {}

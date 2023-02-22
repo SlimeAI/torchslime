@@ -219,6 +219,7 @@ class HandlerContext(TempContext):
         self.Backward = handler.BackwardHandler
         self.Optimizer = handler.OptimizerHandler
         self.Metrics = handler.MetricsHandler
+        self.AverageInit = handler.AverageInitHandler
         self.Average = handler.AverageHandler
         self.Display = handler.DisplayHandler
         self.Dataset = handler.DatasetHandler

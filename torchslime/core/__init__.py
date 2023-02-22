@@ -121,8 +121,8 @@ class Context(BaseContext):
                 handler.Status('train'),
                 # get dataset
                 handler.Dataset(),
-                # clear average metrics
-                handler.Average('clear'),
+                # init average setting
+                handler.AverageInit(),
                 # dataset iter
                 handler.Iteration([
                     # step begin callback
@@ -137,8 +137,8 @@ class Context(BaseContext):
                     ]),
                     # compute metrics
                     handler.Metrics(),
-                    # compute average metrics
-                    handler.Average('avg'),
+                    # compute average loss value and metrics
+                    handler.Average(),
                     # display in console or in log files
                     handler.Display(),
                     # step end callback
@@ -150,8 +150,8 @@ class Context(BaseContext):
                 handler.Status('val'),
                 # get dataset
                 handler.Dataset(),
-                # clear average metrics
-                handler.Average('clear'),
+                # init average setting
+                handler.AverageInit(),
                 # dataset iter
                 handler.Iteration([
                     # forward
@@ -160,8 +160,8 @@ class Context(BaseContext):
                     handler.Loss(),
                     # metrics
                     handler.Metrics(),
-                    # compute average metrics
-                    handler.Average('avg'),
+                    # compute average loss value and metrics
+                    handler.Average(),
                     # display in console or in log files
                     handler.Display()
                 ]),
@@ -214,7 +214,7 @@ class Context(BaseContext):
             # get dataset
             handler.Dataset(),
             # clear average metrics
-            handler.Average('clear'),
+            handler.AverageInit(),
             # dataset iteration
             handler.Iteration([
                 # step begin callback
@@ -226,7 +226,7 @@ class Context(BaseContext):
                 # compute metrics
                 handler.Metrics(),
                 # compute average metrics
-                handler.Average('avg'),
+                handler.Average(),
                 # display
                 handler.Display(),
                 # step end callback
@@ -351,8 +351,8 @@ class DistributedContext(Context):
                 handler.Status('train'),
                 # get dataset
                 handler.Dataset(),
-                # clear average metrics
-                handler.Average('clear'),
+                # init average setting
+                handler.AverageInit(),
                 # dataset iter
                 handler.DistributedIteration([
                     # step begin callback
@@ -369,8 +369,8 @@ class DistributedContext(Context):
                     handler.Metrics(),
                     # gather loss and metrics
                     handler.GatherAverage(),
-                    # compute average metrics
-                    handler.Average('avg'),
+                    # compute average loss value and metrics
+                    handler.Average(),
                     # display in console or in log files
                     handler.DistributedDisplay(),
                     # step end callback
@@ -382,8 +382,8 @@ class DistributedContext(Context):
                 handler.Status('val'),
                 # get dataset
                 handler.Dataset(),
-                # clear average metrics
-                handler.Average('clear'),
+                # init average setting
+                handler.AverageInit(),
                 # dataset iter
                 handler.Iteration([
                     # forward
@@ -394,8 +394,8 @@ class DistributedContext(Context):
                     handler.Metrics(),
                     # gather loss and metrics
                     handler.GatherAverage(),
-                    # compute average metrics
-                    handler.Average('avg'),
+                    # compute average loss value and metrics
+                    handler.Average(),
                     # display in console or in log files
                     handler.DistributedDisplay()
                 ]),

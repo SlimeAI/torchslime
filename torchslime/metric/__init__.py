@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Union, Dict, Sequence, Callable, TypeVar
+from typing import Union, Dict, Sequence, Callable
 from torchslime.util.type import NUMBER, NUMBER_T
 from torchslime.util import Count, Nothing, is_nothing, dict_merge, NOTHING, BaseList, BaseDict, safe_divide
 from torchslime.core.context import BaseContext
@@ -10,7 +10,7 @@ import inspect
 
 class Metric:
 
-    count = Count()
+    _metric_id_gen = Count()
     def __init__(self, name: str = None):
         self.name = name
 
@@ -24,8 +24,9 @@ class Metric:
             return result
         elif isinstance(result, NUMBER_T):
             if self.name is None:
+                # TODO: thread-safe and process-safe
                 # use default name
-                self.name = 'metric_%d' % self.count
+                self.name = 'metric_{}'.format(self._metric_id_gen)
             return { self.name: result }
         return NOTHING
 
