@@ -27,10 +27,10 @@ class Handler:
     """
     
     _handler_id_gen = Count()
-    def __init__(self, __id: Union[str, None] = None):
+    def __init__(self, _id: Union[str, None, Nothing] = None):
         super().__init__()
         # TODO: thread-safe and process-safe
-        self.__id = __id if __id is not None else 'handler_{}'.format(self._handler_id_gen)
+        self.__id = _id if _id is not None else 'handler_{}'.format(self._handler_id_gen)
         self.__parent: Union[HandlerContainer, Nothing] = NOTHING
 
     @abstractmethod
@@ -79,50 +79,62 @@ class Handler:
             return False
         return True
     
-    def get_by_id(self, __id: str, result: list = []):
-        if self.__id == __id:
-            if self in result:
-                # duplicate node
-                logger.warn('')
-            else:
-                result.append(self)
-        if len(result) > 1:
-            # duplicate id
-            logger.warn('')
+    def get_by_id(self, _id: str, result: Union[list, None, Nothing] = NOTHING):
+        # initialize
+        result = [] if is_none_or_nothing(result) else result
+        
+        if self.__id == _id:
+            self._append_search_result(self, result, allow_multiple=False)
         return NOTHING if len(result) < 1 else result[0]
     
-    def get_by_class(self, __class: Union[type, Tuple[type]], result: list = []):
+    def get_by_class(self, __class: Union[type, Tuple[type]], result: Union[list, None, Nothing] = NOTHING):
+        # initialize
+        result = [] if is_none_or_nothing(result) else result
+        
         if isinstance(self, __class):
-            if self in result:
-                # duplicate node
-                logger.warn('')
-            else:
-                result.append(self)
+            self._append_search_result(self, result)
         return result
     
-    def get_by_filter(self, __function: Callable, result: list = []):
+    def get_by_filter(self, __function: Callable, result: Union[list, None, Nothing] = NOTHING):
+        # initialize
+        result = [] if is_none_or_nothing(result) else result
+        
         if __function(self) is True:
-            if self in result:
-                # duplicate node
-                logger.warn('')
-            else:
-                result.append(self)
+            self._append_search_result(self, result)
         return result
     
-    def get_id(self) -> str:
+    def _append_search_result(
+        self,
+        item,
+        result: list,
+        allow_duplicate: bool = False,
+        allow_multiple: bool = True
+    ):
+        if item in result and allow_duplicate is False:
+            # duplicate node
+            logger.warn('')
+            return
+        # append matched item
+        result.append(item)
+        # ``len(result) == 2``: warn only once
+        if allow_multiple is False and len(result) == 2:
+            # multiple matched nodes
+            logger.warn('')
+    
+    def get_id(self) -> Union[str, Nothing]:
         return self.__id
 
-    def set_id(self, __id: str):
-        self.__id = __id
+    def set_id(self, _id: Union[str, Nothing]):
+        self.__id = _id
     
     def get_parent(self):
         return self.__parent
 
-    def set_parent(self, __parent):
+    def set_parent(self, _parent):
         if is_nothing(self.__parent) is False:
             # duplicate parent
             logger.warn('')
-        self.__parent = __parent
+        self.__parent = _parent
     
     def del_parent(self):
         self.__parent = NOTHING
@@ -135,8 +147,8 @@ class EmptyHandler(Handler):
         Handler (torchslime.core.handler.Handler): _description_
     """
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, _id: Union[str, None] = None):
+        super().__init__(_id)
     
     @InvocationDebug('EmptyHandler')
     def handle(self, _: BaseContext):
@@ -150,8 +162,8 @@ L_SEQ = Union[Callable[[BaseContext], Any], Sequence[Callable[[BaseContext], Any
 
 class LambdaHandler(Handler, BaseList):
     
-    def __init__(self, _lambda: L_SEQ):
-        Handler.__init__(self)
+    def __init__(self, _lambda: L_SEQ, _id: Union[str, None] = None):
+        Handler.__init__(self, _id)
         BaseList.__init__(self, _lambda)
     
     def handle(self, ctx: BaseContext):
@@ -162,8 +174,8 @@ class LambdaHandler(Handler, BaseList):
 
 class DistributedHandler(Handler):
 
-    def __init__(self, exec_ranks: INT_SEQ_N = None):
-        super().__init__()
+    def __init__(self, exec_ranks: INT_SEQ_N = None, _id: Union[str, None] = None):
+        super().__init__(_id)
         self.exec_ranks = BaseList.create(exec_ranks)
 
     def set_exec_ranks(self, exec_ranks: INT_SEQ_N):
@@ -183,9 +195,10 @@ class DistributedHandlerWrapper(DistributedHandler):
     def __init__(
         self,
         wrapped_handler: Handler,
-        exec_ranks: INT_SEQ_N = None
+        exec_ranks: INT_SEQ_N = None,
+        _id: Union[str, None] = None
     ):
-        super().__init__(exec_ranks)
+        super().__init__(exec_ranks, _id)
         self._wrapped_handler = wrapped_handler
     
     def handle(self, ctx: BaseContext):
@@ -194,9 +207,9 @@ class DistributedHandlerWrapper(DistributedHandler):
 
 class DistributedLambdaHandler(DistributedHandlerWrapper, BaseList):
     
-    def __init__(self, _lambda: L_SEQ, exec_ranks: INT_SEQ_N = None):
-        wrapped_handler = LambdaHandler(_lambda)
-        DistributedHandlerWrapper.__init__(self, wrapped_handler, exec_ranks)
+    def __init__(self, _lambda: L_SEQ, exec_ranks: INT_SEQ_N = None, _id: Union[str, None] = None):
+        wrapped_handler = LambdaHandler(_lambda, _id=NOTHING)
+        DistributedHandlerWrapper.__init__(self, wrapped_handler, exec_ranks, _id)
         BaseList.__init__(self, None)
         self.set_list(wrapped_handler.get_list())
 
@@ -207,8 +220,8 @@ C_SEQ = Union[Handler, Sequence[Handler]]
 
 class HandlerContainer(Handler, BaseList):
 
-    def __init__(self, handlers: C_SEQ = None):
-        Handler.__init__(self)
+    def __init__(self, handlers: C_SEQ = None, _id: Union[str, None] = None):
+        Handler.__init__(self, _id)
         # remove None and NOTHING
         BaseList.__init__(
             self,
@@ -223,21 +236,30 @@ class HandlerContainer(Handler, BaseList):
         for handler in self:
             handler(ctx)
     
-    def get_by_id(self, __id: str, result: list = []):
-        super().get_by_id(__id, result)
+    def get_by_id(self, _id: str, result: Union[list, None, Nothing] = NOTHING):
+        # initialize
+        result = [] if is_none_or_nothing(result) else result
+        
+        super().get_by_id(_id, result)
         for handler in self:
             handler: Handler = handler
-            handler.get_by_id(__id, result)
+            handler.get_by_id(_id, result)
         return NOTHING if len(result) < 1 else result[0]
     
-    def get_by_class(self, __class: Union[type, Tuple[type]], result: list = []):
+    def get_by_class(self, __class: Union[type, Tuple[type]], result: Union[list, None, Nothing] = NOTHING):
+        # initialize
+        result = [] if is_none_or_nothing(result) else result
+        
         super().get_by_class(__class, result)
         for handler in self:
             handler: Handler = handler
             handler.get_by_class(__class, result)
         return result
 
-    def get_by_filter(self, __function: Callable, result: list = []):
+    def get_by_filter(self, __function: Callable, result: Union[list, None, Nothing] = NOTHING):
+        # initialize
+        result = [] if is_none_or_nothing(result) else result
+        
         super().get_by_filter(__function, result)
         for handler in self:
             handler: Handler = handler
@@ -299,8 +321,8 @@ class HandlerContainer(Handler, BaseList):
 
 class DistributedHandlerContainer(HandlerContainer):
 
-    def __init__(self, handlers: C_SEQ = None, default_exec_ranks: INT_SEQ_N = None):
-        super().__init__(handlers)
+    def __init__(self, handlers: C_SEQ = None, default_exec_ranks: INT_SEQ_N = None, _id: Union[str, None] = None):
+        super().__init__(handlers, _id)
         # the distributed handler container is always executed.
         self.exec_ranks = NOTHING
         # exec ranks that are set to its sub-handlers
@@ -322,8 +344,8 @@ class DistributedHandlerContainer(HandlerContainer):
 
 class DistributedHandlerContainerWrapper(DistributedHandlerContainer):
 
-    def __init__(self, wrapped_handler_container: HandlerContainer, default_exec_ranks: INT_SEQ_N = None):
-        super().__init__(None, default_exec_ranks)
+    def __init__(self, wrapped_handler_container: HandlerContainer, default_exec_ranks: INT_SEQ_N = None, _id: Union[str, None] = None):
+        super().__init__(None, default_exec_ranks, _id)
         self._wrapped_handler_container = wrapped_handler_container
         self.set_list(wrapped_handler_container.get_list())
 
@@ -336,8 +358,8 @@ DISTRIBUTED_CLASSES = (DistributedHandler, DistributedHandlerContainer)
 
 class EpochIterationHandler(HandlerContainer):
 
-    def __init__(self, handlers: C_SEQ = None):
-        super().__init__(handlers)
+    def __init__(self, handlers: C_SEQ = None, _id: Union[str, None] = None):
+        super().__init__(handlers, _id)
 
     @InvocationDebug('EpochIterationHandler')
     def handle(self, ctx: BaseContext):
@@ -354,22 +376,22 @@ class EpochIterationHandler(HandlerContainer):
 
 class DistributedEpochIterationHandler(DistributedHandlerContainerWrapper):
 
-    def __init__(self, handlers: C_SEQ = None, exec_ranks: INT_SEQ_N = None):
-        wrapped_handler_container = EpochIterationHandler(handlers)
-        super().__init__(wrapped_handler_container, exec_ranks)
+    def __init__(self, handlers: C_SEQ = None, exec_ranks: INT_SEQ_N = None, _id: Union[str, None] = None):
+        wrapped_handler_container = EpochIterationHandler(handlers, _id=NOTHING)
+        super().__init__(wrapped_handler_container, exec_ranks, _id)
 
 
 class IterationHandler(HandlerContainer):
 
-    def __init__(self, handlers: C_SEQ = None):
-        super().__init__(handlers)
+    def __init__(self, handlers: C_SEQ = None, _id: Union[str, None] = None):
+        super().__init__(handlers, _id)
 
     @InvocationDebug('IterationHandler')
     @TorchGrad
     def handle(self, ctx: BaseContext):
         # context check
-        if ctx.ctx_check('dataset') is True:
-            for batch, progress, time, current, total in IterTool(ctx.dataset, True, True, True, True):
+        if ctx.ctx_check('run.dataset') is True:
+            for batch, progress, time, current, total in IterTool(ctx.run.dataset, True, True, True, True):
                 ctx.step.from_dict({
                     'batch': batch, # original batch data of the dataset
                     'progress': progress, # progress of iteration(includes current step and total steps)
@@ -383,15 +405,15 @@ class IterationHandler(HandlerContainer):
 
 class DistributedIterationHandler(DistributedHandlerContainerWrapper):
 
-    def __init__(self, handlers: C_SEQ = None, default_exec_ranks: INT_SEQ_N = None):
-        wrapped_handler_container = IterationHandler(handlers)
-        super().__init__(wrapped_handler_container, default_exec_ranks)
+    def __init__(self, handlers: C_SEQ = None, default_exec_ranks: INT_SEQ_N = None, _id: Union[str, None] = None):
+        wrapped_handler_container = IterationHandler(handlers, _id=NOTHING)
+        super().__init__(wrapped_handler_container, default_exec_ranks, _id)
 
 
 class ForwardHandler(Handler):
     
-    def __init__(self):
-        super().__init__()
+    def __init__(self, _id: Union[str, None] = None):
+        super().__init__(_id)
 
     @InvocationDebug('ForwardHandler')
     def handle(self, ctx: BaseContext):
@@ -418,8 +440,8 @@ class ForwardHandler(Handler):
 
 class LossHandler(Handler):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, _id: Union[str, None] = None):
+        super().__init__(_id)
     
     @InvocationDebug('LossHandler')
     def handle(self, ctx: BaseContext):
@@ -438,8 +460,8 @@ class LossHandler(Handler):
 
 class BackwardHandler(Handler):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, _id: Union[str, None] = None):
+        super().__init__(_id)
 
     @InvocationDebug('BackwardHandler')
     def handle(self, ctx: BaseContext):
@@ -453,8 +475,8 @@ class BackwardHandler(Handler):
 
 class OptimizerHandler(HandlerContainer):
 
-    def __init__(self, handlers: C_SEQ = None):
-        super().__init__(handlers)
+    def __init__(self, handlers: C_SEQ = None, _id: Union[str, None] = None):
+        super().__init__(handlers, _id)
     
     @InvocationDebug('OptimizerHandler')
     def handle(self, ctx: BaseContext):
@@ -468,8 +490,8 @@ class OptimizerHandler(HandlerContainer):
 
 class MetricsHandler(Handler):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, _id: Union[str, None] = None):
+        super().__init__(_id)
     
     @InvocationDebug('MetricsHandler')
     def handle(self, ctx: BaseContext):
@@ -481,8 +503,8 @@ class MetricsHandler(Handler):
 
 class GatherAverageHandler(Handler):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, _id: Union[str, None] = None):
+        super().__init__(_id)
     
     @InvocationDebug('GatherAverageHandler')
     def handle(self, ctx: BaseContext):
@@ -532,8 +554,8 @@ class AverageInitHandler(Handler):
     # inner context key
     INNER_KEY = 'AVERAGE_INNER'
     
-    def __init__(self, __id: Union[str, None] = None):
-        super().__init__(__id)
+    def __init__(self, _id: Union[str, None] = None):
+        super().__init__(_id)
     
     @InvocationDebug('AverageInitHandler')
     def handle(self, ctx: BaseContext):
@@ -547,8 +569,8 @@ class AverageHandler(Handler):
     # inner context key
     INNER_KEY = 'AVERAGE_INNER'
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, _id: Union[str, None] = None):
+        super().__init__(_id)
     
     @InvocationDebug('AverageHandler')
     def handle(self, ctx: BaseContext):
@@ -589,8 +611,8 @@ class AverageHandler(Handler):
 
 class DisplayHandler(Handler):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, _id: Union[str, None] = None):
+        super().__init__(_id)
     
     @InvocationDebug('DisplayHandler')
     def handle(self, ctx: BaseContext):
@@ -623,15 +645,15 @@ class DisplayHandler(Handler):
 
 class DistributedDisplayHandler(DistributedHandlerWrapper):
 
-    def __init__(self, exec_ranks: INT_SEQ_N = None):
-        wrapped_handler = DisplayHandler()
-        super().__init__(wrapped_handler, exec_ranks)
+    def __init__(self, exec_ranks: INT_SEQ_N = None, _id: Union[str, None] = None):
+        wrapped_handler = DisplayHandler(_id=NOTHING)
+        super().__init__(wrapped_handler, exec_ranks, _id)
 
 
 class DatasetHandler(Handler):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, _id: Union[str, None] = None):
+        super().__init__(_id)
     
     @InvocationDebug('DatasetHandler')
     def handle(self, ctx: BaseContext):
@@ -643,8 +665,8 @@ class DatasetHandler(Handler):
 
 class StatusHandler(Handler):
 
-    def __init__(self, status: str = 'train'):
-        super().__init__()
+    def __init__(self, status: str = 'train', _id: Union[str, None] = None):
+        super().__init__(_id)
         # get status supported
         from torchslime.core.status import context_status
         mode_supported = list(context_status.modules.keys())
@@ -667,8 +689,8 @@ class StatusHandler(Handler):
 
 class LRDecayHandler(Handler):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, _id: Union[str, None] = None):
+        super().__init__(_id)
     
     @InvocationDebug('LRDecayHandler')
     def handle(self, ctx: BaseContext):
@@ -678,8 +700,8 @@ class LRDecayHandler(Handler):
 
 class CallbackHandler(Handler):
 
-    def __init__(self, hook: str):
-        super().__init__()
+    def __init__(self, hook: str, _id: Union[str, None] = None):
+        super().__init__(_id)
         self._hook = hook
 
     @InvocationDebug('CallbackHandler')

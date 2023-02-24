@@ -60,7 +60,7 @@ class TrainStatus(Status):
 
     def get_dataset(self, ctx: BaseContext):
         ctx.ctx_check('run.train_provider', silent=False)
-        ctx.dataset = ctx.run.train_provider(ctx)
+        ctx.run.dataset = ctx.run.train_provider(ctx)
 
     def get_avg_loss_value_and_metrics(self, ctx: BaseContext) -> Tuple[dict, dict]:
         loss_value = ctx.run.loss_wrapper.get_copy(ctx.epoch.train_loss_value)
@@ -100,7 +100,7 @@ class EvalStatus(Status):
 
     def get_dataset(self, ctx: BaseContext):
         ctx.ctx_check('run.eval_provider', silent=False)
-        ctx.dataset = ctx.run.eval_provider(ctx)
+        ctx.run.dataset = ctx.run.eval_provider(ctx)
 
     def get_avg_loss_value_and_metrics(self, ctx: BaseContext) -> Tuple[dict, dict]:
         loss_value = ctx.run.loss_wrapper.get_copy(ctx.epoch.eval_loss_value)

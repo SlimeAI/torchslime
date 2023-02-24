@@ -27,8 +27,6 @@ class BaseContext(Base):
         # context status(train, eval, etc.)
         from torchslime.core.status import Status
         self.status: Status = NOTHING
-        # the current dataset for running
-        self.dataset: DataLoader = NOTHING
         # run context
         self.run: RunContext = RunContext()
         # information in one epoch
@@ -160,6 +158,8 @@ class RunContext(TempContext):
         self.eval: HandlerContainer = NOTHING
         self.predict: HandlerContainer = NOTHING
         
+        # the current dataset for running
+        self.dataset: DataLoader = NOTHING
         # optimizer
         self.optimizer: Optimizer = NOTHING
         # loss_func

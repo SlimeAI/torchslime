@@ -380,6 +380,17 @@ class BaseList:
     """
     List operation adapter.
     """
+    @overload
+    def index(self, __value) -> int: pass
+    @overload
+    def index(self, __value, __start) -> int: pass
+    @overload
+    def index(self, __value, __start, __stop) -> int: pass
+    @overload
+    def pop(self): pass
+    @overload
+    def pop(self, __index): pass
+    
     def append(self, __object) -> None:
         return self.__list.append(__object)
     
@@ -395,14 +406,14 @@ class BaseList:
     def extend(self, __iterable: Iterable) -> None:
         return self.__list.extend(__iterable)
     
-    def index(self, __value, __start=..., __stop=...) -> int:
-        return self.__list.index(__value, __start, __stop)
+    def index(self, *args) -> int:
+        return self.__list.index(*args)
     
     def insert(self, __index, __object) -> None:
         return self.__list.insert(__index, __object)
     
-    def pop(self, __index=...):
-        return self.__list.pop(__index)
+    def pop(self, *args):
+        return self.__list.pop(*args)
     
     def remove(self, __value) -> None:
         return self.__list.remove(__value)
@@ -498,23 +509,14 @@ class BaseDict:
     def update(self, *args, **kwargs):
         return self.__dict.update(*args, **kwargs)
     
-    def setdefault(self, __key, __default=...):
-        if __default is ...:
-            return self.__dict.setdefault(__key)
-        else:
-            return self.__dict.setdefault(__key, __default)
+    def setdefault(self, *args):
+        return self.__dict.setdefault(*args)
 
-    def get(self, __key, __default=...):
-        if __default is ...:
-            return self.__dict.get(__key)
-        else:
-            return self.__dict.get(__key, __default)
+    def get(self, *args):
+        return self.__dict.get(*args)
 
-    def pop(self, __key, __default=...):
-        if __default is ...:
-            return self.__dict.pop(__key)
-        else:
-            return self.__dict.pop(__key, __default)
+    def pop(self, *args):
+        return self.__dict.pop(*args)
 
     def __len__(self) -> int:
         return self.__dict.__len__()
@@ -539,6 +541,13 @@ class BaseDict:
     
     def __repr__(self) -> str:
         return self.__dict.__repr__()
+
+
+def inf_range(start: int = 0, step: int = 1):
+    value = start
+    while True:
+        yield value
+        value += step
 
 
 class TorchComm:

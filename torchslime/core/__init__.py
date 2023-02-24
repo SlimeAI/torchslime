@@ -112,65 +112,65 @@ class Context(BaseContext):
         # build training process using handlers
         self.run.train = handler.Container([
             # begin callback
-            handler.Callback('begin'),
+            handler.Callback('begin', _id='train_begin_callback'),
             # epoch iter
             handler.EpochIteration([
                 # epoch begin callback
-                handler.Callback('epoch_begin'),
+                handler.Callback('epoch_begin', _id='train_epoch_begin_callback'),
                 # set status to 'train'
-                handler.Status('train'),
+                handler.Status('train', _id='train_status_train'),
                 # get dataset
-                handler.Dataset(),
+                handler.Dataset(_id='train_dataset_train'),
                 # init average setting
-                handler.AverageInit(),
+                handler.AverageInit(_id='train_average_init_train'),
                 # dataset iter
                 handler.Iteration([
                     # step begin callback
-                    handler.Callback('step_begin'),
+                    handler.Callback('step_begin', _id='train_step_begin_callback'),
                     # forward
-                    handler.Forward(),
+                    handler.Forward(_id='train_forward_train'),
                     # compute loss
-                    handler.Loss(),
+                    handler.Loss(_id='train_loss_train'),
                     # backward and optimizer step
                     handler.Optimizer([
-                        handler.Backward()
-                    ]),
+                        handler.Backward(_id='train_backward')
+                    ], _id='train_optimizer'),
                     # compute metrics
-                    handler.Metrics(),
+                    handler.Metrics(_id='train_metrics_train'),
                     # compute average loss value and metrics
-                    handler.Average(),
+                    handler.Average(_id='train_average_train'),
                     # display in console or in log files
-                    handler.Display(),
+                    handler.Display(_id='train_display_train'),
                     # step end callback
-                    handler.Callback('step_end')
-                ]),
+                    handler.Callback('step_end', _id='train_step_end_callback')
+                ], _id='train_iteration_train'),
                 # apply learning rate decay
-                handler.LRDecay(),
+                handler.LRDecay(_id='train_lr_decay'),
                 # set status to 'val'
-                handler.Status('val'),
+                handler.Status('val', _id='train_status_val'),
                 # get dataset
-                handler.Dataset(),
+                handler.Dataset(_id='train_dataset_val'),
                 # init average setting
-                handler.AverageInit(),
+                handler.AverageInit(_id='train_average_init_val'),
                 # dataset iter
                 handler.Iteration([
                     # forward
-                    handler.Forward(),
+                    handler.Forward(_id='train_forward_val'),
                     # compute loss
-                    handler.Loss(),
+                    handler.Loss(_id='train_loss_val'),
                     # metrics
-                    handler.Metrics(),
+                    handler.Metrics(_id='train_metrics_val'),
                     # compute average loss value and metrics
-                    handler.Average(),
+                    handler.Average(_id='train_average_val'),
                     # display in console or in log files
-                    handler.Display()
-                ]),
+                    handler.Display(_id='train_display_val')
+                ], _id='train_iteration_val'),
                 # epoch end callback
-                handler.Callback('epoch_end')
-            ]),
+                handler.Callback('epoch_end', _id='train_epoch_end_callback')
+            ], _id='train_epoch_iteration'),
             # end callback
-            handler.Callback('end')
-        ])
+            handler.Callback('end', _id='train_end_callback')
+        ], _id='train_container')
 
     @InvocationDebug('Context.PredictBuilder')
     @MethodChaining
@@ -180,25 +180,25 @@ class Context(BaseContext):
         # build predicting process using handlers
         self.run.predict = handler.Container([
             # begin callback
-            handler.Callback('begin'),
+            handler.Callback('begin', _id='predict_begin_callback'),
             # set status to 'predict'
-            handler.Status('predict'),
+            handler.Status('predict', _id='predict_status'),
             # get dataset
-            handler.Dataset(),
+            handler.Dataset(_id='predict_dataset'),
             # dataset iteration
             handler.Iteration([
                 # step begin callback
-                handler.Callback('step_begin'),
+                handler.Callback('step_begin', _id='predict_step_begin_callback'),
                 # forward
-                handler.Forward(),
+                handler.Forward(_id='predict_forward'),
                 # display
-                handler.Display(),
+                handler.Display(_id='predict_display'),
                 # step end callback
-                handler.Callback('step_end')
-            ]),
+                handler.Callback('step_end', _id='predict_step_end_callback')
+            ], _id='predict_iteration'),
             # end callback
-            handler.Callback('end')
-        ])
+            handler.Callback('end', _id='predict_end_callback')
+        ], _id='predict_container')
 
     @InvocationDebug('Context.EvalBuilder')
     @MethodChaining
@@ -208,33 +208,33 @@ class Context(BaseContext):
         # build evaluating process using handlers
         self.run.eval = handler.Container([
             # begin callback
-            handler.Callback('begin'),
+            handler.Callback('begin', _id='eval_begin_callback'),
             # set status to 'eval'
-            handler.Status('eval'),
+            handler.Status('eval', _id='eval_status'),
             # get dataset
-            handler.Dataset(),
+            handler.Dataset(_id='eval_dataset'),
             # clear average metrics
-            handler.AverageInit(),
+            handler.AverageInit(_id='eval_average_init'),
             # dataset iteration
             handler.Iteration([
                 # step begin callback
-                handler.Callback('step_begin'),
+                handler.Callback('step_begin', _id='eval_step_begin_callback'),
                 # forward
-                handler.Forward(),
+                handler.Forward(_id='eval_forward'),
                 # compute loss
-                handler.Loss(),
+                handler.Loss(_id='eval_loss'),
                 # compute metrics
-                handler.Metrics(),
+                handler.Metrics(_id='eval_metrics'),
                 # compute average metrics
-                handler.Average(),
+                handler.Average(_id='eval_average'),
                 # display
-                handler.Display(),
+                handler.Display(_id='eval_display'),
                 # step end callback
-                handler.Callback('step_end')
-            ]),
+                handler.Callback('step_end', _id='eval_step_end_callback')
+            ], _id='eval_iteration'),
             # end callback
-            handler.Callback('end')
-        ])
+            handler.Callback('end', _id='eval_end_callback')
+        ], _id='eval_container')
 
     @InvocationDebug('Context.compile_loss_func')
     def compile_loss_func(self, loss_func):
@@ -404,19 +404,21 @@ class DistributedContext(Context):
             ]),
             # end callback
             handler.Callback('end')
-        ])
+        ], _id='train_container_dist')
         # set exec ranks
         self.run.train.set_exec_ranks(self.distributed.exec_ranks)
 
     @InvocationDebug('DistributedContext.PredictBuilder')
     @MethodChaining
     def build_predict(self) -> DIST_T:
-        pass
+        # get handler classes from context
+        handler = self.handler
 
     @InvocationDebug('DistributedContext.EvalBuilder')
     @MethodChaining
     def build_eval(self) -> DIST_T:
-        pass
+        # get handler classes from context
+        handler = self.handler
 
     @InvocationDebug('DistributedContext.compile_callbacks')
     def compile_callbacks(self, callbacks):
