@@ -153,10 +153,10 @@ class RunContext(TempContext):
     
     def initialize(self):
         # handler containers that define the process of training, evaluating and predicting.
-        from torchslime.core.handler import HandlerContainer
-        self.train: HandlerContainer = NOTHING
-        self.eval: HandlerContainer = NOTHING
-        self.predict: HandlerContainer = NOTHING
+        from torchslime.core.handler import HandlerContainer, DistributedHandlerContainer
+        self.train: Union[HandlerContainer, DistributedHandlerContainer, Nothing] = NOTHING
+        self.eval: Union[HandlerContainer, DistributedHandlerContainer, Nothing] = NOTHING
+        self.predict: Union[HandlerContainer, DistributedHandlerContainer, Nothing] = NOTHING
         
         # the current dataset for running
         self.dataset: DataLoader = NOTHING
@@ -253,6 +253,8 @@ class CustomContext(TempContext):
     
     def initialize(self):
         self.__dict__.clear()
+        # TODO: experiment config
+        self.config = {}
         logger.debug('Custom context has been initialized.')
 
 
