@@ -1,5 +1,5 @@
 from torchslime.core.context import BaseContext
-from torchslime.util import BaseList, is_nothing, NOTHING
+from torchslime.util import BaseList, is_nothing, NOTHING, is_none_or_nothing
 from torchslime.util.type import INT_SEQ_N
 from typing import Union, Sequence
 import torch.distributed as dist
@@ -35,6 +35,9 @@ class Callback:
         Used to dispatch callback hooks.
         """
         getattr(self, _hook)(ctx)
+    
+    def is_distributed(self) -> bool:
+        return False
 
 
 # callback or sequence of callbacks
@@ -80,20 +83,24 @@ class DistributedCallback(Callback):
     Distributed callback.
     """
 
-    def __init__(self, exec_ranks: INT_SEQ_N = None):
+    def __init__(self, exec_ranks: INT_SEQ_N = NOTHING):
         super().__init__()
         self.exec_ranks = BaseList.create(exec_ranks)
+        self.exec_locked = (is_nothing(exec_ranks) is False)
     
     def set_exec_ranks(self, exec_ranks: INT_SEQ_N):
-        if self.exec_ranks is None or exec_ranks is None:
+        if self.exec_locked is False:
             # the exec_ranks are changeable
             self.exec_ranks = BaseList.create(exec_ranks)
 
     def _exec_hook(self, _hook: str, ctx: BaseContext):
         rank = ctx.get_rank()
-        if self.exec_ranks is not None and \
-            (is_nothing(self.exec_ranks) or rank in self.exec_ranks):
+        if is_none_or_nothing(self.exec_ranks) is False and \
+            (self.exec_ranks is ... or rank in self.exec_ranks):
             super()._exec_hook(_hook, ctx)
+    
+    def is_distributed(self) -> bool:
+        return True
 
 
 class DistributedCallbackWrapper(DistributedCallback):
@@ -101,7 +108,7 @@ class DistributedCallbackWrapper(DistributedCallback):
     Distributed Callback Wrapper that makes a normal callback distributed-enabled.
     """
 
-    def __init__(self, wrapped_callback: Callback, exec_ranks: INT_SEQ_N = None):
+    def __init__(self, wrapped_callback: Callback, exec_ranks: INT_SEQ_N = NOTHING):
         super().__init__(exec_ranks)
         self._wrapped_callback = wrapped_callback
     
@@ -129,19 +136,20 @@ class DistributedCallbackContainer(CallbackContainer):
     Distributed callback container.
     """
 
-    def __init__(self, callbacks: C_SEQ = None, default_exec_ranks: INT_SEQ_N = None):
+    def __init__(self, callbacks: C_SEQ = None):
         super().__init__(callbacks)
         # the distributed callback container is always executed.
-        self.exec_ranks = NOTHING
-        # exec ranks that are set to its sub-callbacks
-        self.default_exec_ranks = BaseList.create(default_exec_ranks)
+        self.exec_ranks = ...
+        # the exec_locked is set to True by default.
+        self.exec_locked = True
 
     def set_exec_ranks(self, exec_ranks: INT_SEQ_N):
-        if self.default_exec_ranks is None or exec_ranks is None:
-            # the default_exec_ranks are changeable
-            self.default_exec_ranks = BaseList.create(exec_ranks)
-        for callback in filter(lambda item: isinstance(item, DISTRIBUTED_CLASSES), self):
-            callback.set_exec_ranks(self.default_exec_ranks)
+        if self.exec_locked is False:
+            # the exec_ranks are changeable
+            self.exec_ranks = BaseList.create(exec_ranks)
+        # set sub-callback exec_ranks
+        for callback in filter(lambda item: item.is_distributed(), self):
+            callback.set_exec_ranks(exec_ranks)
 
     def begin(self, ctx: BaseContext):
         for callback in self:
@@ -169,15 +177,18 @@ class DistributedCallbackContainer(CallbackContainer):
 
     def _exec_hook(self, _hook: str, ctx: BaseContext):
         rank = ctx.get_rank()
-        if self.exec_ranks is not None and \
-            (is_nothing(self.exec_ranks) or rank in self.exec_ranks):
+        if is_none_or_nothing(self.exec_ranks) is False and \
+            (self.exec_ranks is ... or rank in self.exec_ranks):
             super()._exec_hook(_hook, ctx)
+    
+    def is_distributed(self) -> bool:
+        return True
 
 
 class DistributedCallbackContainerWrapper(DistributedCallbackContainer):
 
-    def __init__(self, wrapped_callback_container: CallbackContainer, default_exec_ranks: INT_SEQ_N = None):
-        super().__init__(None, default_exec_ranks)
+    def __init__(self, wrapped_callback_container: CallbackContainer):
+        super().__init__(None)
         self._wrapped_callback_container = wrapped_callback_container
         self.set_list(wrapped_callback_container.get_list())
 
@@ -198,6 +209,3 @@ class DistributedCallbackContainerWrapper(DistributedCallbackContainer):
     
     def epoch_end(self, ctx: BaseContext):
         self._wrapped_callback_container._exec_hook('epoch_end', ctx)
-
-
-DISTRIBUTED_CLASSES = (DistributedCallback, DistributedCallbackContainer)

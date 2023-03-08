@@ -307,13 +307,16 @@ class DistributedContext(Context):
         super().__init__(model, device)
         # distributed config context.
         self.distributed: DistributedConfigContext = DistributedConfigContext()
-        self.distributed.exec_ranks = BaseList.create_nothing(exec_ranks)
+        self.distributed.exec_ranks = BaseList.create(exec_ranks)
 
     def set_exec_ranks(self, exec_ranks: INT_SEQ_N):
-        # TODO: duck typing check?
-        pass
+        self.distributed.exec_ranks = BaseList.create(exec_ranks)
+        self.run.callbacks.set_exec_ranks(exec_ranks)
+        self.run.train.set_exec_ranks(exec_ranks)
+        self.run.eval.set_exec_ranks(exec_ranks)
+        self.run.predict.set_exec_ranks(exec_ranks)
 
-    def is_distributed_context(self) -> bool:
+    def is_distributed(self) -> bool:
         """
         Distributed Context belongs to distributed context.
         """

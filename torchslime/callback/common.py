@@ -1,6 +1,6 @@
 import os
 
-from torchslime.util import is_nothing
+from torchslime.util import is_nothing, NOTHING
 from torchslime.callback import Callback, DistributedCallbackWrapper
 from torchslime.core.context import BaseContext
 from torchslime.experiment.directory import get_checkpoint_path, join_path, get_metric_path, safe_makedirs
@@ -88,7 +88,7 @@ class DistributedSaveCheckpoint(DistributedCallbackWrapper):
         save_model: bool = True,
         save_optimizer: bool = False,
         save_epoch: bool = False,
-        exec_ranks: INT_SEQ_N = None
+        exec_ranks: INT_SEQ_N = NOTHING
     ):
         wrapped_callback = SaveCheckpoint(
             save_per,
@@ -159,7 +159,7 @@ class DistributedSaveMetrics(DistributedCallbackWrapper):
         save_train: bool = True,
         save_val: bool = True,
         save_per: EPOCH_SEQ = 1,
-        exec_ranks: INT_SEQ_N = None
+        exec_ranks: INT_SEQ_N = NOTHING
     ):
         wrapped_callback = SaveMetrics(
             save_train,

@@ -339,34 +339,23 @@ class BaseList:
             self.__list = list(list_like) if isinstance(list_like, Iterable) else [list_like]
 
     @classmethod
-    def create(cls, list_like: Iterable = None):
+    def create(
+        cls,
+        list_like: Iterable = None,
+        return_none: bool = True,
+        return_nothing: bool = True,
+        return_ellipsis: bool = True
+    ):
         """
-        If the ``list_like`` object is ``None`` or ``NOTHING``, then return itself, otherwise return ``BaseList`` object.
+        If the ``list_like`` object is ``None``, ``NOTHING`` or ``...`` and the corresponding return config is True, then
+        return itself, otherwise return ``BaseList`` object.
 
         WARNING: This changes the default behavior of ``BaseList``, which creates an empty list when the list_like object is 
-        ``None`` or ``NOTHING``.
+        ``None`` or ``NOTHING`` and creates ``[...]`` when the list_like object is ``...``.
         """
-        if is_none_or_nothing(list_like):
-            return list_like
-        else:
-            return cls(list_like)
-
-    @classmethod
-    def create_nothing(cls, list_like: Iterable = None):
-        """
-        Only when the list_like object is NOTHING is itself returned.
-        """
-        if is_nothing(list_like):
-            return list_like
-        else:
-            return cls(list_like)
-
-    @classmethod
-    def create_none(cls, list_like: Iterable = None):
-        """
-        Only when the list_like object is None is itself returned.
-        """
-        if list_like is None:
+        if (is_nothing(list_like) and return_nothing is True) or \
+            (list_like is None and return_none is True) or \
+            (list_like is ... and return_ellipsis is True):
             return list_like
         else:
             return cls(list_like)

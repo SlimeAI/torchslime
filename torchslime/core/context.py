@@ -35,7 +35,7 @@ class BaseContext(Base):
         self.step: StepContext = StepContext()
         # handler context
         self.handler: Union[HandlerContext, DistributedHandlerContext] = \
-            DistributedHandlerContext() if self.is_distributed_context() is True else HandlerContext()
+            DistributedHandlerContext() if self.is_distributed() is True else HandlerContext()
         # custom context
         self.custom: CustomContext = CustomContext()
         # inner context
@@ -65,7 +65,7 @@ class BaseContext(Base):
             # single value
             return _check(str(items))
     
-    def is_distributed_context(self) -> bool:
+    def is_distributed(self) -> bool:
         """
         Whether distributed features are used in TorchSlime.
         """
@@ -179,8 +179,8 @@ class RunContext(TempContext):
         # the data parser should be set to IndexParser as default
         self.data_parser: DataParser = IndexParser()
         # run callback executor
-        from torchslime.callback import CallbackContainer
-        self.callbacks: CallbackContainer = NOTHING
+        from torchslime.callback import CallbackContainer, DistributedCallbackContainer
+        self.callbacks: Union[CallbackContainer, DistributedCallbackContainer, Nothing] = NOTHING
         # metric container
         from torchslime.metric import MetricContainer
         self.metrics: MetricContainer = NOTHING

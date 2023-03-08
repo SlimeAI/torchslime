@@ -138,6 +138,9 @@ class Handler:
     
     def del_parent(self):
         self.__parent = NOTHING
+    
+    def is_distributed(self) -> bool:
+        return False
 
 
 class EmptyHandler(Handler):
@@ -174,20 +177,24 @@ class LambdaHandler(Handler, BaseList):
 
 class DistributedHandler(Handler):
 
-    def __init__(self, exec_ranks: INT_SEQ_N = None, _id: Union[str, None] = None):
+    def __init__(self, exec_ranks: INT_SEQ_N = NOTHING, _id: Union[str, None] = None):
         super().__init__(_id)
         self.exec_ranks = BaseList.create(exec_ranks)
+        self.exec_locked = (is_nothing(exec_ranks) is False)
 
     def set_exec_ranks(self, exec_ranks: INT_SEQ_N):
-        if self.exec_ranks is None or exec_ranks is None:
+        if self.exec_locked is False:
             # the exec_ranks are changeable
             self.exec_ranks = BaseList.create(exec_ranks)
 
     def __call__(self, ctx: DistributedContext):
         rank = ctx.get_rank()
-        if self.exec_ranks is not None and \
-            (is_nothing(self.exec_ranks) or rank in self.exec_ranks):
+        if is_none_or_nothing(self.exec_ranks) is False and \
+            (self.exec_ranks is ... or rank in self.exec_ranks):
             super().__call__(ctx)
+    
+    def is_distributed(self) -> bool:
+        return True
 
 
 class DistributedHandlerWrapper(DistributedHandler):
@@ -195,7 +202,7 @@ class DistributedHandlerWrapper(DistributedHandler):
     def __init__(
         self,
         wrapped_handler: Handler,
-        exec_ranks: INT_SEQ_N = None,
+        exec_ranks: INT_SEQ_N = NOTHING,
         _id: Union[str, None] = None
     ):
         super().__init__(exec_ranks, _id)
@@ -207,7 +214,7 @@ class DistributedHandlerWrapper(DistributedHandler):
 
 class DistributedLambdaHandler(DistributedHandlerWrapper, BaseList):
     
-    def __init__(self, _lambda: L_SEQ, exec_ranks: INT_SEQ_N = None, _id: Union[str, None] = None):
+    def __init__(self, _lambda: L_SEQ, exec_ranks: INT_SEQ_N = NOTHING, _id: Union[str, None] = None):
         wrapped_handler = LambdaHandler(_lambda, _id=NOTHING)
         DistributedHandlerWrapper.__init__(self, wrapped_handler, exec_ranks, _id)
         BaseList.__init__(self, None)
@@ -321,39 +328,40 @@ class HandlerContainer(Handler, BaseList):
 
 class DistributedHandlerContainer(HandlerContainer):
 
-    def __init__(self, handlers: C_SEQ = None, default_exec_ranks: INT_SEQ_N = None, _id: Union[str, None] = None):
+    def __init__(self, handlers: C_SEQ = None, _id: Union[str, None] = None):
         super().__init__(handlers, _id)
         # the distributed handler container is always executed.
-        self.exec_ranks = NOTHING
-        # exec ranks that are set to its sub-handlers
-        self.default_exec_ranks = BaseList.create(default_exec_ranks)
+        self.exec_ranks = ...
+        # the exec_locked is set to True by default.
+        self.exec_locked = True
     
     def set_exec_ranks(self, exec_ranks: INT_SEQ_N):
-        if self.default_exec_ranks is None or exec_ranks is None:
-            # the default_exec_ranks are changeable
-            self.default_exec_ranks = BaseList.create(exec_ranks)
-        for handler in filter(lambda item: isinstance(item, DISTRIBUTED_CLASSES), self):
-            handler.set_exec_ranks(self.default_exec_ranks)
+        if self.exec_locked is False:
+            # the exec_ranks are changeable
+            self.exec_ranks = BaseList.create(exec_ranks)
+        # set sub-handler exec_ranks
+        for handler in filter(lambda item: item.is_distributed(), self):
+            handler.set_exec_ranks(exec_ranks)
 
     def __call__(self, ctx: DistributedContext):
         rank = ctx.get_rank()
-        if self.exec_ranks is not None and \
-            (is_nothing(self.exec_ranks) or rank in self.exec_ranks):
+        if is_none_or_nothing(self.exec_ranks) is False and \
+            (self.exec_ranks is ... or rank in self.exec_ranks):
             super().__call__(ctx)
+    
+    def is_distributed(self) -> bool:
+        return True
 
 
 class DistributedHandlerContainerWrapper(DistributedHandlerContainer):
 
-    def __init__(self, wrapped_handler_container: HandlerContainer, default_exec_ranks: INT_SEQ_N = None, _id: Union[str, None] = None):
-        super().__init__(None, default_exec_ranks, _id)
+    def __init__(self, wrapped_handler_container: HandlerContainer, _id: Union[str, None] = None):
+        super().__init__(None, _id)
         self._wrapped_handler_container = wrapped_handler_container
         self.set_list(wrapped_handler_container.get_list())
 
     def handle(self, ctx: BaseContext):
         self._wrapped_handler_container(ctx)
-
-
-DISTRIBUTED_CLASSES = (DistributedHandler, DistributedHandlerContainer)
 
 
 class EpochIterationHandler(HandlerContainer):
@@ -376,9 +384,9 @@ class EpochIterationHandler(HandlerContainer):
 
 class DistributedEpochIterationHandler(DistributedHandlerContainerWrapper):
 
-    def __init__(self, handlers: C_SEQ = None, exec_ranks: INT_SEQ_N = None, _id: Union[str, None] = None):
+    def __init__(self, handlers: C_SEQ = None, _id: Union[str, None] = None):
         wrapped_handler_container = EpochIterationHandler(handlers, _id=NOTHING)
-        super().__init__(wrapped_handler_container, exec_ranks, _id)
+        super().__init__(wrapped_handler_container, _id)
 
 
 class IterationHandler(HandlerContainer):
@@ -405,9 +413,9 @@ class IterationHandler(HandlerContainer):
 
 class DistributedIterationHandler(DistributedHandlerContainerWrapper):
 
-    def __init__(self, handlers: C_SEQ = None, default_exec_ranks: INT_SEQ_N = None, _id: Union[str, None] = None):
+    def __init__(self, handlers: C_SEQ = None, _id: Union[str, None] = None):
         wrapped_handler_container = IterationHandler(handlers, _id=NOTHING)
-        super().__init__(wrapped_handler_container, default_exec_ranks, _id)
+        super().__init__(wrapped_handler_container, _id)
 
 
 class ForwardHandler(Handler):
@@ -645,7 +653,7 @@ class DisplayHandler(Handler):
 
 class DistributedDisplayHandler(DistributedHandlerWrapper):
 
-    def __init__(self, exec_ranks: INT_SEQ_N = None, _id: Union[str, None] = None):
+    def __init__(self, exec_ranks: INT_SEQ_N = NOTHING, _id: Union[str, None] = None):
         wrapped_handler = DisplayHandler(_id=NOTHING)
         super().__init__(wrapped_handler, exec_ranks, _id)
 
