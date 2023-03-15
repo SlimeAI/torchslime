@@ -1,6 +1,8 @@
 from torchslime.util import Singleton, BaseList, NOTHING, is_none_or_nothing
 from torchslime.log.common import set_time_format, TIME_FORMAT, TerminalLogger, LoggerItem
+from torchslime.util.tstype import INT_SEQ_N
 from datetime import datetime
+from typing import Type, Any, Union
 import inspect
 import os
 
@@ -30,6 +32,15 @@ class Logger(BaseList):
             return
         self.remove(logger_item)
 
+    def debug(self, msg, _exec: dict = NOTHING, _frame_offset: int = 0):
+        if self.config['debug'] is True:
+            time = self._get_time()
+            _exec = self._get_exec(_exec=_exec, _frame_offset=_frame_offset)
+            
+            for logger_item in self:
+                logger_item: LoggerItem = logger_item
+                logger_item.debug(msg, time, _exec)
+
     def info(self, msg, _exec: dict = NOTHING, _frame_offset: int = 0):
         if self.config['info'] is True:
             time = self._get_time()
@@ -56,15 +67,6 @@ class Logger(BaseList):
             for logger_item in self:
                 logger_item: LoggerItem = logger_item
                 logger_item.error(msg, time, _exec)
-
-    def debug(self, msg, _exec: dict = NOTHING, _frame_offset: int = 0):
-        if self.config['debug'] is True:
-            time = self._get_time()
-            _exec = self._get_exec(_exec=_exec, _frame_offset=_frame_offset)
-            
-            for logger_item in self:
-                logger_item: LoggerItem = logger_item
-                logger_item.debug(msg, time, _exec)
 
     def log(self, msg):
         if self.config['log'] is True:
@@ -109,4 +111,77 @@ class Logger(BaseList):
         return '{}, line {}'.format(exec_name, lineno)
 
 
-logger = Logger()
+# enable type hint
+Logger._wrapped: Type[Logger] = Logger._wrapped
+
+
+@Singleton
+class DistributedLogger(Logger._wrapped):
+    
+    def __init__(self, exec_ranks: INT_SEQ_N = NOTHING) -> None:
+        super().__init__()
+        self.set_exec_ranks(exec_ranks)
+    
+    def set_exec_ranks(self, exec_ranks: INT_SEQ_N):
+        self.exec_ranks = BaseList.create(exec_ranks)
+    
+    def debug(self, msg, _exec: dict = NOTHING, _frame_offset: int = 0):
+        if self._check_exec() is True:
+            return super().debug(' - '.join([self._get_rank_info(), msg]), _exec, _frame_offset)
+    
+    def info(self, msg, _exec: dict = NOTHING, _frame_offset: int = 0):
+        if self._check_exec() is True:
+            return super().info(' - '.join([self._get_rank_info(), msg]), _exec, _frame_offset)
+    
+    def warn(self, msg, _exec: dict = NOTHING, _frame_offset: int = 0):
+        if self._check_exec() is True:
+            return super().warn(' - '.join([self._get_rank_info(), msg]), _exec, _frame_offset)
+    
+    def error(self, msg, _exec: dict = NOTHING, _frame_offset: int = 0):
+        if self._check_exec() is True:
+            return super().error(' - '.join([self._get_rank_info(), msg]), _exec, _frame_offset)
+    
+    def log(self, msg):
+        if self._check_exec() is True:
+            return super().log(msg)
+    
+    def _check_exec(self):
+        import torch.distributed as dist
+        rank = dist.get_rank()
+        return is_none_or_nothing(self.exec_ranks) is False and \
+            (self.exec_ranks is ... or rank in self.exec_ranks)
+    
+    def _get_rank_info(self):
+        import torch.distributed as dist
+        rank = dist.get_rank()
+        return 'RANK {}'.format(rank)
+
+
+@Singleton
+class LoggerProxy:
+
+    def __init__(self) -> None:
+        self._logger: Union[Logger, DistributedLogger] = Logger()
+    
+    def __getattr__(self, __name: str) -> Any:
+        return self._logger.__getattr__(__name)
+    
+    def __setattr__(self, __name: str, __value: Any) -> None:
+        return self._logger.__setattr__(__name, __value)
+    
+    def __getitem__(self, __i) -> Any:
+        return self._logger.__getitem__(self, __i)
+    
+    def __setitem__(self, __i, __v) -> None:
+        return self._logger.__setitem__(self, __i, __v)
+    
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        return self._logger.__call__(self, *args, **kwargs)
+
+
+# use ``Union[Logger, DistributedLogger, LoggerProxy]`` to enable type hint
+logger: Union[Logger, DistributedLogger, LoggerProxy] = LoggerProxy()
+
+
+def set_logger(_logger: Logger._wrapped):
+    logger._logger = _logger

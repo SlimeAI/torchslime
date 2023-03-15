@@ -28,11 +28,12 @@ def SmartWraps(cls):
     """
     def decorator(func):
         if inspect.isclass(cls):
-            class Wrapper(metaclass=get_wrapper_type(cls)):
+            _wrapped = cls._wrapped if hasattr(cls, '_wrapped') else cls
+            class Wrapper(metaclass=get_wrapper_type(_wrapped)):
                 def __new__(_cls: type, *args, **kwargs):
                     obj = func(*args, **kwargs)
                     return obj
-            return _update_class_wrapper(cls)(Wrapper)
+            return _update_class_wrapper(_wrapped)(Wrapper)
         elif inspect.isfunction(cls) or inspect.ismethod(cls):
             @wraps(cls)
             def wrapper(*args, **kwargs):
