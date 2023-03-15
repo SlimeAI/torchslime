@@ -2,8 +2,9 @@ from typing import Any, Dict, Optional, Union, TypeVar, Callable
 from torchslime.data import ConstantProvider, DataParser, DataProvider, IndexParser
 from torchslime.metric import M_SEQ, MetricContainer, LossReductionFactory
 from torchslime.callback import C_SEQ, CallbackContainer, DistributedCallbackContainer
-from torchslime.util import NOTHING, get_device, type_cast, MethodChaining, InvocationDebug, logger, \
+from torchslime.util import NOTHING, get_device, type_cast, MethodChaining, InvocationDebug, \
     is_nothing, count_params, BaseList
+from torchslime.log import logger
 from torchslime.util.type import NUMBER, INT_SEQ_N
 from torchslime.core.context import BaseContext, DistributedConfigContext
 from torch.utils.data import DataLoader
@@ -32,8 +33,7 @@ class Context(BaseContext):
         total_epochs: int = 1,
         val_dataset: DATASET = NOTHING,
         callbacks: C_SEQ = NOTHING,
-        grad_acc: int = 1,
-        log_option = None  # TODO: log system design
+        grad_acc: int = 1
     ):
         self.compile_total_epochs(total_epochs)
         self.compile_callbacks(callbacks)
@@ -47,8 +47,7 @@ class Context(BaseContext):
     def predict(
         self,
         dataset: DATASET,
-        callbacks: C_SEQ = NOTHING,
-        log_option = None  # TODO: log system design
+        callbacks: C_SEQ = NOTHING
     ):
         self.compile_callbacks(callbacks)
         self.compile_dataset(dataset, 'eval')
@@ -59,8 +58,7 @@ class Context(BaseContext):
     def eval(
         self,
         dataset: DATASET,
-        callbacks: C_SEQ = NOTHING,
-        log_option = None  # TODO: log system design
+        callbacks: C_SEQ = NOTHING
     ):
         self.compile_callbacks(callbacks)
         self.compile_dataset(dataset, 'eval')
@@ -285,17 +283,18 @@ class Context(BaseContext):
             else:
                 dataset = dataset if isinstance(dataset, DataProvider) else ConstantProvider(dataset)
 
-            if mode == 'train':
-                self.run.train_provider = dataset
-            elif mode == 'eval':
-                self.run.eval_provider = dataset
-            else:
+            mode_supported = ['train', 'eval']
+            if mode not in mode_supported:
                 logger.warn('compile_dataset mode not supported.')
+            setattr(self.run, '{}_provider'.format(mode), dataset)
 
     @InvocationDebug('Context.compile_grad_acc')
     def compile_grad_acc(self, grad_acc: int):
         if grad_acc is not None:
             self.run.grad_acc = grad_acc
+    
+    def _log_device(self, stage: str):
+        pass
 
 
 DIST_T = TypeVar('DIST_T', bound='DistributedContext')

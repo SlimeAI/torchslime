@@ -50,9 +50,9 @@ class BaseContext(Base):
             if _result is False:
                 msg = 'Context check failed: got NOTHING with key \'%s\'.' % _item
                 if silent is True:
-                    logger.debug(msg)
+                    logger.debug(msg, _frame_offset=2)
                 else:
-                    logger.warn(msg)
+                    logger.warn(msg, _frame_offset=2)
             return _result
 
         if isinstance(items, (list, tuple)):

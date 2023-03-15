@@ -105,10 +105,6 @@ def Singleton(cls):
     return wrapper
 
 
-# set import here to avoid import error
-from torchslime.log import logger
-
-
 def InvocationDebug(module_name):
     """A decorator that output debug information before and after a method is invoked.
 
@@ -118,12 +114,25 @@ def InvocationDebug(module_name):
     def decorator(func):
         @SmartWraps(func)
         def wrapper(*args, **kwargs):
-            logger.debug(module_name, 'begin.')
+            from torchslime.log import logger
+            _exec = get_exec_info(func)
+            
+            logger.debug('{} begins.'.format(module_name), _exec=_exec)
             result = func(*args, **kwargs)
-            logger.debug(module_name, 'end.')
+            logger.debug('{} ends.'.format(module_name), _exec=_exec)
             return result
         return wrapper
     return decorator
+
+
+def get_exec_info(obj):
+    exec_name = inspect.getmodule(obj).__name__
+    lineno = inspect.getsourcelines(obj)[1]
+    _exec = {
+        'exec_name': exec_name,
+        'lineno': lineno
+    }
+    return _exec
 
 
 @Singleton
@@ -168,7 +177,15 @@ class Nothing:
     def __repr__(self) -> str:
         return 'NOTHING'
 
+    def __format__(self, __format_spec: str) -> str:
+        return 'NOTHING'
+
     def __contains__(self) -> bool:
+        return False
+
+    def __eq__(self, obj) -> bool:
+        if is_nothing(obj):
+            return True
         return False
 
     def __add__(self, _):
@@ -278,6 +295,7 @@ class Base:
 
     @staticmethod
     def process_exc():
+        from torchslime.log import logger
         # output error
         logger.error(
             'Python exception raised:\n' +
@@ -331,17 +349,17 @@ class Count:
 
 class BaseList:
 
-    # TODO: Typing extension to be changed, list_like: Iterable -> list_like: Union[Iterable, Non-Iterable]
-    def __init__(self, list_like: Iterable = None):
+    def __init__(self, list_like: Any = None):
         if is_none_or_nothing(list_like):
             self.__list = []
         else:
-            self.__list = list(list_like) if isinstance(list_like, Iterable) else [list_like]
+            # TODO: Iterable WARNING, BaseList only supports list or tuple expansion, other iterable items will be processed as ``[item]``
+            self.__list = list(list_like) if isinstance(list_like, (list, tuple)) else [list_like]
 
     @classmethod
     def create(
         cls,
-        list_like: Iterable = None,
+        list_like: Any = None,
         return_none: bool = True,
         return_nothing: bool = True,
         return_ellipsis: bool = True
@@ -883,6 +901,7 @@ class IterTool(Iter):
         try:
             return len(self._iterable)
         except Exception:
+            from torchslime.log import logger
             logger.error('The iterable item has no __len__.')
             return 0
 

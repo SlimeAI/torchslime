@@ -232,7 +232,7 @@ class HandlerContainer(Handler, BaseList):
         # remove None and NOTHING
         BaseList.__init__(
             self,
-            filter(lambda item: is_none_or_nothing(item) is not True, handlers if isinstance(handlers, Iterable) else [])
+            list(filter(lambda item: is_none_or_nothing(item) is not True, handlers if isinstance(handlers, Iterable) else []))
         )
         # set parent
         for handler in self:
@@ -378,7 +378,7 @@ class EpochIterationHandler(HandlerContainer):
             # set current epoch to the context
             ctx.epoch.current = current
             # output epoch info. TODO: change logger operation to a handler?
-            logger.log('Epoch %d' % (ctx.epoch.current + 1))
+            logger.log('Epoch {}\n'.format(ctx.epoch.current + 1))
             super().handle(ctx)
 
 
