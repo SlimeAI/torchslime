@@ -1,6 +1,6 @@
 from torchslime.core.context import BaseContext
 from torchslime.util import BaseList, is_nothing, NOTHING, is_none_or_nothing
-from torchslime.util.type import INT_SEQ_N
+from torchslime.util.tstype import INT_SEQ_N
 from typing import Union, Sequence
 import torch.distributed as dist
 

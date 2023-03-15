@@ -6,7 +6,7 @@ from torchslime.util.formatter import progress_format, eta_format
 from torchslime.core.context import BaseContext
 from torchslime.core import DistributedContext
 from torchslime.log import logger
-from torchslime.util.type import INT_SEQ_N
+from torchslime.util.tstype import INT_SEQ_N
 from torch import set_grad_enabled
 
 

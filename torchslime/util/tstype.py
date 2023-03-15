@@ -1,4 +1,6 @@
-"""This python file defines common types that are used in the project.
+"""
+This python file defines common types that are used in the project.
+The module is renamed from 'type' to 'tstype' to avoid namespace conflict with built-in class ``type``
 """
 from typing import Sequence, Union, Callable
 from torch import Tensor

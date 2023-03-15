@@ -5,7 +5,7 @@ from torchslime.callback import C_SEQ, CallbackContainer, DistributedCallbackCon
 from torchslime.util import NOTHING, get_device, type_cast, MethodChaining, InvocationDebug, \
     is_nothing, count_params, BaseList
 from torchslime.log import logger
-from torchslime.util.type import NUMBER, INT_SEQ_N
+from torchslime.util.tstype import NUMBER, INT_SEQ_N
 from torchslime.core.context import BaseContext, DistributedConfigContext
 from torch.utils.data import DataLoader
 from torch.optim import Optimizer

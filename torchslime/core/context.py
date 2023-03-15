@@ -3,7 +3,7 @@ from torch.nn import Module
 from torch import device, Tensor
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
-from torchslime.util.type import NUMBER
+from torchslime.util.tstype import NUMBER
 from typing import Any, Sequence, Union, Dict, Tuple, Callable, Type
 from torchslime.log import logger
 from abc import abstractmethod

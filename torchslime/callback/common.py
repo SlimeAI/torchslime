@@ -5,7 +5,7 @@ from torchslime.callback import Callback, DistributedCallbackWrapper
 from torchslime.core.context import BaseContext
 from torchslime.experiment.directory import get_checkpoint_path, join_path, get_metric_path, safe_makedirs
 from torchslime.log import logger
-from torchslime.util.type import INT_SEQ_N
+from torchslime.util.tstype import INT_SEQ_N
 import torch
 from typing import Sequence, Union, Callable
 import json

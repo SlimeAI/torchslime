@@ -24,37 +24,15 @@ def SmartWraps(cls):
     while when it is used to a class, you can get the original class by accessing the '_wrapped_class' attribute,
     so you can use this feature to do other useful things, such as 'isinstance', etc.
 
-    WARNING: DO NOT use ``_wrapped_class`` or ``_wrapper_class`` as attribute name in the decorated class.
+    WARNING: DO NOT use ``_wrapped`` as attribute name in the decorated class.
     """
     def decorator(func):
         if inspect.isclass(cls):
-            class Wrapper:
-                def __init__(self, _class) -> None:
-                    super().__setattr__('_wrapped_class',
-                        # nested class decorator
-                        _class._wrapped_class if hasattr(_class, '_wrapped_class') else _class
-                    )
-                    super().__setattr__('_wrapper_class', self.__class__)
-                
-                def __call__(self, *args, **kwargs) -> None:
-                    return func(*args, **kwargs)
-                
-                def __setattr__(self, __name: str, __value: Any) -> None:
-                    # Simultaneously set attributes to wrapper and wrapped class.
-                    setattr(self._wrapped_class, __name, __value)
-                    # staticmethod and classmethod bound
-                    if isinstance(__value, FUNC_WRAPPER):
-                        __value = __value.__get__(self._wrapped_class, self._wrapped_class)
-                    super().__setattr__(__name, __value)
-
-                def __repr__(self):
-                    return ('Smart wrapper object: {}. (You can get the original decorated '
-                        'class by accessing the attribute "_wrapped_class")').format(super().__repr__())
-                
-                def __str__(self):
-                    return ('Smart wrapper object: {}. (You can get the original decorated '
-                        'class by accessing the attribute "_wrapped_class")').format(super().__repr__())
-            return _update_class_wrapper(cls)(Wrapper(cls))
+            class Wrapper(metaclass=get_wrapper_type(cls)):
+                def __new__(_cls: type, *args, **kwargs):
+                    obj = func(*args, **kwargs)
+                    return obj
+            return _update_class_wrapper(cls)(Wrapper)
         elif inspect.isfunction(cls) or inspect.ismethod(cls):
             @wraps(cls)
             def wrapper(*args, **kwargs):
@@ -63,28 +41,39 @@ def SmartWraps(cls):
     return decorator
 
 
-def _update_class_wrapper(wrapped):
+def _update_class_wrapper(_wrapped: type):
     WRAPPER_ASSIGNMENTS = ('__module__', '__name__', '__qualname__', '__doc__')
     WRAPPER_UPDATES = ('__dict__',)
 
     def _super_setattr(__wrapper, __name, __value):
-        super(__wrapper._wrapper_class, __wrapper).__setattr__(__name, __value)
+        super(__wrapper.__class__, __wrapper).__setattr__(__name, __value)
 
-    def partial_func(wrapper):
+    def partial_func(_wrapper):
         for attr in WRAPPER_ASSIGNMENTS:
-            if hasattr(wrapped, attr):
-                _super_setattr(wrapper, attr, getattr(wrapped, attr))
+            if hasattr(_wrapped, attr):
+                _super_setattr(_wrapper, attr, getattr(_wrapped, attr))
         for attr in WRAPPER_UPDATES:
-            if hasattr(wrapper, attr) is False:
-                _super_setattr(wrapper, attr, {})
-            for key, value in getattr(wrapped, attr, {}).items():
-                # staticmethod and classmethod bound
-                if isinstance(value, FUNC_WRAPPER):
-                    _super_setattr(wrapper, key, value.__get__(wrapper._wrapped_class, wrapper._wrapped_class))
-                else:
-                    getattr(wrapper, attr)[key] = value
-        return wrapper
+            for key, value in getattr(_wrapped, attr, {}).items():
+                if key == '__dict__':
+                    continue
+                _super_setattr(_wrapper, key, value)
+        return _wrapper
     return partial_func
+
+
+def get_wrapper_type(_wrapped: type):
+    
+    class WrapperType(type):
+        
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            super().__setattr__('_wrapped', _wrapped)
+        
+        def __setattr__(self, __name: str, __value: Any) -> None:
+            setattr(getattr(self, '_wrapped', NOTHING), __name, __value)
+            return super().__setattr__(__name, __value)
+    
+    return WrapperType
 
 
 def Singleton(cls):
@@ -755,7 +744,7 @@ class TorchComm:
         return backend_dict.get(backend, torch.device('cpu'))
 
 
-from torchslime.util.type import T_M_SEQ, T_M
+from torchslime.util.tstype import T_M_SEQ, T_M
 
 
 def get_device(obj: T_M):
