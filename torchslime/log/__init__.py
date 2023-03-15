@@ -118,6 +118,8 @@ Logger._wrapped: Type[Logger] = Logger._wrapped
 @Singleton
 class DistributedLogger(Logger._wrapped):
     
+    _sub_class_frame_offset = 1
+    
     def __init__(self) -> None:
         super().__init__()
         # default exec_ranks are set to [0]
@@ -128,19 +130,19 @@ class DistributedLogger(Logger._wrapped):
     
     def debug(self, msg, _exec: dict = NOTHING, _frame_offset: int = 0):
         if self._check_exec() is True:
-            return super().debug(' - '.join([self._get_rank_info(), msg]), _exec, _frame_offset)
+            return super().debug(' - '.join([self._get_rank_info(), msg]), _exec, _frame_offset + self._sub_class_frame_offset)
     
     def info(self, msg, _exec: dict = NOTHING, _frame_offset: int = 0):
         if self._check_exec() is True:
-            return super().info(' - '.join([self._get_rank_info(), msg]), _exec, _frame_offset)
+            return super().info(' - '.join([self._get_rank_info(), msg]), _exec, _frame_offset + self._sub_class_frame_offset)
     
     def warn(self, msg, _exec: dict = NOTHING, _frame_offset: int = 0):
         if self._check_exec() is True:
-            return super().warn(' - '.join([self._get_rank_info(), msg]), _exec, _frame_offset)
+            return super().warn(' - '.join([self._get_rank_info(), msg]), _exec, _frame_offset + self._sub_class_frame_offset)
     
     def error(self, msg, _exec: dict = NOTHING, _frame_offset: int = 0):
         if self._check_exec() is True:
-            return super().error(' - '.join([self._get_rank_info(), msg]), _exec, _frame_offset)
+            return super().error(' - '.join([self._get_rank_info(), msg]), _exec, _frame_offset + self._sub_class_frame_offset)
     
     def log(self, msg):
         if self._check_exec() is True:
