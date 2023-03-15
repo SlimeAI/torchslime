@@ -118,9 +118,10 @@ Logger._wrapped: Type[Logger] = Logger._wrapped
 @Singleton
 class DistributedLogger(Logger._wrapped):
     
-    def __init__(self, exec_ranks: INT_SEQ_N = NOTHING) -> None:
+    def __init__(self) -> None:
         super().__init__()
-        self.set_exec_ranks(exec_ranks)
+        # default exec_ranks are set to [0]
+        self.set_exec_ranks([0])
     
     def set_exec_ranks(self, exec_ranks: INT_SEQ_N):
         self.exec_ranks = BaseList.create(exec_ranks)
