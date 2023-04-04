@@ -27,7 +27,7 @@ class LoggerItem:
         logger.remove_logger_item(self)
 
 
-class TerminalLogger(LoggerItem):
+class TerminalLoggerItem(LoggerItem):
     
     def debug(self, item):
         print('{}{}{}'.format(
@@ -55,7 +55,7 @@ class TerminalLogger(LoggerItem):
         file.flush()
 
 
-class FileLogger(LoggerItem):
+class FileLoggerItem(LoggerItem):
     
     def __init__(self, log_path: Union[str, Nothing] = NOTHING) -> None:
         super().__init__()

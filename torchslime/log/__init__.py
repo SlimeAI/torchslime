@@ -1,5 +1,5 @@
 from torchslime.util import Singleton, BaseList, NOTHING, is_none_or_nothing, bound_clip
-from torchslime.log.common import TerminalLogger, LoggerItem
+from torchslime.log.common import TerminalLoggerItem, LoggerItem
 from torchslime.util.tstype import INT_SEQ_N
 from datetime import datetime
 from typing import Type, Any, Union
@@ -31,7 +31,7 @@ def set_log_format(format: str):
 class Logger(BaseList):
     
     def __init__(self):
-        super().__init__([TerminalLogger()])
+        super().__init__([TerminalLoggerItem()])
         self.config = {
             'debug': False,
             'info': True,
