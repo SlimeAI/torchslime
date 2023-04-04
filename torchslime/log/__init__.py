@@ -149,6 +149,9 @@ class Logger(BaseList):
             module = inspect.getmodule(frame_info.frame)
             exec_name = module.__name__
         return exec_name
+    
+    def is_distributed(self) -> bool:
+        return False
 
 
 # enable type hint
@@ -208,6 +211,9 @@ class DistributedLogger(Logger._wrapped):
         for key, value in super()._get_exec_info(_total_frame_offset).items():
             exec_info_dict[key] = '{} - {}'.format(value, rank_info)
         return exec_info_dict
+    
+    def is_distributed(self) -> bool:
+        return True
 
 
 @Singleton
