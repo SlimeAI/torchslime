@@ -11,8 +11,7 @@ import traceback
 import inspect
 import pickle
 import io
-
-FUNC_WRAPPER = (staticmethod, classmethod)
+import os
 
 
 def SmartWraps(cls):
@@ -105,11 +104,11 @@ def InvocationDebug(module_name):
         @SmartWraps(func)
         def wrapper(*args, **kwargs):
             from torchslime.log import logger
-            _exec = get_exec_info(func)
+            _exec_info = get_exec_info(func)
             
-            logger.debug('{} begins.'.format(module_name), _exec=_exec)
+            logger.debug('{} begins.'.format(module_name), _exec_info=_exec_info)
             result = func(*args, **kwargs)
-            logger.debug('{} ends.'.format(module_name), _exec=_exec)
+            logger.debug('{} ends.'.format(module_name), _exec_info=_exec_info)
             return result
         return wrapper
     return decorator
@@ -117,12 +116,32 @@ def InvocationDebug(module_name):
 
 def get_exec_info(obj):
     exec_name = inspect.getmodule(obj).__name__
+    full_exec_name = os.path.abspath(inspect.getfile(obj))
     lineno = inspect.getsourcelines(obj)[1]
     _exec = {
         'exec_name': exec_name,
+        'full_exec_name': full_exec_name,
         'lineno': lineno
     }
     return _exec
+
+
+def bound_clip(value, _min, _max):
+    """clip ``value`` between ``_min`` and ``_max``(including the boundary). Return ``NOTHING`` if ``_min > _max``
+
+    Args:
+        value: value to be clipped.
+        _min: min value.
+        _max: max value.
+
+    Returns:
+        ``Number`` or ``NOTHING``
+    """
+    if _min > _max:
+        return NOTHING
+    return _min if value < _min else \
+        _max if value > _max \
+        else value
 
 
 @Singleton

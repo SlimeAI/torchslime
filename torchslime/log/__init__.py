@@ -1,10 +1,30 @@
-from torchslime.util import Singleton, BaseList, NOTHING, is_none_or_nothing
-from torchslime.log.common import set_time_format, TIME_FORMAT, TerminalLogger, LoggerItem
+from torchslime.util import Singleton, BaseList, NOTHING, is_none_or_nothing, bound_clip
+from torchslime.log.common import TerminalLogger, LoggerItem
 from torchslime.util.tstype import INT_SEQ_N
 from datetime import datetime
 from typing import Type, Any, Union
 import inspect
+from inspect import FrameInfo
 import os
+
+
+INFO_PREFIX = '[TorchSlime INFO]'
+WARN_PREFIX = '[TorchSlime WARN]'
+ERROR_PREFIX = '[TorchSlime ERROR]'
+DEBUG_PREFIX = '[TorchSlime DEBUG]'
+
+TIME_FORMAT = '%Y/%m/%d %H:%M:%S'
+LOG_FORMAT = '{ts_prefix} - {ts_time} - {ts_exec} - {ts_msg}'
+
+
+def set_time_format(format: str):
+    global TIME_FORMAT
+    TIME_FORMAT = format
+
+
+def set_log_format(format: str):
+    global LOG_FORMAT
+    LOG_FORMAT = format
 
 
 @Singleton
@@ -32,41 +52,33 @@ class Logger(BaseList):
             return
         self.remove(logger_item)
 
-    def debug(self, msg, _exec: dict = NOTHING, _frame_offset: int = 0):
+    def debug(self, msg, _exec_info: dict = NOTHING, _frame_offset: int = 0):
         if self.config['debug'] is True:
-            time = self._get_time()
-            _exec = self._get_exec(_exec=_exec, _frame_offset=_frame_offset)
-            
+            item = self.format(msg, _exec_info, _frame_offset, DEBUG_PREFIX)
             for logger_item in self:
                 logger_item: LoggerItem = logger_item
-                logger_item.debug(msg, time, _exec)
+                logger_item.debug(item)
 
-    def info(self, msg, _exec: dict = NOTHING, _frame_offset: int = 0):
+    def info(self, msg, _exec_info: dict = NOTHING, _frame_offset: int = 0):
         if self.config['info'] is True:
-            time = self._get_time()
-            _exec = self._get_exec(_exec=_exec, _frame_offset=_frame_offset)
-            
+            item = self.format(msg, _exec_info, _frame_offset, INFO_PREFIX)
             for logger_item in self:
                 logger_item: LoggerItem = logger_item
-                logger_item.info(msg, time, _exec)
+                logger_item.info(item)
 
-    def warn(self, msg, _exec: dict = NOTHING, _frame_offset: int = 0):
+    def warn(self, msg, _exec_info: dict = NOTHING, _frame_offset: int = 0):
         if self.config['warn'] is True:
-            time = self._get_time()
-            _exec = self._get_exec(_exec=_exec, _frame_offset=_frame_offset)
-            
+            item = self.format(msg, _exec_info, _frame_offset, WARN_PREFIX)
             for logger_item in self:
                 logger_item: LoggerItem = logger_item
-                logger_item.warn(msg, time, _exec)
+                logger_item.warn(item)
 
-    def error(self, msg, _exec: dict = NOTHING, _frame_offset: int = 0):
+    def error(self, msg, _exec_info: dict = NOTHING, _frame_offset: int = 0):
         if self.config['error'] is True:
-            time = self._get_time()
-            _exec = self._get_exec(_exec=_exec, _frame_offset=_frame_offset)
-            
+            item = self.format(msg, _exec_info, _frame_offset, ERROR_PREFIX)
             for logger_item in self:
                 logger_item: LoggerItem = logger_item
-                logger_item.error(msg, time, _exec)
+                logger_item.error(item)
 
     def log(self, msg):
         if self.config['log'] is True:
@@ -74,20 +86,53 @@ class Logger(BaseList):
                 logger_item: LoggerItem = logger_item
                 logger_item.log(msg)
     
+    def format(self, msg, _exec_info, _frame_offset, ts_prefix):
+        CALL_OFFSET = 1
+        
+        _time = self._get_time()
+        _exec_info_dict = self._get_exec_info(_frame_offset=_frame_offset + CALL_OFFSET) if is_none_or_nothing(_exec_info) is True else \
+            self._format_exec_info(_exec_info['exec_name'], _exec_info['full_exec_name'], _exec_info['lineno'])
+        return LOG_FORMAT.format(
+            ts_prefix=ts_prefix,
+            ts_time=_time,
+            ts_exec=_exec_info_dict['ts_exec'],
+            ts_exec_full=_exec_info_dict['ts_exec_full'],
+            ts_msg=msg
+        )
+    
     def _get_time(self):
         now = datetime.now()
         return now.strftime(TIME_FORMAT)
     
-    def _get_exec(self, _exec: dict = NOTHING, _frame_offset: int = 0):
-        if is_none_or_nothing(_exec) is False:
-            if 'exec_name' in _exec and 'lineno' in _exec:
-                return '{}, line {}'.format(_exec['exec_name'], _exec['lineno'])
+    def _get_exec_info(self, _frame_offset: int = 0):
+        # offset due to function call
+        CALL_OFFSET = 2
         
         stack = inspect.stack()
-        frame = stack[min(2 + _frame_offset, len(stack) - 1)]
+        # true frame offset
+        _true_offset = int(bound_clip(CALL_OFFSET + _frame_offset, 0, len(stack) - 1))
+        
+        frame_info = stack[_true_offset]
+        
+        # exec_name
+        exec_name = self._get_short_exec_name(frame_info)
+        # full_exec_name
+        full_exec_name = os.path.abspath(frame_info.filename)
+        # get lineno
+        lineno = frame_info.lineno
+        # return short exec info and full exec info
+        return self._format_exec_info(exec_name, full_exec_name, lineno)
+
+    def _format_exec_info(self, exec_name, full_exec_name, lineno):
+        return {
+            'ts_exec': '"{}:{}"'.format(exec_name, lineno),
+            'ts_exec_full': '"{}:{}"'.format(full_exec_name, lineno)
+        }
+
+    def _get_short_exec_name(self, frame_info: FrameInfo):
         # get cwd and filename path
         cwd = os.path.normpath(os.path.realpath(os.getcwd()))
-        filename = os.path.normpath(os.path.realpath(frame.filename))
+        filename = os.path.normpath(os.path.realpath(frame_info.filename))
         # get common path to check whether filename is a sub-path of cwd
         try:
             common_path = os.path.commonpath([cwd, filename])
@@ -95,20 +140,15 @@ class Logger(BaseList):
             common_path = NOTHING
         # workspace module
         if common_path == cwd:
-            # use double quotes here to enable quick jump in some code editors(e.g. VSCode -> Ctrl + click)
             try:
-                exec_name = '"{}"'.format(os.path.relpath(filename, cwd))
+                exec_name = '{}'.format(os.path.relpath(filename, cwd))
             except Exception:
-                exec_name = '"{}"'.format(os.path.basename(filename))
+                exec_name = '{}'.format(os.path.basename(filename))
         # external module
         else:
-            # DO NOT use quotes here to illustrate that the caller is an external module
-            module = inspect.getmodule(frame.frame)
+            module = inspect.getmodule(frame_info.frame)
             exec_name = module.__name__
-        # get lineno
-        lineno = frame.lineno
-        
-        return '{}, line {}'.format(exec_name, lineno)
+        return exec_name
 
 
 # enable type hint
@@ -118,8 +158,6 @@ Logger._wrapped: Type[Logger] = Logger._wrapped
 @Singleton
 class DistributedLogger(Logger._wrapped):
     
-    _sub_class_frame_offset = 1
-    
     def __init__(self) -> None:
         super().__init__()
         # default exec_ranks are set to [0]
@@ -128,21 +166,21 @@ class DistributedLogger(Logger._wrapped):
     def set_exec_ranks(self, exec_ranks: INT_SEQ_N):
         self.exec_ranks = BaseList.create(exec_ranks)
     
-    def debug(self, msg, _exec: dict = NOTHING, _frame_offset: int = 0):
+    def debug(self, msg, _exec_info: dict = NOTHING, _frame_offset: int = 0):
         if self._check_exec() is True:
-            return super().debug(' - '.join([self._get_rank_info(), msg]), _exec, _frame_offset + self._sub_class_frame_offset)
+            return super().debug(msg, _exec_info, _frame_offset)
     
-    def info(self, msg, _exec: dict = NOTHING, _frame_offset: int = 0):
+    def info(self, msg, _exec_info: dict = NOTHING, _frame_offset: int = 0):
         if self._check_exec() is True:
-            return super().info(' - '.join([self._get_rank_info(), msg]), _exec, _frame_offset + self._sub_class_frame_offset)
+            return super().info(msg, _exec_info, _frame_offset)
     
-    def warn(self, msg, _exec: dict = NOTHING, _frame_offset: int = 0):
+    def warn(self, msg, _exec_info: dict = NOTHING, _frame_offset: int = 0):
         if self._check_exec() is True:
-            return super().warn(' - '.join([self._get_rank_info(), msg]), _exec, _frame_offset + self._sub_class_frame_offset)
+            return super().warn(msg, _exec_info, _frame_offset)
     
-    def error(self, msg, _exec: dict = NOTHING, _frame_offset: int = 0):
+    def error(self, msg, _exec_info: dict = NOTHING, _frame_offset: int = 0):
         if self._check_exec() is True:
-            return super().error(' - '.join([self._get_rank_info(), msg]), _exec, _frame_offset + self._sub_class_frame_offset)
+            return super().error(msg, _exec_info, _frame_offset)
     
     def log(self, msg):
         if self._check_exec() is True:
@@ -158,6 +196,18 @@ class DistributedLogger(Logger._wrapped):
         import torch.distributed as dist
         rank = dist.get_rank()
         return 'RANK {}'.format(rank)
+    
+    def _get_exec_info(self, _frame_offset: int = 0):
+        # set total frame offset
+        SUB_CLASS_OFFSET = 1
+        OVERRIDE_METHOD_OFFSET = 1
+        _total_frame_offset = _frame_offset + SUB_CLASS_OFFSET + OVERRIDE_METHOD_OFFSET
+        
+        rank_info = self._get_rank_info()
+        exec_info_dict = {}
+        for key, value in super()._get_exec_info(_total_frame_offset).items():
+            exec_info_dict[key] = '{} - {}'.format(value, rank_info)
+        return exec_info_dict
 
 
 @Singleton

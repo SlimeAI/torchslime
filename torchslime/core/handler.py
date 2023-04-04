@@ -682,7 +682,7 @@ class StatusHandler(Handler):
             logger.warn('An unsupported status is set, this may cause some problems.')
         self.status = status
     
-    @InvocationDebug('ModeHandler')
+    @InvocationDebug('StatusHandler')
     def handle(self, ctx: BaseContext):
         # context check
         ctx.ctx_check([
