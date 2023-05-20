@@ -1,6 +1,6 @@
-from torchslime.util import Singleton, BaseList, NOTHING, is_none_or_nothing, bound_clip
+from torchslime.utils import Singleton, BaseList, NOTHING, is_none_or_nothing, bound_clip
 from torchslime.log.common import TerminalLoggerItem, LoggerItem
-from torchslime.util.tstype import INT_SEQ_N
+from torchslime.utils.tstype import INT_SEQ_N
 from datetime import datetime
 from typing import Type, Any, Union
 import inspect

@@ -1,11 +1,11 @@
 import os
 
-from torchslime.util import is_nothing, NOTHING
+from torchslime.utils import is_nothing, NOTHING
 from torchslime.callback import Callback, DistributedCallbackWrapper
 from torchslime.core.context import BaseContext
 from torchslime.experiment.directory import get_checkpoint_path, join_path, get_metric_path, safe_makedirs
 from torchslime.log import logger
-from torchslime.util.tstype import INT_SEQ_N
+from torchslime.utils.tstype import INT_SEQ_N
 import torch
 from typing import Sequence, Union, Callable
 import json
@@ -44,8 +44,8 @@ class SaveCheckpoint(Callback):
         assert len(self.save_options) > 0, 'You should choose at least one item to be saved when using the "SaveCheckpoint" Callback.'
     
     def epoch_end(self, ctx: BaseContext):
-        if (isinstance(self.save_per, (list, tuple)) and (ctx.epoch.current + 1) in self.save_per)\
-            or (ctx.epoch.current + 1) % self.save_per == 0:
+        if (isinstance(self.save_per, (list, tuple)) and (ctx.iteration.current_epoch + 1) in self.save_per)\
+            or (ctx.iteration.current_epoch + 1) % self.save_per == 0:
             if len(self.save_options) > 1:
                 item = self.save_dict(ctx, self.save_options)
             else:
@@ -56,7 +56,7 @@ class SaveCheckpoint(Callback):
             elif callable(self.checkpoint_name):
                 checkpoint_name = self.checkpoint_name(ctx)
             else:
-                checkpoint_name = 'checkpoint_{0}.pth'.format(ctx.epoch.current + 1)
+                checkpoint_name = 'checkpoint_{0}.pth'.format(ctx.iteration.current_epoch + 1)
             torch.save(item, join_path(self.checkpoint_path, checkpoint_name))
 
     def save_dict(self, ctx: BaseContext, save_options):
@@ -76,7 +76,7 @@ class SaveCheckpoint(Callback):
         elif key == 'optimizer':
             return ctx.run.optimizer.state_dict()
         elif key == 'epoch':
-            return ctx.epoch.current + 1
+            return ctx.iteration.current_epoch + 1
 
 
 class DistributedSaveCheckpoint(DistributedCallbackWrapper):
@@ -119,18 +119,18 @@ class SaveMetrics(Callback):
         assert len(self.save_options) > 0, 'You should choose at least one item to be saved when using the "SaveMetrics" Callback.'
 
     def epoch_end(self, ctx: BaseContext):
-        if (isinstance(self.save_per, (list, tuple)) and (ctx.epoch.current + 1) in self.save_per)\
-            or (ctx.epoch.current + 1) % self.save_per == 0:
+        if (isinstance(self.save_per, (list, tuple)) and (ctx.iteration.current_epoch + 1) in self.save_per)\
+            or (ctx.iteration.current_epoch + 1) % self.save_per == 0:
             list_len = self.append_list(self.parse(ctx, self.save_options))
-            if list_len > ctx.epoch.current + 1:
+            if list_len > ctx.iteration.current_epoch + 1:
                 logger.warn('The length of metric list is greater than number of epochs that have been executed, possibly there are some other items included in the list.')
 
     def parse(self, ctx: BaseContext, save_options):
-        from torchslime.core.status import context_status, Status
+        from torchslime.core.hooks.state import context_status, StateHook
         item = {}
         for key in save_options:
             # use status to get loss value and metrics
-            temp_status: Status = context_status.get(key)
+            temp_status: StateHook = context_status.get(key)
             loss_value, metrics = temp_status.get_avg_loss_value_and_metrics(ctx)
             # separately update to avoid same keys in loss value and metrics
             item.update(**loss_value)

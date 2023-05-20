@@ -1,7 +1,7 @@
 from abc import abstractmethod
 from torch.utils.data import DataLoader
 from torchslime.core.context import BaseContext
-from torchslime.util import list_take
+from torchslime.utils import list_take
 from torchslime.log import logger
 from typing import Sequence, Tuple, Any, Union
 
@@ -38,8 +38,7 @@ class DataParser:
         pass
 
     @abstractmethod
-    def get(self, ctx: BaseContext) -> Tuple[Any, Any, Any]:
-        pass
+    def get(self, ctx: BaseContext) -> Tuple[Any, Any, Any]: pass
 
     def __call__(self, ctx: BaseContext) -> Tuple[Any, Any, Any]:
         batch = self.get(ctx)

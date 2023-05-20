@@ -19,5 +19,5 @@ NUMBER_T = (int, float)
 INT_SEQ = Union[int, Sequence[int]]
 
 # int, sequence of int, None or NOTHING
-from torchslime.util import Nothing
+from torchslime.utils import Nothing
 INT_SEQ_N = Union[INT_SEQ, None, Nothing]

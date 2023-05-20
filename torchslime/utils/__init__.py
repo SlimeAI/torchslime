@@ -764,7 +764,7 @@ class TorchComm:
         return backend_dict.get(backend, torch.device('cpu'))
 
 
-from torchslime.util.tstype import T_M_SEQ, T_M
+from torchslime.utils.tstype import T_M_SEQ, T_M
 
 
 def get_device(obj: T_M):
@@ -941,3 +941,32 @@ def count_params(model: Module, format: str = None, decimal: int = 2):
         num += param.numel()
     result = num / divisor
     return result if format is None else ('{0:.' + str(decimal) + 'f}{1}').format(result, format)
+
+
+def is_torch_distributed_ready():
+    """
+    Check whether the torch distributed settings are ready.
+    """
+    import torch.distributed as dist
+    return dist.is_available() and dist.is_initialized()
+
+
+class GenericID:
+
+    def __init__(self, attrs: Union[List, Tuple]) -> None:
+        self.attrs = list(attrs)
+
+    def __call__(self, *args, **kwargs):
+        return GIDValue(self.attrs, *args, **kwargs)
+
+
+class GIDValue:
+    
+    def __init__(self, attrs: Union[List, Tuple], *args, **kwargs) -> None:
+        self.attrs = attrs
+
+    def __str__(self) -> str:
+        pass
+
+    def __repr__(self) -> str:
+        pass

@@ -1,10 +1,10 @@
 """
 A convenient module register util that helps you parameterize network structure.
 """
-from torchslime.util import NOTHING, Singleton
+from torchslime.utils import NOTHING, Singleton
 from typing import Type, Any, Iterable
 import torch.nn as nn
-from torchslime.module.config import load_json
+from torchslime.experiment.config import load_json
 
 
 class Registry:

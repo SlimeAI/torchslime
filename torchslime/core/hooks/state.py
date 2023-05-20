@@ -1,37 +1,26 @@
 """
-Status Pattern for model status management.
+State Pattern for model state management.
 """
-from torchslime.util import NOTHING, is_nothing
-from torchslime.module import Registry
+from torchslime.utils import NOTHING, is_nothing
+from torchslime.components.registry import Registry
 from torchslime.core.context import BaseContext
 from typing import Tuple
 
 context_status = Registry('context_status')
 
 
-class Status:
+class StateHook:
 
-    def __init__(self) -> None:
-        pass
-
-    def set_model_mode(self, ctx: BaseContext):
-        pass
-
-    def get_dataset(self, ctx: BaseContext):
-        pass
-
-    def get_avg_loss_value_and_metrics(self, ctx: BaseContext) -> Tuple[dict, dict]:
-        pass
+    def __init__(self) -> None: pass
+    def set_model_mode(self, ctx: BaseContext): pass
+    def get_dataset(self, ctx: BaseContext): pass
+    def get_avg_loss_value_and_metrics(self, ctx: BaseContext) -> Tuple[dict, dict]: pass
+    def set_avg_loss_value_and_metrics(self, ctx: BaseContext, loss_value, metrics): pass
+    def get_avg_inner_ctx(self, ctx: BaseContext, INNER_KEY): pass
 
     def init_avg_inner_ctx(self, ctx: BaseContext, INNER_KEY):
         if is_nothing(ctx.inner[INNER_KEY]):
             ctx.inner[INNER_KEY] = {}
-
-    def set_avg_loss_value_and_metrics(self, ctx: BaseContext, loss_value, metrics):
-        pass
-
-    def get_avg_inner_ctx(self, ctx: BaseContext, INNER_KEY):
-        pass
 
     def clear_avg_info(self, ctx: BaseContext, INNER_KEY):
         if is_nothing(ctx.inner[INNER_KEY]):
@@ -50,7 +39,7 @@ class Status:
 
 
 @context_status.register('train')
-class TrainStatus(Status):
+class TrainState(StateHook):
 
     def __init__(self) -> None:
         super().__init__()
@@ -63,8 +52,8 @@ class TrainStatus(Status):
         ctx.run.dataset = ctx.run.train_provider(ctx)
 
     def get_avg_loss_value_and_metrics(self, ctx: BaseContext) -> Tuple[dict, dict]:
-        loss_value = ctx.run.loss_wrapper.get_copy(ctx.epoch.train_loss_value)
-        metrics = ctx.epoch.train_metrics
+        loss_value = ctx.run.loss_wrapper.get_copy(ctx.iteration.train_loss_value)
+        metrics = ctx.iteration.train_metrics
         return loss_value, metrics
     
     def init_avg_inner_ctx(self, ctx: BaseContext, INNER_KEY):
@@ -73,8 +62,8 @@ class TrainStatus(Status):
             ctx.inner[INNER_KEY]['train'] = self._get_avg_inner_init_item(ctx)
     
     def set_avg_loss_value_and_metrics(self, ctx: BaseContext, loss_value, metrics):
-        ctx.epoch.train_loss_value = loss_value
-        ctx.epoch.train_metrics = metrics
+        ctx.iteration.train_loss_value = loss_value
+        ctx.iteration.train_metrics = metrics
 
     def get_avg_inner_ctx(self, ctx: BaseContext, INNER_KEY):
         return ctx.inner[INNER_KEY].get('train', NOTHING)
@@ -82,15 +71,15 @@ class TrainStatus(Status):
     def clear_avg_info(self, ctx: BaseContext, INNER_KEY):
         super().clear_avg_info(ctx, INNER_KEY)
         ctx.inner[INNER_KEY]['train'] = self._get_avg_inner_init_item(ctx)
-        ctx.epoch.train_metrics = NOTHING
-        ctx.epoch.train_loss_value = NOTHING
+        ctx.iteration.train_metrics = NOTHING
+        ctx.iteration.train_loss_value = NOTHING
 
     def __str__(self) -> str:
         return 'TRAIN'
 
 
 @context_status.register('eval')
-class EvalStatus(Status):
+class EvalState(StateHook):
 
     def __init__(self) -> None:
         super().__init__()
@@ -103,8 +92,8 @@ class EvalStatus(Status):
         ctx.run.dataset = ctx.run.eval_provider(ctx)
 
     def get_avg_loss_value_and_metrics(self, ctx: BaseContext) -> Tuple[dict, dict]:
-        loss_value = ctx.run.loss_wrapper.get_copy(ctx.epoch.eval_loss_value)
-        metrics = ctx.epoch.eval_metrics
+        loss_value = ctx.run.loss_wrapper.get_copy(ctx.iteration.eval_loss_value)
+        metrics = ctx.iteration.eval_metrics
         return loss_value, metrics
 
     def init_avg_inner_ctx(self, ctx: BaseContext, INNER_KEY):
@@ -113,8 +102,8 @@ class EvalStatus(Status):
             ctx.inner[INNER_KEY]['eval'] = self._get_avg_inner_init_item(ctx)
 
     def set_avg_loss_value_and_metrics(self, ctx: BaseContext, loss_value, metrics):
-        ctx.epoch.eval_loss_value = loss_value
-        ctx.epoch.eval_metrics = metrics
+        ctx.iteration.eval_loss_value = loss_value
+        ctx.iteration.eval_metrics = metrics
     
     def get_avg_inner_ctx(self, ctx: BaseContext, INNER_KEY):
         return ctx.inner[INNER_KEY].get('eval', NOTHING)
@@ -122,27 +111,27 @@ class EvalStatus(Status):
     def clear_avg_info(self, ctx: BaseContext, INNER_KEY):
         super().clear_avg_info(ctx, INNER_KEY)
         ctx.inner[INNER_KEY]['eval'] = self._get_avg_inner_init_item(ctx)
-        ctx.epoch.eval_metrics = NOTHING
-        ctx.epoch.eval_loss_value = NOTHING
+        ctx.iteration.eval_metrics = NOTHING
+        ctx.iteration.eval_loss_value = NOTHING
 
     def __str__(self) -> str:
         return 'EVAL'
 
 
 @context_status.register('val')
-class ValStatus(EvalStatus):
+class ValState(EvalState):
 
     def __init__(self) -> None:
         super().__init__()
 
     def get_avg_loss_value_and_metrics(self, ctx: BaseContext) -> Tuple[dict, dict]:
-        loss_value = ctx.run.loss_wrapper.get_copy(ctx.epoch.eval_loss_value)
+        loss_value = ctx.run.loss_wrapper.get_copy(ctx.iteration.eval_loss_value)
         _loss_value = {}
         for key, value in loss_value.items():
             _loss_value['val_{}'.format(key)] = value
         loss_value.set_dict(_loss_value)
         
-        _metrics = ctx.epoch.eval_metrics
+        _metrics = ctx.iteration.eval_metrics
         metrics = {}
         for key, value in _metrics.items():
             metrics['val_{}'.format(key)] = value
@@ -153,7 +142,7 @@ class ValStatus(EvalStatus):
 
 
 @context_status.register('predict')
-class PredictStatus(EvalStatus):
+class PredictState(EvalState):
 
     def __init__(self) -> None:
         super().__init__()

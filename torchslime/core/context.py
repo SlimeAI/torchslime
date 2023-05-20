@@ -1,9 +1,9 @@
-from torchslime.util import Base, NOTHING, BaseList, Nothing, TorchComm
+from torchslime.utils import Base, NOTHING, BaseList, Nothing, TorchComm
 from torch.nn import Module
 from torch import device, Tensor
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
-from torchslime.util.tstype import NUMBER
+from torchslime.utils.tstype import NUMBER
 from typing import Any, Sequence, Union, Dict, Tuple, Callable, Type
 from torchslime.log import logger
 from abc import abstractmethod
@@ -20,28 +20,35 @@ class BaseContext(Base):
         """
         context attribute placeholders(for code hints)
         """
+        # TODO model shard
         # device for pytorch
         self.device: Union[str, device] = NOTHING
         # model
         self.model: Module = NOTHING
-        # context status(train, eval, etc.)
-        from torchslime.core.status import Status
-        self.status: Status = NOTHING
         # run context
-        self.run: RunContext = RunContext()
-        # information in one epoch
-        self.epoch: EpochContext = EpochContext()
+        self.run: RunContext = RunContext(ctx=self)
+        # information about iteration
+        self.iteration: IterationContext = IterationContext(ctx=self)
         # information in one step
-        self.step: StepContext = StepContext()
+        self.step: StepContext = StepContext(ctx=self)
         # handler context
-        self.handler: Union[HandlerContext, DistributedHandlerContext] = \
-            DistributedHandlerContext() if self.is_distributed() is True else HandlerContext()
+        self.handler: HandlerContext = HandlerContext(ctx=self)
         # custom context
-        self.custom: CustomContext = CustomContext()
+        self.custom: CustomContext = CustomContext(ctx=self)
         # inner context
-        self.inner: InnerContext = InnerContext()
-        # build context
-        self.build: BuildContext = BuildContext()
+        self.inner: InnerContext = InnerContext(ctx=self)
+        # hook context
+        self.hook: HookContext = HookContext(ctx=self)
+        # distributed context
+        self.distributed: DistributedContext = DistributedContext(ctx=self)
+
+    @property
+    def model(self):
+        return self.__model
+    
+    @model.setter
+    def model(self, value):
+        self.__model = value
 
     def ctx_check(self, items: Union[str, Sequence[str]], silent: bool = True):
         # check single item
@@ -64,12 +71,6 @@ class BaseContext(Base):
         else:
             # single value
             return _check(str(items))
-    
-    def is_distributed(self) -> bool:
-        """
-        Whether distributed features are used in TorchSlime.
-        """
-        return False
 
 
 class TempContext(Base):
@@ -78,8 +79,10 @@ class TempContext(Base):
     Args:
         Base (_type_): _description_
     """
-    def __init__(self):
+    def __init__(self, ctx: BaseContext = NOTHING):
         super().__init__()
+        # get context
+        self.ctx = ctx
         # initialize
         self.initialize()
     
@@ -90,8 +93,8 @@ class TempContext(Base):
 
 class StepContext(TempContext):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
     
     def initialize(self):
         """
@@ -123,33 +126,40 @@ class StepContext(TempContext):
         self.batch: Any = NOTHING
 
 
-class EpochContext(TempContext):
+class IterationContext(TempContext):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     def initialize(self):
         """
         epoch context attribute placeholders(for code hints)
         """
-        # total epochs for training
-        self.total: int = NOTHING
+        # global step information
+        # total steps
+        self.total_steps: int = NOTHING
+        # the current step
+        self.current_step: int = NOTHING
+        # epoch information
+        # total epochs
+        self.total_epochs: int = NOTHING
         # the current epoch
-        self.current: int = NOTHING
-        # average train metrics in one epoch
+        self.current_epoch: int = NOTHING
+        # average information in one period (e.g. epoch or a specified number of steps)
+        # average train metrics
         self.train_metrics: Dict = NOTHING
-        # average eval metrics in one epoch
+        # average eval metrics
         self.eval_metrics: Dict = NOTHING
-        # average train loss value(s) in one epoch
+        # average train loss value(s)
         self.train_loss_value: Union[float, Dict[Any, float], Nothing] = NOTHING
-        # average eval loss value(s) in one epoch
+        # average eval loss value(s)
         self.eval_loss_value: Union[float, Dict[Any, float], Nothing] = NOTHING
 
 
 class RunContext(TempContext):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
     
     def initialize(self):
         # handler containers that define the process of training, evaluating and predicting.
@@ -171,41 +181,31 @@ class RunContext(TempContext):
         # learning rate decay
         self.lr_decay: Any = NOTHING
         # data provider
-        from torchslime.data import DataProvider
+        from torchslime.components.data import DataProvider
         self.train_provider: DataProvider = NOTHING
         self.eval_provider: DataProvider = NOTHING
         # data parser
-        from torchslime.data import DataParser, IndexParser
+        from torchslime.components.data import DataParser, IndexParser
         # the data parser should be set to IndexParser as default
         self.data_parser: DataParser = IndexParser()
         # run callback executor
         from torchslime.callback import CallbackContainer, DistributedCallbackContainer
         self.callbacks: Union[CallbackContainer, DistributedCallbackContainer, Nothing] = NOTHING
         # metric container
-        from torchslime.metric import MetricContainer
+        from torchslime.components.metric import MetricContainer
         self.metrics: MetricContainer = NOTHING
         # loss wrapper
-        from torchslime.metric import LossWrapper
+        from torchslime.components.metric import LossWrapper
         self.loss_wrapper: Type[LossWrapper] = LossWrapper
         # loss reduction func
-        from torchslime.metric import LossReductionFactory
+        from torchslime.components.metric import LossReductionFactory
         self.loss_reduction: Callable[[BaseContext], Tensor] = LossReductionFactory.get('mean')
-
-
-class GlobalContext(TempContext):
-    # TODO: rename
-
-    def __init__(self):
-        super().__init__()
-    
-    def initialize(self):
-        pass
 
 
 class HandlerContext(TempContext):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
     
     def initialize(self):
         from torchslime.core import handler
@@ -221,35 +221,18 @@ class HandlerContext(TempContext):
         self.Metrics = handler.MetricsHandler
         self.AverageInit = handler.AverageInitHandler
         self.Average = handler.AverageHandler
+        self.GatherAverage = handler.GatherAverageHandler
         self.Display = handler.DisplayHandler
         self.Dataset = handler.DatasetHandler
-        self.Status = handler.StatusHandler
+        self.State = handler.StateHandler
         self.LRDecay = handler.LRDecayHandler
-        self.Callback = handler.CallbackHandler
         self.Lambda = handler.LambdaHandler
-
-
-class DistributedHandlerContext(HandlerContext):
-
-    def __init__(self):
-        super().__init__()
-
-    def initialize(self):
-        super().initialize()
-
-        from torchslime.core import handler
-        self.GatherAverage = handler.GatherAverageHandler
-        self.DistributedDisplay = handler.DistributedDisplayHandler
-        self.DistributedEpochIteration = handler.DistributedEpochIterationHandler
-        self.DistributedIteration = handler.DistributedIterationHandler
-        self.DistributedContainer = handler.DistributedHandlerContainer
-        self.DistributedLambda = handler.DistributedLambdaHandler
 
 
 class CustomContext(TempContext):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
     
     def initialize(self):
         self.__dict__.clear()
@@ -260,34 +243,51 @@ class CustomContext(TempContext):
 
 class InnerContext(TempContext):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
     
     def initialize(self):
         self.__dict__.clear()
         logger.debug('Inner context has been initialized.')
 
 
-class BuildContext(TempContext):
+class HookContext(TempContext):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
     
     def initialize(self):
         self.valid_mode = 'epoch'
         self.train_mode = 'epoch'
         self.lr_decay_mode = 'epoch'
         
-        # plugins
-        from torchslime.core.plugin import PluginContainer
+        # hooks
+        from .hooks.plugin import PluginContainer
         self.plugins: PluginContainer = PluginContainer()
+        from .hooks.launch import LaunchHook
+        self.launch: LaunchHook = NOTHING
+        from .hooks.build import BuildHook
+        self.build: BuildHook = NOTHING
+        from .hooks.state import StateHook
+        self.state: StateHook = NOTHING
 
 
-class DistributedConfigContext(TempContext):
+class DistributedContext(TempContext):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
     
     def initialize(self):
-        self.exec_ranks: BaseList = BaseList(0)
         self.torch_comm: TorchComm = TorchComm()
+
+    def is_ready(self):
+        """
+        Check whether the torch distributed settings are ready.
+        """
+        self.ctx.hook.launch.is_distributed_ready()
+
+    def get_rank(self, group=None):
+        self.ctx.hook.launch.get_rank(group=group)
+    
+    def get_world_size(self, group=None):
+        self.ctx.hook.launch.get_world_size(group=group)

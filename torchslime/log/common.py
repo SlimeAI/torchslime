@@ -1,6 +1,6 @@
-from torchslime.util.terminal import single_color
+from torchslime.utils.terminal import single_color
 from torchslime.experiment.directory import get_log_path
-from torchslime.util import Nothing, NOTHING, is_none_or_nothing
+from torchslime.utils import Nothing, NOTHING, is_none_or_nothing
 from typing import Union
 import sys
 

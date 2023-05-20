@@ -1,7 +1,7 @@
 from abc import abstractmethod
 from typing import Union, Dict, Sequence, Callable
-from torchslime.util.tstype import NUMBER, NUMBER_T
-from torchslime.util import Count, Nothing, is_nothing, dict_merge, NOTHING, BaseList, BaseDict, safe_divide
+from torchslime.utils.tstype import NUMBER, NUMBER_T
+from torchslime.utils import Count, Nothing, is_nothing, dict_merge, NOTHING, BaseList, BaseDict, safe_divide
 from torchslime.core.context import BaseContext
 from torchslime.log import logger
 from torch import Tensor
