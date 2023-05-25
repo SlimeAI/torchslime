@@ -8,8 +8,6 @@ from torchslime.log import logger
 from torchslime.utils.tstype import INT_SEQ_N
 from torch import set_grad_enabled
 
-id_attrs = ['name', 'phase']
-
 
 def TorchGrad(func):
     """
@@ -28,6 +26,8 @@ class Handler:
     """
     
     _handler_id_gen = Count()
+    id_attrs = ['name', 'phase']
+    tab = ' ' * 4  # tab is equal to 4 spaces
     def __init__(
         self,
         *args,
@@ -156,7 +156,37 @@ class Handler:
         return False
     
     def display(self):
-        pass
+        logger.info('Handler Structure:\n{content}'.format(
+            content=self.get_display_str()
+        ))
+    
+    def get_display_str(self, indent=0) -> str:
+        return '{indent}{content}\n'.format(
+            indent=indent * self.tab,
+            content=self.__str__()
+        )
+
+    def __str__(self) -> str:
+        class_name = self._get_class_str()
+        attrs = self._get_attr_str()
+        return '{class_name}({attrs})'.format(class_name=class_name, attrs=attrs)
+    
+    def _get_attr_str(self) -> str:
+        display_attrs = self._get_display_attrs()
+        return ', '.join([
+            '{key}={value}'.format(key=str(display_attrs[key]), value=str(value)) \
+                for key, value in vars(self).items() \
+                if key in display_attrs
+        ])
+    
+    def _get_class_str(self) -> str:
+        return type(self).__name__
+    
+    def _get_display_attrs(self) -> dict:
+        return {
+            '_Handler__id': 'id',
+            '_Handler__exec_ranks': 'exec_ranks'
+        }
 
 
 class EmptyHandler(Handler):
@@ -295,9 +325,12 @@ class HandlerContainer(Handler, BaseList):
         else:
             handler.del_parent()
         return super().__delitem__(__i)
-
-    def display(self):
-        pass
+    
+    def get_display_str(self, indent=0) -> str:
+        prefix = indent * self.tab + self._get_class_str() + '([\n'
+        handlers = ''.join([handler.get_display_str(indent + 1) for handler in self])
+        suffix = indent * self.tab + '], ' + self._get_attr_str() + ')\n'
+        return prefix + handlers + suffix
 
 
 class EpochIterationHandler(HandlerContainer):
@@ -608,6 +641,15 @@ class StateHandler(Handler):
         ctx.hook.state = context_status.build(self.state)
         # change pytorch model mode
         ctx.hook.state.set_model_mode(ctx)
+    
+    def _get_display_attrs(self) -> dict:
+        custom_attrs = {
+            'state': 'state'
+        }
+        return {
+            **super()._get_display_attrs(),
+            **custom_attrs
+        }
 
 
 class LRDecayHandler(Handler):

@@ -1,7 +1,6 @@
 from typing import Any, Dict, Optional, Union, TypeVar, Callable
 from torchslime.components.data import ConstantProvider, DataParser, DataProvider, IndexParser
 from torchslime.components.metric import M_SEQ, MetricContainer, LossReductionFactory
-from torchslime.callback import C_SEQ, CallbackContainer, DistributedCallbackContainer
 from torchslime.utils import NOTHING, get_device, type_cast, MethodChaining, InvocationDebug, \
     is_nothing, count_params, BaseList
 from torchslime.log import logger
@@ -32,11 +31,9 @@ class Context(BaseContext):
         train_dataset: DATASET,
         total_epochs: int = 1,
         val_dataset: DATASET = NOTHING,
-        callbacks: C_SEQ = NOTHING,
         grad_acc: int = 1
     ):
         self.compile_total_epochs(total_epochs)
-        self.compile_callbacks(callbacks)
         self.compile_dataset(train_dataset, 'train')
         self.compile_dataset(val_dataset, 'eval')
         self.compile_grad_acc(grad_acc)
@@ -50,10 +47,8 @@ class Context(BaseContext):
     @InvocationDebug('Context.Predict')
     def predict(
         self,
-        dataset: DATASET,
-        callbacks: C_SEQ = NOTHING
+        dataset: DATASET
     ):
-        self.compile_callbacks(callbacks)
         self.compile_dataset(dataset, 'eval')
 
         # build predict handler
@@ -65,10 +60,8 @@ class Context(BaseContext):
     @InvocationDebug('Context.Eval')
     def eval(
         self,
-        dataset: DATASET,
-        callbacks: C_SEQ = NOTHING
+        dataset: DATASET
     ):
-        self.compile_callbacks(callbacks)
         self.compile_dataset(dataset, 'eval')
 
         # build eval handler
@@ -129,11 +122,6 @@ class Context(BaseContext):
     def compile_data_parser(self, data_parser):
         if data_parser is not None:
             self.run.data_parser = data_parser if is_nothing(data_parser) is False else IndexParser()
-
-    @InvocationDebug('Context.compile_callbacks')
-    def compile_callbacks(self, callbacks):
-        if callbacks is not None:
-            self.run.callbacks = CallbackContainer(callbacks) if is_nothing(callbacks) is False else NOTHING
 
     @InvocationDebug('Context.compile_optimizer')
     def compile_optimizer(self, optimizer, lr, optimizer_options):

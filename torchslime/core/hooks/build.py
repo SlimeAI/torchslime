@@ -3,14 +3,14 @@ from torchslime.core import Context
 
 class BuildHook:
 
-    def build_train(ctx: Context): pass
-    def after_build_train(ctx: Context): pass
-    def build_eval(ctx: Context): pass
-    def after_build_eval(ctx: Context): pass
-    def build_predict(ctx: Context): pass
-    def after_build_predict(ctx: Context): pass
+    def build_train(self, ctx: Context): pass
+    def after_build_train(self, ctx: Context): pass
+    def build_eval(self, ctx: Context): pass
+    def after_build_eval(self, ctx: Context): pass
+    def build_predict(self, ctx: Context): pass
+    def after_build_predict(self, ctx: Context): pass
 
-    def _build_train(ctx: Context):
+    def _build_train(self, ctx: Context):
         h = ctx.hook
         h.plugins.before_build(ctx)
         h.plugins.before_build_train(ctx)
@@ -20,7 +20,7 @@ class BuildHook:
         h.plugins.after_build(ctx)
         h.plugins.after_build_train(ctx)
     
-    def _build_eval(ctx: Context):
+    def _build_eval(self, ctx: Context):
         h = ctx.hook
         h.plugins.before_build(ctx)
         h.plugins.before_build_eval(ctx)
@@ -30,7 +30,7 @@ class BuildHook:
         h.plugins.after_build(ctx)
         h.plugins.after_build_eval(ctx)
 
-    def _build_predict(ctx: Context):
+    def _build_predict(self, ctx: Context):
         h = ctx.hook
         h.plugins.before_build(ctx)
         h.plugins.before_build_predict(ctx)
@@ -43,7 +43,7 @@ class BuildHook:
 
 class VanillaBuild(BuildHook):
     
-    def build_train(ctx: Context):
+    def build_train(self, ctx: Context):
         # get handler classes from context
         handler = ctx.handler
         # build training process using handlers
@@ -97,11 +97,11 @@ class VanillaBuild(BuildHook):
             ], _id='train_epoch_iteration')
         ], _id='train_container')
     
-    def after_build_train(ctx: Context):
+    def after_build_train(self, ctx: Context):
         ctx.hook.lr_decay_mode
         return super().after_build_train()
 
-    def build_eval(ctx: Context):
+    def build_eval(self, ctx: Context):
         # get handler classes from context
         handler = ctx.handler
         # build evaluating process using handlers
@@ -127,7 +127,7 @@ class VanillaBuild(BuildHook):
             ], _id='eval_iteration')
         ], _id='eval_container')
     
-    def build_predict(ctx: Context):
+    def build_predict(self, ctx: Context):
         # get handler classes from context
         handler = ctx.handler
         # build predicting process using handlers
@@ -148,5 +148,5 @@ class VanillaBuild(BuildHook):
 
 class StepBuild(VanillaBuild):
 
-    def build_train(ctx: Context):
+    def build_train(self, ctx: Context):
         return super().build_train()

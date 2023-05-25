@@ -163,10 +163,10 @@ class RunContext(TempContext):
     
     def initialize(self):
         # handler containers that define the process of training, evaluating and predicting.
-        from torchslime.core.handler import HandlerContainer, DistributedHandlerContainer
-        self.train: Union[HandlerContainer, DistributedHandlerContainer, Nothing] = NOTHING
-        self.eval: Union[HandlerContainer, DistributedHandlerContainer, Nothing] = NOTHING
-        self.predict: Union[HandlerContainer, DistributedHandlerContainer, Nothing] = NOTHING
+        from torchslime.core.handler import HandlerContainer
+        self.train: Union[HandlerContainer, Nothing] = NOTHING
+        self.eval: Union[HandlerContainer, Nothing] = NOTHING
+        self.predict: Union[HandlerContainer, Nothing] = NOTHING
         
         # the current dataset for running
         self.dataset: DataLoader = NOTHING
@@ -188,9 +188,6 @@ class RunContext(TempContext):
         from torchslime.components.data import DataParser, IndexParser
         # the data parser should be set to IndexParser as default
         self.data_parser: DataParser = IndexParser()
-        # run callback executor
-        from torchslime.callback import CallbackContainer, DistributedCallbackContainer
-        self.callbacks: Union[CallbackContainer, DistributedCallbackContainer, Nothing] = NOTHING
         # metric container
         from torchslime.components.metric import MetricContainer
         self.metrics: MetricContainer = NOTHING
