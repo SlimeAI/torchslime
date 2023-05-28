@@ -41,6 +41,8 @@ class BaseContext(Base):
         self.hook: HookContext = HookContext(ctx=self)
         # distributed context
         self.distributed: DistributedContext = DistributedContext(ctx=self)
+        # config context
+        self.config: ConfigContext = ConfigContext(ctx=self)
 
     @property
     def model(self):
@@ -170,6 +172,9 @@ class RunContext(TempContext):
         
         # the current dataset for running
         self.dataset: DataLoader = NOTHING
+        # TODO: train/eval loader
+        self.train_loader: DataLoader = NOTHING
+        self.eval_loader: DataLoader = NOTHING
         # optimizer
         self.optimizer: Optimizer = NOTHING
         # loss_func
@@ -233,8 +238,6 @@ class CustomContext(TempContext):
     
     def initialize(self):
         self.__dict__.clear()
-        # TODO: experiment config
-        self.config = {}
         logger.debug('Custom context has been initialized.')
 
 
@@ -288,3 +291,12 @@ class DistributedContext(TempContext):
     
     def get_world_size(self, group=None):
         self.ctx.hook.launch.get_world_size(group=group)
+
+
+class ConfigContext(TempContext):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+    
+    def initialize(self):
+        return super().initialize()

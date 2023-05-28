@@ -160,11 +160,16 @@ class Handler:
             content=self.get_display_str()
         ))
     
-    def get_display_str(self, indent=0) -> str:
-        return '{indent}{content}\n'.format(
-            indent=indent * self.tab,
-            content=self.__str__()
-        )
+    def get_display_str(self) -> str:
+        return '\n'.join(self._get_display_list(indent=0))
+
+    def _get_display_list(self, indent=0) -> list:
+        return [
+            '{indent}{content}'.format(
+                indent=indent * self.tab,
+                content=self.__str__()
+            )
+        ]
 
     def __str__(self) -> str:
         class_name = self._get_class_str()
@@ -172,11 +177,10 @@ class Handler:
         return '{class_name}({attrs})'.format(class_name=class_name, attrs=attrs)
     
     def _get_attr_str(self) -> str:
-        display_attrs = self._get_display_attrs()
+        attr_dict = self._get_attr_dict()
         return ', '.join([
-            '{key}={value}'.format(key=str(display_attrs[key]), value=str(value)) \
-                for key, value in vars(self).items() \
-                if key in display_attrs
+            '{key}={value}'.format(key=str(key), value=str(value)) \
+            for key, value in attr_dict.items()
         ])
     
     def _get_class_str(self) -> str:
@@ -188,6 +192,14 @@ class Handler:
             '_Handler__exec_ranks': 'exec_ranks'
         }
 
+    def _get_attr_dict(self) -> dict:
+        display_attrs = self._get_display_attrs()
+        return {
+            display_attrs[key]:value \
+            for key, value in vars(self).items() \
+            if key in display_attrs
+        }
+
 
 class EmptyHandler(Handler):
     """Empty handler that does nothing when called.
@@ -196,8 +208,8 @@ class EmptyHandler(Handler):
         Handler (torchslime.core.handler.Handler): _description_
     """
 
-    def __init__(self, _id: Union[str, None] = None):
-        super().__init__(_id)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
     
     @InvocationDebug('EmptyHandler')
     def handle(self, _: BaseContext):
@@ -211,8 +223,8 @@ L_SEQ = Union[Callable[[BaseContext], Any], Sequence[Callable[[BaseContext], Any
 
 class LambdaHandler(Handler, BaseList):
     
-    def __init__(self, _lambda: L_SEQ, _id: Union[str, None] = None):
-        Handler.__init__(self, _id)
+    def __init__(self, _lambda: L_SEQ, *args, **kwargs):
+        Handler.__init__(self, *args, **kwargs)
         BaseList.__init__(self, _lambda)
     
     def handle(self, ctx: BaseContext):
@@ -227,8 +239,8 @@ C_SEQ = Union[Handler, Sequence[Handler]]
 
 class HandlerContainer(Handler, BaseList):
 
-    def __init__(self, handlers: C_SEQ = None, _id: Union[str, None] = None):
-        Handler.__init__(self, _id)
+    def __init__(self, handlers: C_SEQ = None, *args, **kwargs):
+        Handler.__init__(self, *args, **kwargs)
         # remove None and NOTHING
         BaseList.__init__(
             self,
@@ -326,17 +338,22 @@ class HandlerContainer(Handler, BaseList):
             handler.del_parent()
         return super().__delitem__(__i)
     
-    def get_display_str(self, indent=0) -> str:
-        prefix = indent * self.tab + self._get_class_str() + '([\n'
-        handlers = ''.join([handler.get_display_str(indent + 1) for handler in self])
-        suffix = indent * self.tab + '], ' + self._get_attr_str() + ')\n'
-        return prefix + handlers + suffix
+    def _get_display_list(self, indent=0) -> list:
+        display_list = []
+        # prefix
+        display_list.append(indent * self.tab + self._get_class_str() + '([')
+        # handler
+        for handler in self:
+            display_list.extend(handler._get_display_list(indent + 1))
+        # suffix
+        display_list.append(indent * self.tab + '], ' + self._get_attr_str() + ')')
+        return display_list
 
 
 class EpochIterationHandler(HandlerContainer):
 
-    def __init__(self, handlers: C_SEQ = None, _id: Union[str, None] = None):
-        super().__init__(handlers, _id)
+    def __init__(self, handlers: C_SEQ = None, *args, **kwargs):
+        super().__init__(handlers, *args, **kwargs)
 
     @InvocationDebug('EpochIterationHandler')
     def handle(self, ctx: BaseContext):
@@ -353,8 +370,8 @@ class EpochIterationHandler(HandlerContainer):
 
 class IterationHandler(HandlerContainer):
 
-    def __init__(self, handlers: C_SEQ = None, _id: Union[str, None] = None):
-        super().__init__(handlers, _id)
+    def __init__(self, handlers: C_SEQ = None, *args, **kwargs):
+        super().__init__(handlers, *args, **kwargs)
 
     @InvocationDebug('IterationHandler')
     @TorchGrad
@@ -375,8 +392,8 @@ class IterationHandler(HandlerContainer):
 
 class ForwardHandler(Handler):
     
-    def __init__(self, _id: Union[str, None] = None):
-        super().__init__(_id)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     @InvocationDebug('ForwardHandler')
     def handle(self, ctx: BaseContext):
@@ -403,8 +420,8 @@ class ForwardHandler(Handler):
 
 class LossHandler(Handler):
 
-    def __init__(self, _id: Union[str, None] = None):
-        super().__init__(_id)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
     
     @InvocationDebug('LossHandler')
     def handle(self, ctx: BaseContext):
@@ -423,8 +440,8 @@ class LossHandler(Handler):
 
 class BackwardHandler(Handler):
 
-    def __init__(self, _id: Union[str, None] = None):
-        super().__init__(_id)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
     @InvocationDebug('BackwardHandler')
     def handle(self, ctx: BaseContext):
@@ -438,8 +455,8 @@ class BackwardHandler(Handler):
 
 class OptimizerHandler(HandlerContainer):
 
-    def __init__(self, handlers: C_SEQ = None, _id: Union[str, None] = None):
-        super().__init__(handlers, _id)
+    def __init__(self, handlers: C_SEQ = None, *args, **kwargs):
+        super().__init__(handlers, *args, **kwargs)
     
     @InvocationDebug('OptimizerHandler')
     def handle(self, ctx: BaseContext):
@@ -453,8 +470,8 @@ class OptimizerHandler(HandlerContainer):
 
 class MetricsHandler(Handler):
 
-    def __init__(self, _id: Union[str, None] = None):
-        super().__init__(_id)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
     
     @InvocationDebug('MetricsHandler')
     def handle(self, ctx: BaseContext):
@@ -466,8 +483,8 @@ class MetricsHandler(Handler):
 
 class GatherAverageHandler(Handler):
 
-    def __init__(self, _id: Union[str, None] = None):
-        super().__init__(_id)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
     
     @InvocationDebug('GatherAverageHandler')
     def handle(self, ctx: BaseContext):
@@ -517,8 +534,8 @@ class AverageInitHandler(Handler):
     # inner context key
     INNER_KEY = 'AVERAGE_INNER'
     
-    def __init__(self, _id: Union[str, None] = None):
-        super().__init__(_id)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
     
     @InvocationDebug('AverageInitHandler')
     def handle(self, ctx: BaseContext):
@@ -532,8 +549,8 @@ class AverageHandler(Handler):
     # inner context key
     INNER_KEY = 'AVERAGE_INNER'
 
-    def __init__(self, _id: Union[str, None] = None):
-        super().__init__(_id)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
     
     @InvocationDebug('AverageHandler')
     def handle(self, ctx: BaseContext):
@@ -574,8 +591,8 @@ class AverageHandler(Handler):
 
 class DisplayHandler(Handler):
 
-    def __init__(self, _id: Union[str, None] = None):
-        super().__init__(_id)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
     
     @InvocationDebug('DisplayHandler')
     def handle(self, ctx: BaseContext):
@@ -608,8 +625,8 @@ class DisplayHandler(Handler):
 
 class DatasetHandler(Handler):
 
-    def __init__(self, _id: Union[str, None] = None):
-        super().__init__(_id)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
     
     @InvocationDebug('DatasetHandler')
     def handle(self, ctx: BaseContext):
@@ -621,8 +638,8 @@ class DatasetHandler(Handler):
 
 class StateHandler(Handler):
 
-    def __init__(self, state: str = 'train', _id: Union[str, None] = None):
-        super().__init__(_id)
+    def __init__(self, state: str = 'train', *args, **kwargs):
+        super().__init__(*args, **kwargs)
         # get status supported
         from torchslime.core.hooks.state import context_status
         mode_supported = list(context_status.modules.keys())
@@ -654,8 +671,8 @@ class StateHandler(Handler):
 
 class LRDecayHandler(Handler):
 
-    def __init__(self, _id: Union[str, None] = None):
-        super().__init__(_id)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
     
     @InvocationDebug('LRDecayHandler')
     def handle(self, ctx: BaseContext):

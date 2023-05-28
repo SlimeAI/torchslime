@@ -51,51 +51,51 @@ class VanillaBuild(BuildHook):
             # epoch iter
             handler.EpochIteration([
                 # set status to 'train'
-                handler.State('train', _id='train_status_train'),
+                handler.State('train', _id='status_train'),
                 # get dataset
-                handler.Dataset(_id='train_dataset_train'),
+                handler.Dataset(_id='dataset_train'),
                 # init average setting
-                handler.AverageInit(_id='train_average_init_train'),
+                handler.AverageInit(_id='average_init_train'),
                 # dataset iter
                 handler.Iteration([
                     # forward
-                    handler.Forward(_id='train_forward_train'),
+                    handler.Forward(_id='forward_train'),
                     # compute loss
-                    handler.Loss(_id='train_loss_train'),
+                    handler.Loss(_id='loss_train'),
                     # backward and optimizer step
                     handler.Optimizer([
-                        handler.Backward(_id='train_backward')
-                    ], _id='train_optimizer'),
+                        handler.Backward(_id='backward_train')
+                    ], _id='optimizer_train'),
                     # compute metrics
-                    handler.Metrics(_id='train_metrics_train'),
+                    handler.Metrics(_id='metrics_train'),
                     # compute average loss value and metrics
-                    handler.Average(_id='train_average_train'),
+                    handler.Average(_id='average_train'),
                     # display in console or in log files
-                    handler.Display(_id='train_display_train')
-                ], _id='train_iteration_train'),
+                    handler.Display(_id='display_train')
+                ], _id='iteration_train'),
                 # apply learning rate decay
-                handler.LRDecay(_id='train_lr_decay'),
+                handler.LRDecay(_id='lr_decay'),
                 # set status to 'val'
-                handler.State('val', _id='train_status_val'),
+                handler.State('val', _id='status_val'),
                 # get dataset
-                handler.Dataset(_id='train_dataset_val'),
+                handler.Dataset(_id='dataset_val'),
                 # init average setting
-                handler.AverageInit(_id='train_average_init_val'),
+                handler.AverageInit(_id='average_init_val'),
                 # dataset iter
                 handler.Iteration([
                     # forward
-                    handler.Forward(_id='train_forward_val'),
+                    handler.Forward(_id='forward_val'),
                     # compute loss
-                    handler.Loss(_id='train_loss_val'),
+                    handler.Loss(_id='loss_val'),
                     # metrics
-                    handler.Metrics(_id='train_metrics_val'),
+                    handler.Metrics(_id='metrics_val'),
                     # compute average loss value and metrics
-                    handler.Average(_id='train_average_val'),
+                    handler.Average(_id='average_val'),
                     # display in console or in log files
-                    handler.Display(_id='train_display_val')
-                ], _id='train_iteration_val')
-            ], _id='train_epoch_iteration')
-        ], _id='train_container')
+                    handler.Display(_id='display_val')
+                ], _id='iteration_val')
+            ], _id='epoch_iteration')
+        ], _id='container')
     
     def after_build_train(self, ctx: Context):
         ctx.hook.lr_decay_mode
