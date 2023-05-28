@@ -28,6 +28,7 @@ class Handler:
     _handler_id_gen = Count()
     id_attrs = ['name', 'phase']
     tab = ' ' * 4  # tab is equal to 4 spaces
+    error_indicator = '<' + '=' * 5 + ' ERROR Here ' + '=' * 5
     def __init__(
         self,
         *args,
@@ -170,6 +171,32 @@ class Handler:
                 content=self.__str__()
             )
         ]
+
+    def display_error(self, _id=NOTHING, handler: 'Handler' = NOTHING):
+        logger.error('Handler Error Traceback:\n{content}'.format(
+            content=self.get_display_error_str(_id=_id, handler=handler)
+        ))
+    
+    def get_display_error_str(self, _id=NOTHING, handler: 'Handler' = NOTHING) -> str:
+        return Cursor.single_color('w') + \
+            '\n'.join(self._get_display_error_list(indent=0, _id=_id, handler=handler))
+    
+    def _get_display_error_list(self, indent=0, _id=NOTHING, handler: 'Handler' = NOTHING) -> list:
+        normal_display = '{indent}{content}'.format(
+            indent=indent * self.tab,
+            content=self.__str__()
+        )
+        return [
+            self._error_wrap(normal_display) \
+            if self._is_error_handler(_id=_id, handler=handler) \
+            else normal_display
+        ]
+    
+    def _error_wrap(self, item):
+        return Cursor.single_color('r') + item + '  ' + self.error_indicator + Cursor.single_color('w')
+    
+    def _is_error_handler(self, _id=NOTHING, handler: 'Handler' = NOTHING):
+        return self.get_id() == _id or self is handler
 
     def __str__(self) -> str:
         class_name = self._get_class_str()
@@ -345,6 +372,22 @@ class HandlerContainer(Handler, BaseList):
         # handler
         for handler in self:
             display_list.extend(handler._get_display_list(indent + 1))
+        # suffix
+        display_list.append(indent * self.tab + '], ' + self._get_attr_str() + ')')
+        return display_list
+    
+    def _get_display_error_list(self, indent=0, _id=NOTHING, handler: Handler = NOTHING) -> list:
+        display_list = []
+        # prefix
+        prefix = indent * self.tab + self._get_class_str() + '(['
+        display_list.append(
+            self._error_wrap(prefix) \
+            if self._is_error_handler(_id=_id, handler=handler) \
+            else prefix
+        )
+        # handler
+        for _handler in self:
+            display_list.extend(_handler._get_display_error_list(indent + 1, _id=_id, handler=handler))
         # suffix
         display_list.append(indent * self.tab + '], ' + self._get_attr_str() + ')')
         return display_list
