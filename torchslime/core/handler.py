@@ -21,6 +21,9 @@ def TorchGrad(func):
     return grad_switch
 
 
+OPTIONAL_HANDLER = Union['Handler', None, Nothing]
+
+
 class Handler:
     """Base class for all handlers.
     """
@@ -164,39 +167,34 @@ class Handler:
     def get_display_str(self) -> str:
         return '\n'.join(self._get_display_list(indent=0))
 
-    def _get_display_list(self, indent=0) -> list:
-        return [
+    def display_error(self, error_handler: OPTIONAL_HANDLER):
+        logger.error('Handler Error Traceback:\n{content}'.format(
+            content=self.get_display_error_str(error_handler=error_handler)
+        ))
+    
+    def get_display_error_str(self, error_handler: OPTIONAL_HANDLER) -> str:
+        return Cursor.single_color('w') + \
+            '\n'.join(self._get_display_list(indent=0, error_handler=error_handler))
+
+    def _get_display_list(self, indent=0, *args, error_handler: OPTIONAL_HANDLER = NOTHING) -> list:
+        display_list = [
             '{indent}{content}'.format(
                 indent=indent * self.tab,
                 content=self.__str__()
             )
         ]
 
-    def display_error(self, _id=NOTHING, handler: 'Handler' = NOTHING):
-        logger.error('Handler Error Traceback:\n{content}'.format(
-            content=self.get_display_error_str(_id=_id, handler=handler)
-        ))
-    
-    def get_display_error_str(self, _id=NOTHING, handler: 'Handler' = NOTHING) -> str:
-        return Cursor.single_color('w') + \
-            '\n'.join(self._get_display_error_list(indent=0, _id=_id, handler=handler))
-    
-    def _get_display_error_list(self, indent=0, _id=NOTHING, handler: 'Handler' = NOTHING) -> list:
-        normal_display = '{indent}{content}'.format(
-            indent=indent * self.tab,
-            content=self.__str__()
-        )
-        return [
-            self._error_wrap(normal_display) \
-            if self._is_error_handler(_id=_id, handler=handler) \
-            else normal_display
-        ]
+        if is_none_or_nothing(error_handler) is False:
+            display_list[0] = self._error_wrap(display_list[0]) \
+                if self._is_error_handler(error_handler=error_handler) \
+                else display_list[0]
+        return display_list
     
     def _error_wrap(self, item):
         return Cursor.single_color('r') + item + '  ' + self.error_indicator + Cursor.single_color('w')
     
-    def _is_error_handler(self, _id=NOTHING, handler: 'Handler' = NOTHING):
-        return self.get_id() == _id or self is handler
+    def _is_error_handler(self, error_handler: OPTIONAL_HANDLER = NOTHING):
+        return self is error_handler
 
     def __str__(self) -> str:
         class_name = self._get_class_str()
@@ -365,31 +363,20 @@ class HandlerContainer(Handler, BaseList):
             handler.del_parent()
         return super().__delitem__(__i)
     
-    def _get_display_list(self, indent=0) -> list:
+    def _get_display_list(self, indent=0, *args, error_handler: OPTIONAL_HANDLER = NOTHING) -> list:
         display_list = []
         # prefix
         display_list.append(indent * self.tab + self._get_class_str() + '([')
         # handler
         for handler in self:
-            display_list.extend(handler._get_display_list(indent + 1))
+            display_list.extend(handler._get_display_list(indent + 1, error_handler=error_handler))
         # suffix
         display_list.append(indent * self.tab + '], ' + self._get_attr_str() + ')')
-        return display_list
-    
-    def _get_display_error_list(self, indent=0, _id=NOTHING, handler: Handler = NOTHING) -> list:
-        display_list = []
-        # prefix
-        prefix = indent * self.tab + self._get_class_str() + '(['
-        display_list.append(
-            self._error_wrap(prefix) \
-            if self._is_error_handler(_id=_id, handler=handler) \
-            else prefix
-        )
-        # handler
-        for _handler in self:
-            display_list.extend(_handler._get_display_error_list(indent + 1, _id=_id, handler=handler))
-        # suffix
-        display_list.append(indent * self.tab + '], ' + self._get_attr_str() + ')')
+
+        if is_none_or_nothing(error_handler) is False:
+            display_list[0] = self._error_wrap(display_list[0]) \
+                if self._is_error_handler(error_handler=error_handler) \
+                else display_list[0]
         return display_list
 
 
