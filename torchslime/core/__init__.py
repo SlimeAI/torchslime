@@ -42,7 +42,17 @@ class Context(BaseContext):
         self.hook.build._build_train(self)
 
         logger.info(self.hook.launch.get_device(self))
-        self.run.train(self)
+
+        from torchslime.components.exception import HandlerException, HandlerTerminate
+        try:
+            self.run.train(self)
+        except HandlerTerminate as ht:
+            self.run.train.display_traceback(target_handlers=ht.raise_handler, wrap_func='terminate', level='info')
+            logger.info('Handler terminated with message: {msg}'.format(msg=ht.msg))
+        except HandlerException as he:
+            self.run.train.display_traceback(target_handlers=he.exception_handler)
+            raise he.exception
+
 
     @InvocationDebug('Context.Predict')
     def predict(

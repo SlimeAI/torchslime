@@ -99,7 +99,7 @@ class VanillaBuild(BuildHook):
     
     def after_build_train(self, ctx: Context):
         ctx.hook.lr_decay_mode
-        return super().after_build_train()
+        return
 
     def build_eval(self, ctx: Context):
         # get handler classes from context

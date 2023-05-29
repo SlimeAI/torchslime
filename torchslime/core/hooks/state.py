@@ -6,7 +6,7 @@ from torchslime.components.registry import Registry
 from torchslime.core.context import BaseContext
 from typing import Tuple
 
-context_status = Registry('context_status')
+ctx_state = Registry('ctx_state', global_register=False)
 
 
 class StateHook:
@@ -38,7 +38,7 @@ class StateHook:
         return 'BASE STATUS'
 
 
-@context_status.register('train')
+@ctx_state.register('train')
 class TrainState(StateHook):
 
     def __init__(self) -> None:
@@ -78,7 +78,7 @@ class TrainState(StateHook):
         return 'TRAIN'
 
 
-@context_status.register('eval')
+@ctx_state.register('eval')
 class EvalState(StateHook):
 
     def __init__(self) -> None:
@@ -118,7 +118,7 @@ class EvalState(StateHook):
         return 'EVAL'
 
 
-@context_status.register('val')
+@ctx_state.register('val')
 class ValState(EvalState):
 
     def __init__(self) -> None:
@@ -141,7 +141,7 @@ class ValState(EvalState):
         return 'VAL'
 
 
-@context_status.register('predict')
+@ctx_state.register('predict')
 class PredictState(EvalState):
 
     def __init__(self) -> None:

@@ -7,6 +7,7 @@ from torchslime.core.context import BaseContext
 from torchslime.log import logger
 from torchslime.utils.tstype import INT_SEQ_N
 from torch import set_grad_enabled
+from torchslime.components.registry import Registry
 
 
 def TorchGrad(func):
@@ -21,7 +22,7 @@ def TorchGrad(func):
     return grad_switch
 
 
-OPTIONAL_HANDLER = Union['Handler', None, Nothing]
+OPTIONAL_HANDLER = Union['Handler', Sequence['Handler'], None, Nothing]
 
 
 class Handler:
@@ -48,7 +49,18 @@ class Handler:
         pass
 
     def __call__(self, ctx: BaseContext):
-        ctx.hook.launch.handler_call(self, ctx)
+        from torchslime.components.exception import HandlerException, HandlerTerminate
+        try:
+            ctx.hook.launch.handler_call(self, ctx)
+        except HandlerTerminate as ht:
+            # set ``raise_handler`` to the nearest handler
+            if is_none_or_nothing(ht.raise_handler) is True:
+                ht.raise_handler = self
+            raise ht
+        except HandlerException as he:
+            raise he
+        except Exception as e:
+            raise HandlerException(exception_handler=self, exception=e)
     
     def replace_self(self, handler: 'Handler') -> bool:
         if self._verify_parent() is not True:
@@ -166,22 +178,24 @@ class Handler:
     def get_display_str(self) -> str:
         return '\n'.join(self._get_display_list(indent=0))
 
-    def display_error(self, error_handler: OPTIONAL_HANDLER):
-        logger.error('Handler Error Traceback:\n{content}'.format(
-            content=self.get_display_error_str(error_handler=error_handler)
+    def display_traceback(self, target_handlers: OPTIONAL_HANDLER, wrap_func: Union[str, Callable] = 'exception', level: str = 'error'):
+        wrap_func = wrap_func if callable(wrap_func) is True else display_wrap_func.get(wrap_func, lambda x: x)
+
+        getattr(logger, level, logger.error)('Handler Traceback:\n{content}'.format(
+            content=self.get_display_traceback_str(target_handlers=target_handlers, wrap_func=wrap_func)
         ))
     
-    def get_display_error_str(self, error_handler: OPTIONAL_HANDLER) -> str:
+    def get_display_traceback_str(self, target_handlers: OPTIONAL_HANDLER, wrap_func: Callable) -> str:
         return Cursor.single_color('w') + \
-            '\n'.join(self._get_display_list(indent=0, error_handler=error_handler))
+            '\n'.join(self._get_display_list(indent=0, target_handlers=target_handlers, wrap_func=wrap_func))
 
-    def _get_display_list(self, indent=0, *args, error_handler: OPTIONAL_HANDLER = NOTHING) -> list:
+    def _get_display_list(self, indent=0, *args, target_handlers: OPTIONAL_HANDLER = NOTHING, wrap_func: Callable = NOTHING) -> list:
         indent_str = indent * self.tab
         content = self.__str__()
         # error wrap
-        if is_none_or_nothing(error_handler) is False and \
-            self._is_error_handler(error_handler=error_handler):
-            content = self._error_wrap(content)
+        if is_none_or_nothing(target_handlers) is False and \
+            self._is_target_handler(target_handlers=target_handlers):
+            content = wrap_func(content)
 
         display_list = [
             '{indent_str}{content}'.format(
@@ -190,17 +204,14 @@ class Handler:
             )
         ]
         return display_list
-    
-    def _error_wrap(self, item):
-        return Cursor.single_color('r') + item + '  ' + self._error_indicator() + Cursor.single_color('w')
-    
-    def _error_indicator(self) -> str:
-        _separator_len = 10
-        # ×  <---------- ERROR Here ----------
-        return chr(0x00D7) + '  ' + '<' + '-' * _separator_len + ' ERROR Here ' + '-' * _separator_len
 
-    def _is_error_handler(self, error_handler: OPTIONAL_HANDLER = NOTHING):
-        return self is error_handler
+    def _is_target_handler(self, target_handlers: OPTIONAL_HANDLER = NOTHING):
+        return self in BaseList.create(
+            target_handlers,
+            return_none=False,
+            return_nothing=False,
+            return_ellipsis=False
+        )
 
     def __str__(self) -> str:
         class_name = self._get_class_str()
@@ -230,6 +241,25 @@ class Handler:
             for key, value in vars(self).items() \
             if key in display_attrs
         }
+
+
+display_wrap_func = Registry('display_wrap_func', global_register=False)
+
+
+@display_wrap_func.register('exception')
+def _exception_wrap(item) -> str:
+    _separator_len = 10
+    # ×  <---------- EXCEPTION Here ----------
+    _exception_indicator = chr(0x00D7) + '  ' + '<' + '-' * _separator_len + ' EXCEPTION Here ' + '-' * _separator_len
+    return Cursor.single_color('r') + item + '  ' + _exception_indicator + Cursor.single_color('w')
+
+
+@display_wrap_func.register('terminate')
+def _terminate_wrap(item) -> str:
+    _separator_len = 10
+    # ||---------- Handler TERMINATE ----------||
+    _terminate_indicator = '||' + '-' * _separator_len + ' Handler TERMINATE ' + '-' * _separator_len + '||'
+    return Cursor.single_color('g') + item + '  ' + _terminate_indicator + Cursor.single_color('w')
 
 
 class EmptyHandler(Handler):
@@ -369,19 +399,19 @@ class HandlerContainer(Handler, BaseList):
             handler.del_parent()
         return super().__delitem__(__i)
     
-    def _get_display_list(self, indent=0, *args, error_handler: OPTIONAL_HANDLER = NOTHING) -> list:
+    def _get_display_list(self, indent=0, *args, target_handlers: OPTIONAL_HANDLER = NOTHING, wrap_func: Callable = NOTHING) -> list:
         display_list = []
         indent_str = indent * self.tab
         prefix_content = self._get_class_str() + '(['
         # error wrap
-        if is_none_or_nothing(error_handler) is False and \
-            self._is_error_handler(error_handler=error_handler):
-            prefix_content = self._error_wrap(prefix_content)
+        if is_none_or_nothing(target_handlers) is False and \
+            self._is_target_handler(target_handlers=target_handlers):
+            prefix_content = wrap_func(prefix_content)
         # prefix
         display_list.append(indent_str + prefix_content)
         # handler
         for handler in self:
-            display_list.extend(handler._get_display_list(indent + 1, error_handler=error_handler))
+            display_list.extend(handler._get_display_list(indent + 1, target_handlers=target_handlers, wrap_func=wrap_func))
         # suffix
         display_list.append(indent_str + '], ' + self._get_attr_str() + ')')
         return display_list
@@ -678,8 +708,8 @@ class StateHandler(Handler):
     def __init__(self, state: str = 'train', *args, **kwargs):
         super().__init__(*args, **kwargs)
         # get status supported
-        from torchslime.core.hooks.state import context_status
-        mode_supported = list(context_status.modules.keys())
+        from torchslime.core.hooks.state import ctx_state
+        mode_supported = list(ctx_state.keys())
         if state not in mode_supported:
             logger.warn('An unsupported status is set, this may cause some problems.')
         self.state = state
@@ -691,8 +721,8 @@ class StateHandler(Handler):
             'model'
         ], silent=False)
         # set status to the context
-        from torchslime.core.hooks.state import context_status
-        ctx.hook.state = context_status.build(self.state)
+        from torchslime.core.hooks.state import ctx_state
+        ctx.hook.state = ctx_state.get(self.state)()
         # change pytorch model mode
         ctx.hook.state.set_model_mode(ctx)
     

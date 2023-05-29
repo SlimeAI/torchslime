@@ -126,11 +126,11 @@ class SaveMetrics(Callback):
                 logger.warn('The length of metric list is greater than number of epochs that have been executed, possibly there are some other items included in the list.')
 
     def parse(self, ctx: BaseContext, save_options):
-        from torchslime.core.hooks.state import context_status, StateHook
+        from torchslime.core.hooks.state import ctx_state, StateHook
         item = {}
         for key in save_options:
             # use status to get loss value and metrics
-            temp_status: StateHook = context_status.get(key)
+            temp_status: StateHook = ctx_state.get(key)
             loss_value, metrics = temp_status.get_avg_loss_value_and_metrics(ctx)
             # separately update to avoid same keys in loss value and metrics
             item.update(**loss_value)
