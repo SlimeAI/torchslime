@@ -1,6 +1,4 @@
-from torchslime.core.handler import Handler
-from torchslime.utils import Nothing, NOTHING
-from typing import Union
+from torchslime.utils import NOTHING
 
 
 """
@@ -26,7 +24,7 @@ class HandlerContinue(HandlerInterrupt):
 
 class HandlerTerminate(HandlerInterrupt):
 
-    def __init__(self, msg: str, raise_handler: Union[Handler, Nothing, None] = NOTHING) -> None:
+    def __init__(self, msg: str, raise_handler=NOTHING) -> None:
         super().__init__()
         self.msg = msg
         self.raise_handler = raise_handler
@@ -43,7 +41,7 @@ Handler Exception
 """
 class HandlerException(Exception):
 
-    def __init__(self, exception_handler: Handler, exception: Exception) -> None:
+    def __init__(self, exception_handler, exception: Exception) -> None:
         super().__init__()
         self.exception_handler = exception_handler
         self.exception = exception

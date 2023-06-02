@@ -1,6 +1,5 @@
-from abc import abstractmethod
 from torch.utils.data import DataLoader
-from torchslime.core.context import BaseContext
+from torchslime.core.context.base import BaseContext
 from torchslime.utils import list_take
 from torchslime.log import logger
 from typing import Sequence, Tuple, Any, Union
@@ -11,7 +10,6 @@ class DataProvider:
     def __init__(self):
         pass
 
-    @abstractmethod
     def get(self, ctx: BaseContext) -> DataLoader:
         pass
 
@@ -37,7 +35,6 @@ class DataParser:
     def __init__(self):
         pass
 
-    @abstractmethod
     def get(self, ctx: BaseContext) -> Tuple[Any, Any, Any]: pass
 
     def __call__(self, ctx: BaseContext) -> Tuple[Any, Any, Any]:

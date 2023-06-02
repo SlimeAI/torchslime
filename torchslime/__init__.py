@@ -1,4 +1,4 @@
-from torchslime.core import Context, DistributedContext
+from torchslime.core.context import Context, DistributedContext
 
 
 __version__ = '0.1.0'

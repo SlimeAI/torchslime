@@ -1,8 +1,8 @@
 """
 Distributed Launch Hook
 """
-from torchslime.core import Context
-from torchslime.core.handler import Handler
+from torchslime.core.context import Context
+from torchslime.core.handlers import Handler
 from torchslime.utils import is_none_or_nothing, NOTHING, is_torch_distributed_ready
 from torchslime.log import logger
 
@@ -17,7 +17,7 @@ class LaunchHook:
     def after_build_train(self, ctx: Context): pass
     def after_build_predict(self, ctx: Context): pass
     def after_build_eval(self, ctx: Context): pass
-    def get_device(self, ctx: Context): pass
+    def get_device_info(self, ctx: Context): pass
 
 
 class VanillaLaunch(LaunchHook):
@@ -40,17 +40,24 @@ class VanillaLaunch(LaunchHook):
     def get_world_size(self, group=None):
         return NOTHING
     
-    def get_device(self, ctx: Context):
-        return super().get_device(ctx)
+    def get_device_info(self, ctx: Context):
+        return super().get_device_info(ctx)
 
 
 class DistributedLaunch(LaunchHook):
     
     def handler_call(self, handler: Handler, ctx: Context):
+        # always exec
+        if exec_ranks is ...:
+            handler.handle(ctx)
+            return
+        # never exec
+        if is_none_or_nothing(exec_ranks):
+            return
+        # exec in the specific ranks
         rank = ctx.distributed.get_rank()
         exec_ranks = handler.get_exec_ranks()
-        if is_none_or_nothing(exec_ranks) is False and \
-            (exec_ranks is ... or rank in exec_ranks):
+        if rank in exec_ranks:
             handler.handle(ctx)
 
     def is_distributed(self) -> bool:
@@ -80,5 +87,5 @@ class DistributedLaunch(LaunchHook):
         for m_handler in metric_handlers:
             m_handler.insert_after_self(handler.GatherAverage(_id=''))
     
-    def get_device(self, ctx: Context):
-        return super().get_device(ctx)
+    def get_device_info(self, ctx: Context):
+        return super().get_device_info(ctx)

@@ -3,7 +3,7 @@ State Pattern for model state management.
 """
 from torchslime.utils import NOTHING, is_nothing
 from torchslime.components.registry import Registry
-from torchslime.core.context import BaseContext
+from torchslime.core.context.base import BaseContext
 from typing import Tuple
 
 ctx_state = Registry('ctx_state', global_register=False)

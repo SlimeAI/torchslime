@@ -1,5 +1,5 @@
 """
-A convenient module register util that helps you parameterize network structure.
+A convenient module register util that helps you dynamically build modules.
 """
 from torchslime.utils import NOTHING, Nothing, Singleton, BaseDict, is_none_or_nothing
 from typing import Union

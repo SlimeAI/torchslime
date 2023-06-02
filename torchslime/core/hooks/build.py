@@ -1,4 +1,4 @@
-from torchslime.core import Context
+from torchslime.core.context import Context
 
 
 class BuildHook:

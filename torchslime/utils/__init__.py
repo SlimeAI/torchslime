@@ -5,6 +5,7 @@ from torch import Tensor
 import torch
 from torch.nn import Module
 import threading
+import multiprocessing
 from functools import wraps
 from time import time
 import traceback
@@ -28,7 +29,7 @@ def SmartWraps(cls):
     def decorator(func):
         if inspect.isclass(cls):
             _wrapped = cls._wrapped if hasattr(cls, '_wrapped') else cls
-            class Wrapper(metaclass=get_wrapper_type(_wrapped)):
+            class Wrapper(metaclass=_get_wrapper_type(_wrapped)):
                 def __new__(_cls: type, *args, **kwargs):
                     obj = func(*args, **kwargs)
                     return obj
@@ -61,7 +62,7 @@ def _update_class_wrapper(_wrapped: type):
     return partial_func
 
 
-def get_wrapper_type(_wrapped: type):
+def _get_wrapper_type(_wrapped: type):
     
     class WrapperType(type):
         
@@ -72,6 +73,11 @@ def get_wrapper_type(_wrapped: type):
         def __setattr__(self, __name: str, __value: Any) -> None:
             setattr(getattr(self, '_wrapped', NOTHING), __name, __value)
             return super().__setattr__(__name, __value)
+        
+        def __new__(cls, name, bases, attrs):
+            # copy bases from the wrapped class
+            bases = _wrapped.__bases__
+            return super().__new__(cls, name, bases, attrs)
     
     return WrapperType
 
@@ -81,13 +87,14 @@ def Singleton(cls):
     Decorator that makes decorated classes singleton.
     It makes the creation of the singleton object thread-safe by using double-checked locking.
     """
-    _lock = threading.Lock()
+    t_lock = threading.Lock()
+    p_lock = multiprocessing.Lock()
     _instance = {}
     
     @SmartWraps(cls)
     def wrapper(*args, **kwargs):
         if cls not in _instance:
-            with _lock:
+            with t_lock, p_lock:
                 if cls not in _instance:
                     _instance[cls] = cls(*args, **kwargs)
         return _instance[cls]
@@ -101,11 +108,12 @@ def InvocationDebug(module_name):
         func (_type_): _description_
     """
     def decorator(func):
+        # cache inspect result
+        from torchslime.log import logger
+        _exec_info = get_exec_info(func)
+
         @SmartWraps(func)
         def wrapper(*args, **kwargs):
-            from torchslime.log import logger
-            _exec_info = get_exec_info(func)
-            
             logger.debug('{} begins.'.format(module_name), _exec_info=_exec_info)
             result = func(*args, **kwargs)
             logger.debug('{} ends.'.format(module_name), _exec_info=_exec_info)

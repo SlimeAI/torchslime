@@ -1,8 +1,7 @@
-from abc import abstractmethod
 from typing import Union, Dict, Sequence, Callable
 from torchslime.utils.tstype import NUMBER, NUMBER_T
 from torchslime.utils import Count, Nothing, is_nothing, dict_merge, NOTHING, BaseList, BaseDict, safe_divide
-from torchslime.core.context import BaseContext
+from torchslime.core.context.base import BaseContext
 from torchslime.log import logger
 from torch import Tensor
 import inspect
@@ -14,7 +13,6 @@ class Metric:
     def __init__(self, name: str = None):
         self.name = name
 
-    @abstractmethod
     def get(self, ctx: BaseContext) -> Union[Dict, NUMBER]:
         pass
 
