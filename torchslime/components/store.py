@@ -1,5 +1,5 @@
-from torchslime.utils import Singleton, Base
-from typing import Any
+from torchslime.utils import Singleton, Base, NOTHING, is_none_or_nothing
+from typing import Any, Union, TypeVar
 import threading
 import os
 
@@ -7,23 +7,57 @@ import os
 @Singleton
 class Store:
     
-    def __getitem__(self, __key) -> Base:
+    def scope__(self, __key) -> Base:
         if __key in store_dict:
             return store_dict[__key]
         else:
             return store_dict.setdefault(__key, Base())
 
     def current__(self) -> Base:
-        return self[_get_store_key()]
+        return self.scope__(_get_store_key())
+
+    def __getitem__(self, __name: str):
+        return self.current__()[__name]
+    
+    def __setitem__(self, __name: str, __value: Any):
+        self.current__()[__name] = __value
+    
+    def __delitem__(self, __name: str):
+        del self.current__()[__name]
 
     def __getattr__(self, __name: str) -> Any:
-        return getattr(self[_get_store_key()], __name)
+        return getattr(self.current__(), __name)
 
     def __setattr__(self, __name: str, __value: Any) -> None:
-        setattr(self[_get_store_key()], __name, __value)
+        setattr(self.current__(), __name, __value)
     
     def __delattr__(self, __name: str) -> None:
-        delattr(self[_get_store_key()], __name)
+        delattr(self.current__(), __name)
+
+
+StoreSetSelf = TypeVar('StoreSetSelf', bound='StoreSet')
+
+
+class StoreSet:
+
+    def __init__(self, __name: str, __value: Any, *, restore: bool = True, key=NOTHING) -> None:
+        self.name = __name
+        self.value = __value
+        self.restore = restore
+        self.key = _get_store_key() if is_none_or_nothing(key) is True else key
+        self._store = store.scope__(self.key)
+        # get the store value before ``StoreSet``
+        self.restore_value = self._store[__name]
+    
+    def __enter__(self) -> Union['StoreSet', StoreSetSelf]:
+        self._store[self.name] = self.value
+        return self
+
+    def __exit__(self, *args, **kwargs):
+        if self.restore is True:
+            self._store[self.name] = self.restore_value
+        else:
+            del self._store[self.name]
 
 
 # outer storage
@@ -41,10 +75,10 @@ store = Store()
 
 """set ``inner__`` store config"""
 # whether to save log metadata (e.g., exec_name, lineno, etc.) to cache.
-store['inner__'].use_log_cache = True
-store['inner__'].log_cache = Base()
+store.scope__('inner__').use_log_cache = True
+store.scope__('inner__').log_cache = Base()
 # flag to log only once. For example, some warnings may appear only once.
-store['inner__'].log_once = Base()
+store.scope__('inner__').log_once = Base()
 # whether to use call debug
-store['inner__'].use_call_debug = False
-store['inner__'].call_debug_cache = Base()
+store.scope__('inner__').use_call_debug = False
+store.scope__('inner__').call_debug_cache = Base()

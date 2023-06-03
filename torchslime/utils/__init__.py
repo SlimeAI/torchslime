@@ -116,11 +116,11 @@ def CallDebug(module_name):
         @SmartWraps(func)
         def wrapper(*args, **kwargs):
             # do not use debug
-            if store['inner__'].use_call_debug is not True:
+            if store.scope__('inner__').use_call_debug is not True:
                 return func(*args, **kwargs)
 
             # cache debug info
-            call_debug_cache = store['inner__'].call_debug_cache
+            call_debug_cache = store.scope__('inner__').call_debug_cache
             _exec_info = call_debug_cache[func_id]
             if is_none_or_nothing(_exec_info) is True:
                 _exec_info = get_exec_info(func)
@@ -340,6 +340,22 @@ class Base:
     def __getattr__(self, *_):
         return NOTHING
 
+    def __getattribute__(self, __name: str):
+        return super().__getattribute__(str(__name))
+    
+    def __setattr__(self, __name: str, __value: Any) -> None:
+        try:
+            super().__setattr__(str(__name), __value)
+        except Exception:
+            return
+
+    def __delattr__(self, __name: str) -> None:
+        # safe delete
+        try:
+            super().__delattr__(str(__name))
+        except Exception:
+            return
+
     def __getitem__(self, __name: str):
         try:
             return getattr(self, __name)
@@ -351,14 +367,10 @@ class Base:
             return setattr(self, __name, __value)
         except Exception:
             return self.process_exc__()
-
-    def __getattribute__(self, __name: str):
-        return super().__getattribute__(__name)
     
-    def __delattr__(self, __name: str) -> None:
-        # safe delete
+    def __delitem__(self, __name: str):
         try:
-            super().__delattr__(__name)
+            return delattr(self, __name)
         except Exception:
             return
 

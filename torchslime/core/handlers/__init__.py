@@ -20,7 +20,7 @@ class Handler:
     tab = ' ' * 4  # tab is equal to 4 spaces
     def __init__(
         self,
-        *args,
+        *,
         _id: Union[str, None, Nothing] = None,
         exec_ranks: INT_SEQ_N = ...
     ):
@@ -172,7 +172,7 @@ class Handler:
         return Cursor.single_color('w') + \
             '\n'.join(self._get_display_list(indent=0, target_handlers=target_handlers, wrap_func=wrap_func))
 
-    def _get_display_list(self, indent=0, *args, target_handlers: OPTIONAL_HANDLER = NOTHING, wrap_func: Callable = NOTHING) -> list:
+    def _get_display_list(self, indent=0, *, target_handlers: OPTIONAL_HANDLER = NOTHING, wrap_func: Callable = NOTHING) -> list:
         indent_str = indent * self.tab
         content = self.__str__()
         # error wrap
@@ -350,7 +350,7 @@ class HandlerContainer(Handler, BaseList):
             handler.del_parent()
         return super().__delitem__(__i)
     
-    def _get_display_list(self, indent=0, *args, target_handlers: OPTIONAL_HANDLER = NOTHING, wrap_func: Callable = NOTHING) -> list:
+    def _get_display_list(self, indent=0, *, target_handlers: OPTIONAL_HANDLER = NOTHING, wrap_func: Callable = NOTHING) -> list:
         display_list = []
         indent_str = indent * self.tab
         prefix_content = self._get_class_str() + '(['

@@ -14,7 +14,7 @@ class Registry(BaseDict):
         if global_register is True:
             registry_mapper.register(self, strict=strict)
     
-    def register(self, name: Union[str, Nothing, None] = NOTHING, strict: bool = True, *args, cls=NOTHING):
+    def register(self, name: Union[str, Nothing, None] = NOTHING, strict: bool = True, *, cls=NOTHING):
         def decorator(_cls):
             nonlocal name
             if is_none_or_nothing(name) is True:
