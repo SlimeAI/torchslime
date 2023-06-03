@@ -278,10 +278,10 @@ class Base:
     What's more, it allows its subclasses assign properties using a dict.
     """
 
-    def update(self, **kwargs):
-        self.from_dict(kwargs)
+    def update__(self, **kwargs):
+        self.from_dict__(kwargs)
 
-    def from_dict(self, _dict: Dict):
+    def from_dict__(self, _dict: Dict):
         """assign properties to the object using a dict.
 
         Args:
@@ -289,7 +289,7 @@ class Base:
         """
         self.__dict__ = dict_merge(self.__dict__, _dict)
 
-    def check(self, item: str):
+    def check__(self, item: str):
         """check whether the object has a specific attribute.
         dot operator supported.
 
@@ -306,12 +306,12 @@ class Base:
                     return False
             except Exception:
                 # output error information
-                self.process_exc()
+                self.process_exc__()
                 return False
         return True
 
     @staticmethod
-    def process_exc():
+    def process_exc__():
         from torchslime.log import logger
         # output error
         logger.error(
@@ -320,23 +320,28 @@ class Base:
         )
         return NOTHING
 
+    def pop__(self, __name: str):
+        attr = getattr(self, __name)
+        delattr(self, __name)
+        return attr
+
     def __getattr__(self, *_):
         return NOTHING
 
-    def __getitem__(self, key):
+    def __getitem__(self, __name: str):
         try:
-            return getattr(self, key)
+            return getattr(self, __name)
         except Exception:
-            return self.process_exc()
+            return self.process_exc__()
     
-    def __setitem__(self, key, value):
+    def __setitem__(self, __name: str, __value: Any):
         try:
-            return setattr(self, key, value)
+            return setattr(self, __name, __value)
         except Exception:
-            return self.process_exc()
+            return self.process_exc__()
 
-    def __getattribute__(self, key):
-        return super().__getattribute__(key)
+    def __getattribute__(self, __name: str):
+        return super().__getattribute__(__name)
     
     def __delattr__(self, __name: str) -> None:
         # safe delete

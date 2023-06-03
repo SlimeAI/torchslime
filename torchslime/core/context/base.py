@@ -54,7 +54,7 @@ class BaseContext(Base):
     def ctx_check(self, items: Union[str, Sequence[str]], silent: bool = True):
         # check single item
         def _check(_item):
-            _result = super(BaseContext, self).check(_item)
+            _result = super(BaseContext, self).check__(_item)
             if _result is False:
                 msg = 'Context check failed: got NOTHING with key \'%s\'.' % _item
                 if silent is True:

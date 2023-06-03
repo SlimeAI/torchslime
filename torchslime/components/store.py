@@ -13,7 +13,7 @@ class Store:
         else:
             return store_dict.setdefault(__key, Base())
 
-    def __current__(self) -> Base:
+    def current__(self) -> Base:
         return self[_get_store_key()]
 
     def __getattr__(self, __name: str) -> Any:
@@ -21,6 +21,9 @@ class Store:
 
     def __setattr__(self, __name: str, __value: Any) -> None:
         setattr(self[_get_store_key()], __name, __value)
+    
+    def __delattr__(self, __name: str) -> None:
+        delattr(self[_get_store_key()], __name)
 
 
 # outer storage
@@ -35,3 +38,10 @@ def _get_store_key() -> str:
 
 
 store = Store()
+
+"""set ``inner__`` store config"""
+# whether to save log metadata (e.g., exec_name, lineno, etc.) to cache.
+store['inner__'].use_log_cache = True
+store['inner__'].log_cache = Base()
+# flag to log only once. For example, some warnings may appear only once.
+store['inner__'].log_once = Base()

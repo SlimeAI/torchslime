@@ -81,7 +81,7 @@ class IterationHandler(HandlerContainer):
         # context check
         if ctx.ctx_check('run.dataset') is True:
             for batch, progress, time, current, total in IterTool(ctx.run.dataset, True, True, True, True):
-                ctx.step.from_dict({
+                ctx.step.from_dict__({
                     'batch': batch, # original batch data of the dataset
                     'progress': progress, # progress of iteration(includes current step and total steps)
                     'time': time, # time of the iter(current time)
@@ -111,7 +111,7 @@ class ForwardHandler(Handler):
         y_pred = ctx.model(type_cast(x, ctx.device))
         y_true = type_cast(y_true, ctx.device)
         # clone and update context info
-        ctx.step.from_dict({
+        ctx.step.from_dict__({
             # the result of the forward progress
             'x': x,
             'y_true': y_true,
