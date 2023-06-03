@@ -1,6 +1,6 @@
 from typing import Dict, Sequence, Union, List, Callable, Any
 from torchslime.utils import BaseList, IterTool, safe_divide, type_cast, \
-    InvocationDebug, SmartWraps, terminal as Cursor
+    CallDebug, SmartWraps, terminal as Cursor
 from torchslime.utils.formatter import progress_format, eta_format
 from torchslime.core.context.base import BaseContext
 from torchslime.core.handlers import Handler, HandlerContainer, H_SEQ
@@ -30,7 +30,7 @@ class EmptyHandler(Handler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
     
-    @InvocationDebug('EmptyHandler')
+    @CallDebug('EmptyHandler')
     def handle(self, _: BaseContext):
         """do nothing"""
         pass
@@ -57,7 +57,7 @@ class EpochIterationHandler(HandlerContainer):
     def __init__(self, handlers: H_SEQ = None, *args, **kwargs):
         super().__init__(handlers, *args, **kwargs)
 
-    @InvocationDebug('EpochIterationHandler')
+    @CallDebug('EpochIterationHandler')
     def handle(self, ctx: BaseContext):
         # context check
         ctx.ctx_check('epoch.total', silent=False)
@@ -75,7 +75,7 @@ class IterationHandler(HandlerContainer):
     def __init__(self, handlers: H_SEQ = None, *args, **kwargs):
         super().__init__(handlers, *args, **kwargs)
 
-    @InvocationDebug('IterationHandler')
+    @CallDebug('IterationHandler')
     @TorchGrad
     def handle(self, ctx: BaseContext):
         # context check
@@ -97,7 +97,7 @@ class ForwardHandler(Handler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    @InvocationDebug('ForwardHandler')
+    @CallDebug('ForwardHandler')
     def handle(self, ctx: BaseContext):
         # context check
         ctx.ctx_check([
@@ -125,7 +125,7 @@ class LossHandler(Handler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
     
-    @InvocationDebug('LossHandler')
+    @CallDebug('LossHandler')
     def handle(self, ctx: BaseContext):
         # context check
         if ctx.ctx_check('run.loss_func') is True:
@@ -145,7 +145,7 @@ class BackwardHandler(Handler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    @InvocationDebug('BackwardHandler')
+    @CallDebug('BackwardHandler')
     def handle(self, ctx: BaseContext):
         # context check
         if ctx.ctx_check(['step.loss']) is True:
@@ -160,7 +160,7 @@ class OptimizerHandler(HandlerContainer):
     def __init__(self, handlers: H_SEQ = None, *args, **kwargs):
         super().__init__(handlers, *args, **kwargs)
     
-    @InvocationDebug('OptimizerHandler')
+    @CallDebug('OptimizerHandler')
     def handle(self, ctx: BaseContext):
         # backward handler
         super().handle(ctx)
@@ -175,7 +175,7 @@ class MetricsHandler(Handler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
     
-    @InvocationDebug('MetricsHandler')
+    @CallDebug('MetricsHandler')
     def handle(self, ctx: BaseContext):
         # context check
         ctx.ctx_check('step', silent=False)
@@ -188,7 +188,7 @@ class GatherAverageHandler(Handler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
     
-    @InvocationDebug('GatherAverageHandler')
+    @CallDebug('GatherAverageHandler')
     def handle(self, ctx: BaseContext):
         from torchslime.core.context import Context
         from torchslime.components.metric import LossWrapper
@@ -239,7 +239,7 @@ class AverageInitHandler(Handler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
     
-    @InvocationDebug('AverageInitHandler')
+    @CallDebug('AverageInitHandler')
     def handle(self, ctx: BaseContext):
         ctx.hook.state.init_avg_inner_ctx(ctx, self.INNER_KEY)
         # reset avg info
@@ -254,7 +254,7 @@ class AverageHandler(Handler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
     
-    @InvocationDebug('AverageHandler')
+    @CallDebug('AverageHandler')
     def handle(self, ctx: BaseContext):
         from torchslime.components.metric import LossWrapper
         # get inner context variables
@@ -296,7 +296,7 @@ class DisplayHandler(Handler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
     
-    @InvocationDebug('DisplayHandler')
+    @CallDebug('DisplayHandler')
     def handle(self, ctx: BaseContext):
         current = ctx.step.current
         total = ctx.step.total
@@ -330,7 +330,7 @@ class DatasetHandler(Handler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
     
-    @InvocationDebug('DatasetHandler')
+    @CallDebug('DatasetHandler')
     def handle(self, ctx: BaseContext):
         # context check
         ctx.ctx_check('status', silent=False)
@@ -349,7 +349,7 @@ class StateHandler(Handler):
             logger.warn('An unsupported status is set, this may cause some problems.')
         self.state = state
     
-    @InvocationDebug('StatusHandler')
+    @CallDebug('StatusHandler')
     def handle(self, ctx: BaseContext):
         # context check
         ctx.ctx_check([
@@ -376,7 +376,7 @@ class LRDecayHandler(Handler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
     
-    @InvocationDebug('LRDecayHandler')
+    @CallDebug('LRDecayHandler')
     def handle(self, ctx: BaseContext):
         if ctx.ctx_check(['run.lr_decay']) is True:
             ctx.run.lr_decay.step()

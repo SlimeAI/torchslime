@@ -101,19 +101,31 @@ def Singleton(cls):
     return wrapper
 
 
-def InvocationDebug(module_name):
-    """A decorator that output debug information before and after a method is invoked.
+def CallDebug(module_name):
+    """A decorator that output debug information before and after a method is called.
 
     Args:
         func (_type_): _description_
     """
     def decorator(func):
-        # cache inspect result
         from torchslime.log import logger
-        _exec_info = get_exec_info(func)
+        from torchslime.components.store import store
 
+        func_id = str(id(func))
+        
         @SmartWraps(func)
         def wrapper(*args, **kwargs):
+            # do not use debug
+            if store['inner__'].use_call_debug is not True:
+                return func(*args, **kwargs)
+
+            # cache debug info
+            call_debug_cache = store['inner__'].call_debug_cache
+            _exec_info = call_debug_cache[func_id]
+            if is_none_or_nothing(_exec_info) is True:
+                _exec_info = get_exec_info(func)
+                call_debug_cache[func_id] = _exec_info
+            
             logger.debug('{} begins.'.format(module_name), _exec_info=_exec_info)
             result = func(*args, **kwargs)
             logger.debug('{} ends.'.format(module_name), _exec_info=_exec_info)

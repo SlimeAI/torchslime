@@ -45,3 +45,6 @@ store['inner__'].use_log_cache = True
 store['inner__'].log_cache = Base()
 # flag to log only once. For example, some warnings may appear only once.
 store['inner__'].log_once = Base()
+# whether to use call debug
+store['inner__'].use_call_debug = False
+store['inner__'].call_debug_cache = Base()

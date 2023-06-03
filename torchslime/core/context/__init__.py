@@ -1,7 +1,7 @@
 from typing import Any, Dict, Optional, Union, TypeVar, Callable
 from torchslime.components.data import ConstantProvider, DataParser, DataProvider, IndexParser
 from torchslime.components.metric import M_SEQ, MetricContainer, LossReductionFactory
-from torchslime.utils import NOTHING, get_device, type_cast, MethodChaining, InvocationDebug, \
+from torchslime.utils import NOTHING, get_device, type_cast, MethodChaining, CallDebug, \
     is_nothing, count_params, BaseList
 from torchslime.log import logger
 from torchslime.utils.tstype import NUMBER, INT_SEQ_N
@@ -25,7 +25,7 @@ class Context(BaseContext):
         # set model and apply type cast
         self.model = type_cast(model, self.device)
 
-    @InvocationDebug('Context.Train')
+    @CallDebug('Context.Train')
     def train(
         self,
         train_dataset: DATASET,
@@ -53,7 +53,7 @@ class Context(BaseContext):
             self.run.train.display_traceback(target_handlers=he.exception_handler)
             raise he.exception
 
-    @InvocationDebug('Context.Predict')
+    @CallDebug('Context.Predict')
     def predict(
         self,
         dataset: DATASET
@@ -66,7 +66,7 @@ class Context(BaseContext):
         logger.info(self.hook.launch.get_device_info(self))
         self.run.predict(self)
 
-    @InvocationDebug('Context.Eval')
+    @CallDebug('Context.Eval')
     def eval(
         self,
         dataset: DATASET
@@ -79,19 +79,19 @@ class Context(BaseContext):
         logger.info(self.hook.launch.get_device_info(self))
         self.run.eval(self)
 
-    @InvocationDebug('Context.Summary')
+    @CallDebug('Context.Summary')
     def summary(self):
         # TODO
         pass
 
-    @InvocationDebug('Context.CountParams')
+    @CallDebug('Context.CountParams')
     def count_params(self, format: str = None, decimal: int = 2, log: bool = True):
         result = count_params(self.model, format, decimal)
         if log is True:
             logger.info('Model parameters: {0}'.format(result))
         return result
 
-    @InvocationDebug('Context.Compile')
+    @CallDebug('Context.Compile')
     @MethodChaining
     def compile(
         self,
@@ -112,43 +112,43 @@ class Context(BaseContext):
         self.compile_optimizer(optimizer, lr, optimizer_options)
         self.compile_lr_decay(lr_decay, lr_decay_options)
 
-    @InvocationDebug('Context.compile_loss_func')
+    @CallDebug('Context.compile_loss_func')
     def compile_loss_func(self, loss_func):
         if loss_func is not None:
             self.run.loss_func = loss_func
 
-    @InvocationDebug('Context.compile_loss_reduction')
+    @CallDebug('Context.compile_loss_reduction')
     def compile_loss_reduction(self, loss_reduction):
         if loss_reduction is not None:
             self.run.loss_reduction = LossReductionFactory.get(loss_reduction)
 
-    @InvocationDebug('Context.compile_metrics')
+    @CallDebug('Context.compile_metrics')
     def compile_metrics(self, metrics):
         if metrics is not None:
             self.run.metrics = MetricContainer(metrics) if is_nothing(metrics) is False else NOTHING
 
-    @InvocationDebug('Context.compile_data_parser')
+    @CallDebug('Context.compile_data_parser')
     def compile_data_parser(self, data_parser):
         if data_parser is not None:
             self.run.data_parser = data_parser if is_nothing(data_parser) is False else IndexParser()
 
-    @InvocationDebug('Context.compile_optimizer')
+    @CallDebug('Context.compile_optimizer')
     def compile_optimizer(self, optimizer, lr, optimizer_options):
         if optimizer is not None:
             if isinstance(optimizer, Optimizer):
                 self.run.optimizer = optimizer
 
-    @InvocationDebug('Context.compile_lr_decay')
+    @CallDebug('Context.compile_lr_decay')
     def compile_lr_decay(self, lr_decay, lr_decay_options):
         if lr_decay is not None:
             if isinstance(lr_decay, str) is False:
                 self.run.lr_decay = lr_decay
 
-    @InvocationDebug('Context.compile_total_epochs')
+    @CallDebug('Context.compile_total_epochs')
     def compile_total_epochs(self, total_epochs):
         self.iteration.total_epochs = total_epochs if isinstance(total_epochs, int) else NOTHING
 
-    @InvocationDebug('Context.compile_dataset')
+    @CallDebug('Context.compile_dataset')
     def compile_dataset(self, dataset, mode: str):
         if dataset is not None:
             if is_nothing(dataset):
@@ -161,7 +161,7 @@ class Context(BaseContext):
                 logger.warn('compile_dataset mode not supported.')
             setattr(self.run, '{}_provider'.format(mode), dataset)
 
-    @InvocationDebug('Context.compile_grad_acc')
+    @CallDebug('Context.compile_grad_acc')
     def compile_grad_acc(self, grad_acc: int):
         if grad_acc is not None:
             self.run.grad_acc = grad_acc
