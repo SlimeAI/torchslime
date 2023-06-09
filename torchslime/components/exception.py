@@ -51,3 +51,17 @@ class HandlerException(Exception):
             exception_handler=str(self.exception_handler)
         )
 
+
+"""
+API Misused
+"""
+class APIMisused(Exception):
+
+    def __init__(self, msg: str) -> None:
+        super().__init__()
+        self.msg = msg
+    
+    def __str__(self) -> str:
+        return 'APIMisused: {msg}'.format(
+            msg=self.msg
+        )
