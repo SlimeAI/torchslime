@@ -1,5 +1,5 @@
-from torchslime.utils import Singleton, Base, NOTHING, is_none_or_nothing
-from typing import Any, Union, TypeVar
+from torchslime.utils import Singleton, Base, NOTHING, is_none_or_nothing, SmartWraps
+from typing import Any, Union, TypeVar, Callable
 import threading
 import os
 
@@ -15,6 +15,13 @@ class Store:
 
     def current__(self) -> Base:
         return self.scope__(_get_store_key())
+
+    def destroy__(self, __key=NOTHING):
+        if is_none_or_nothing(__key):
+            __key = _get_store_key()
+        
+        if __key in store_dict:
+            del store_dict[__key]
 
     def __getitem__(self, __name: str):
         return self.current__()[__name]
@@ -49,11 +56,26 @@ class StoreSet:
         # get the store value before ``StoreSet``
         self.restore_value = self._store[__name]
     
+    def __call__(self, func: Callable) -> Any:
+        @SmartWraps(func)
+        def wrapper(*args, **kwargs):
+            self._set_value()
+            result = func(*args, **kwargs)
+            self._restore_value()
+            return result
+        return wrapper
+
     def __enter__(self) -> Union['StoreSet', StoreSetSelf]:
-        self._store[self.name] = self.value
+        self._set_value()
         return self
 
     def __exit__(self, *args, **kwargs):
+        self._restore_value()
+    
+    def _set_value(self):
+        self._store[self.name] = self.value
+
+    def _restore_value(self):
         if self.restore is True:
             self._store[self.name] = self.restore_value
         else:
