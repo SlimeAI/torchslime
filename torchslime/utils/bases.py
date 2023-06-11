@@ -1,114 +1,8 @@
 from torchslime.utils import dict_merge
 import traceback
 from typing import Any, Dict, Union
-from torchslime.utils.decorators import Singleton
-
-
-def is_nothing(obj):
-    """Check whether an object is an instance of 'Nothing'
-    Args:
-        obj (Any): object
-    Returns:
-        bool: whether the object is instance of 'Nothing'
-    """
-    return NOTHING is obj
-
-
-@Singleton
-class Nothing:
-    """
-    'Nothing' object, different from python 'None'.
-    It often comes from getting properties or items that the object does not have, or simply represents a default value.
-    'Nothing' allows any attribute-get or method-call operations without throwing Errors, making the program more stable.
-    It will show Warnings in the console instead.
-    """
-
-    def __init__(self):
-        super().__init__()
-
-    def __call__(self, *args, **kwargs):
-        return self
-
-    def __getattribute__(self, *_):
-        return self
-
-    def __getitem__(self, *_):
-        return self
-
-    def __setattr__(self, *_):
-        pass
-
-    def __setitem__(self, *_):
-        pass
-
-    def __len__(self):
-        return 0
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        raise StopIteration
-
-    def __str__(self) -> str:
-        return 'NOTHING'
-
-    def __repr__(self) -> str:
-        return 'NOTHING'
-
-    def __format__(self, __format_spec: str) -> str:
-        return 'NOTHING'
-
-    def __contains__(self) -> bool:
-        return False
-
-    def __eq__(self, obj) -> bool:
-        if is_nothing(obj):
-            return True
-        return False
-
-    def __add__(self, _):
-        return self
-
-    def __sub__(self, _):
-        return self
-
-    def __mul__(self, _):
-        return self
-
-    def __truediv__(self, _):
-        return self
-
-    def __radd__(self, _):
-        return self
-
-    def __rsub__(self, _):
-        return self
-
-    def __rmul__(self, _):
-        return self
-
-    def __rtruediv__(self, _):
-        return self
-
-    def __float__(self):
-        return 0.0
-
-    def __bool__(self) -> bool:
-        return False
-
-
-NOTHING = Nothing()
-
-
-def is_none_or_nothing(obj):
-    """Check whether an object is None, Nothing or neither.
-    Args:
-        obj (Any): object
-    Returns:
-        bool: check result.
-    """
-    return obj is None or is_nothing(obj)
+import threading
+import multiprocessing
 
 
 class Base:
@@ -240,7 +134,7 @@ class BaseList:
 
 class BaseDict:
 
-    def __init__(self, _dict: Union[Dict, None, Nothing]):
+    def __init__(self, _dict: Union[Dict, None, 'Nothing']):
         self.__dict = _dict if isinstance(_dict, (dict, Dict)) else {}
 
     def set_dict__(self, _dict: dict):
@@ -248,3 +142,125 @@ class BaseDict:
 
     def get_dict__(self):
         return self.__dict
+
+#
+# Nothing class, NOTHING instance and related operations.
+#
+
+class NothingSingleton(type):
+    """
+    Nothing Singleton should be implemented independently, because the ``Singleton`` decorator relies on the basic NOTHING object, which may cause circular reference.
+    """
+
+    __t_lock = threading.Lock()
+    __p_lock = multiprocessing.Lock()
+    __instance = None
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        if self.__instance is None:
+            with self.__t_lock, self.__p_lock:
+                if self.__instance is None:
+                    self.__instance = super().__call__(*args, **kwargs)
+        return self.__instance
+
+class Nothing(metaclass=NothingSingleton):
+    """
+    'Nothing' object, different from python 'None'.
+    It often comes from getting properties or items that the object does not have, or simply represents a default value.
+    'Nothing' allows any attribute-get or method-call operations without throwing Errors, making the program more stable.
+    It will show Warnings in the console instead.
+    """
+
+    def __init__(self):
+        super().__init__()
+
+    def __call__(self, *args, **kwargs):
+        return self
+
+    def __getattribute__(self, *_):
+        return self
+
+    def __getitem__(self, *_):
+        return self
+
+    def __setattr__(self, *_):
+        pass
+
+    def __setitem__(self, *_):
+        pass
+
+    def __len__(self):
+        return 0
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        raise StopIteration
+
+    def __str__(self) -> str:
+        return 'NOTHING'
+
+    def __repr__(self) -> str:
+        return 'NOTHING'
+
+    def __format__(self, __format_spec: str) -> str:
+        return 'NOTHING'
+
+    def __contains__(self) -> bool:
+        return False
+
+    def __eq__(self, obj) -> bool:
+        if is_nothing(obj):
+            return True
+        return False
+
+    def __add__(self, _):
+        return self
+
+    def __sub__(self, _):
+        return self
+
+    def __mul__(self, _):
+        return self
+
+    def __truediv__(self, _):
+        return self
+
+    def __radd__(self, _):
+        return self
+
+    def __rsub__(self, _):
+        return self
+
+    def __rmul__(self, _):
+        return self
+
+    def __rtruediv__(self, _):
+        return self
+
+    def __float__(self):
+        return 0.0
+
+    def __bool__(self) -> bool:
+        return False
+
+NOTHING = Nothing()
+
+def is_nothing(obj):
+    """Check whether an object is an instance of 'Nothing'
+    Args:
+        obj (Any): object
+    Returns:
+        bool: whether the object is instance of 'Nothing'
+    """
+    return NOTHING is obj
+
+def is_none_or_nothing(obj):
+    """Check whether an object is None, Nothing or neither.
+    Args:
+        obj (Any): object
+    Returns:
+        bool: check result.
+    """
+    return obj is None or is_nothing(obj)

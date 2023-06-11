@@ -8,7 +8,7 @@ from typing import Tuple
 
 from torchslime.utils.bases import NOTHING
 
-ctx_state = Registry('ctx_state', mapper_register=False)
+ctx_state = Registry('ctx_state')
 
 
 class StateHook:

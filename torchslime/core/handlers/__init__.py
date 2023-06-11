@@ -226,7 +226,7 @@ class Handler:
         }
 
 
-display_wrap_func = Registry('display_wrap_func', mapper_register=False)
+display_wrap_func = Registry('display_wrap_func')
 
 
 @display_wrap_func.register('exception')

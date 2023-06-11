@@ -1,14 +1,41 @@
 from functools import wraps
 import multiprocessing
 import threading
-from typing import Any
-from torchslime.components.registry import Registry
-from torchslime.components.exception import APIMisused
+from typing import Any, Union
+from types import FunctionType, MethodType
 from torchslime.utils.bases import NOTHING, is_none_or_nothing
+from torchslime.utils import get_exec_info, is_function_or_method
 
+#
+# ClassWraps decorator
+#
+FUNC_CREATED = ('__module__', '__name__', '__qualname__')
+
+def _create_func(
+    func: Union[FunctionType, MethodType],
+    cls: type,
+    name: str,
+    created: Union[list, tuple]
+):
+    """
+    Separately set function attributes.
+    """
+    # __module__ should be the same as cls
+    if '__module__' in created and hasattr(cls, '__module__'):
+        setattr(func, '__module__', getattr(cls, '__module__'))
+    
+    # __name__ should be set
+    if '__name__' in created:
+        setattr(func, '__name__', name)
+
+    # __qualname__ should be 'cls_qualname.name'
+    if '__qualname__' in created and hasattr(cls, '__qualname__'):
+        setattr(func, '__qualname__', '{}.{}'.format(getattr(cls, '__qualname__'), name))
+    return func
 
 def ClassWraps(cls):
     if isinstance(cls, type) is False:
+        from torchslime.components.exception import APIMisused
         raise APIMisused('ClassWraps can only be used for class, not {cls_item}.'.format(
             cls_item=str(cls)
         ))
@@ -21,6 +48,7 @@ def ClassWraps(cls):
             __func = _get_function_or_method(cls, __name)
 
             def FuncWrapper(
+                *,
                 assigned=WRAPPER_ASSIGNMENTS,
                 updated=WRAPPER_UPDATES,
                 created=FUNC_CREATED
@@ -36,11 +64,9 @@ def ClassWraps(cls):
     
     return Decorator()
 
-
 def _get_function_or_method(cls: type, name: str):
     __item = cls.__dict__.get(name, NOTHING)
     return __item if is_function_or_method(__item) else NOTHING
-
 
 def _get_func_from_mro(cls: type, name: str, start: int=0):
     # get attr from the super class
@@ -48,64 +74,11 @@ def _get_func_from_mro(cls: type, name: str, start: int=0):
         return getattr(class__, name, NOTHING)
     return NOTHING
 
-
 def get_cls_func(cls: type, name: str):
     return _get_func_from_mro(cls, name, start=0)
 
-
 def get_super_func(cls: type, name: str):
     return _get_func_from_mro(cls, name, start=1)
-
-
-def _create_func(**params):
-    func = params['func']
-    created = params['created']
-
-    for attr in FUNC_CREATED:
-        if attr in created:
-            func_creator.get(attr)(params)
-    return func
-
-
-func_creator = Registry('func_creator', mapper_register=False)
-
-
-@func_creator.register('__module__')
-def _set__module__(params: dict):
-    cls = params['cls']
-    func = params['func']
-
-    try:
-        value = getattr(cls, '__module__')
-    except AttributeError:
-        pass
-    else:
-        setattr(func, '__module__', value)
-
-
-@func_creator.register('__name__')
-def _set__name__(params: dict):
-    name = params['name']
-    func = params['func']
-    
-    setattr(func, '__name__', name)
-
-
-@func_creator.register('__qualname__')
-def _set__qualname__(params: dict):
-    cls = params['cls']
-    name = params['name']
-    func = params['func']
-
-    try:
-        value = getattr(cls, '__qualname__')
-    except AttributeError:
-        pass
-    else:
-        setattr(func, '__qualname__', '{}.{}'.format(value, name))
-
-
-FUNC_CREATED = list(func_creator.get_dict__().keys())
 
 
 def Singleton(cls):
@@ -116,18 +89,19 @@ def Singleton(cls):
     """
     t_lock = threading.Lock()
     p_lock = multiprocessing.Lock()
-    _instance = {}
+    _instance = NOTHING
 
     class_wraps = ClassWraps(cls)
     new_wraps, cls_new, _ = class_wraps.__new__
 
-    @new_wraps
+    @new_wraps()
     def _wrapper(*args, **kwargs):
-        if cls not in _instance:
+        nonlocal _instance
+        if is_none_or_nothing(_instance) is True:
             with t_lock, p_lock:
-                if cls not in _instance:
-                    _instance[cls] = cls_new(*args, **kwargs)
-        return _instance[cls]
+                if is_none_or_nothing(_instance) is True:
+                    _instance = cls_new(*args, **kwargs)
+        return _instance
     
     return cls
 
@@ -177,4 +151,9 @@ def MethodChaining(func):
     return wrapper
 
 
-from torchslime.utils import get_exec_info, is_function_or_method
+def Deprecated():
+    pass
+
+
+def ReadonlyAttr():
+    pass

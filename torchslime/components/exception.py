@@ -1,26 +1,39 @@
+#
+# API Misused
+#
+
+class APIMisused(Exception):
+
+    def __init__(self, msg: str) -> None:
+        super().__init__()
+        self.msg = msg
+    
+    def __str__(self) -> str:
+        return 'APIMisused: {msg}'.format(
+            msg=self.msg
+        )
+
+
 from torchslime.utils.bases import NOTHING
 
+#
+# Handler Interrupt
+#
 
-"""
-Handler Interrupt
-"""
 class HandlerInterrupt(Exception):
 
     def __init__(self, *args: object) -> None:
         super().__init__(*args)
-
 
 class HandlerBreak(HandlerInterrupt):
 
     def __init__(self, *args: object) -> None:
         super().__init__(*args)
 
-
 class HandlerContinue(HandlerInterrupt):
 
     def __init__(self, *args: object) -> None:
         super().__init__(*args)
-
 
 class HandlerTerminate(HandlerInterrupt):
 
@@ -35,10 +48,10 @@ class HandlerTerminate(HandlerInterrupt):
             msg=str(self.msg)
         )
 
+#
+# Handler Exception
+#
 
-"""
-Handler Exception
-"""
 class HandlerException(Exception):
 
     def __init__(self, exception_handler, exception: Exception) -> None:
@@ -49,19 +62,4 @@ class HandlerException(Exception):
     def __str__(self) -> str:
         return 'HandlerException -> exception_handler: {exception_handler}'.format(
             exception_handler=str(self.exception_handler)
-        )
-
-
-"""
-API Misused
-"""
-class APIMisused(Exception):
-
-    def __init__(self, msg: str) -> None:
-        super().__init__()
-        self.msg = msg
-    
-    def __str__(self) -> str:
-        return 'APIMisused: {msg}'.format(
-            msg=self.msg
         )

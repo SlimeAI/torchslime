@@ -156,12 +156,8 @@ class Logger(BaseList):
         return False
 
 
-# enable type hint
-Logger._wrapped: Type[Logger] = Logger._wrapped
-
-
 @Singleton
-class DistributedLogger(Logger._wrapped):
+class DistributedLogger(Logger):
     
     def __init__(self) -> None:
         super().__init__()
@@ -253,5 +249,5 @@ class LoggerProxy:
 logger: Union[Logger, DistributedLogger, LoggerProxy] = LoggerProxy()
 
 
-def set_logger(_logger: Logger._wrapped):
+def set_logger(_logger: Logger):
     logger._logger = _logger
