@@ -1,12 +1,14 @@
 """
 State Pattern for model state management.
 """
-from torchslime.utils import NOTHING, is_nothing
+from torchslime.utils.bases import is_nothing
 from torchslime.components.registry import Registry
 from torchslime.core.context.base import BaseContext
 from typing import Tuple
 
-ctx_state = Registry('ctx_state', global_register=False)
+from torchslime.utils.bases import NOTHING
+
+ctx_state = Registry('ctx_state', mapper_register=False)
 
 
 class StateHook:
@@ -129,7 +131,7 @@ class ValState(EvalState):
         _loss_value = {}
         for key, value in loss_value.items():
             _loss_value['val_{}'.format(key)] = value
-        loss_value.set_dict(_loss_value)
+        loss_value.set_dict__(_loss_value)
         
         _metrics = ctx.iteration.eval_metrics
         metrics = {}

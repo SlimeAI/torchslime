@@ -1,24 +1,35 @@
-from torchslime.utils import Singleton, Base, NOTHING, is_none_or_nothing, SmartWraps
+from torchslime.utils.bases import Base
+from functools import wraps
 from typing import Any, Union, TypeVar, Callable
 import threading
 import os
+from torchslime.utils.bases import NOTHING, is_none_or_nothing
+
+from torchslime.utils.decorators import Singleton
+
+
+class StoreScope(Base):
+
+    def __init__(self, key__) -> None:
+        super().__init__()
+        self.key__ = key__
 
 
 @Singleton
 class Store:
     
-    def scope__(self, __key) -> Base:
+    def scope__(self, __key) -> StoreScope:
         if __key in store_dict:
             return store_dict[__key]
         else:
-            return store_dict.setdefault(__key, Base())
+            return store_dict.setdefault(__key, StoreScope(key__=__key))
 
-    def current__(self) -> Base:
-        return self.scope__(_get_store_key())
+    def current__(self) -> StoreScope:
+        return self.scope__(self.get_current_key__())
 
     def destroy__(self, __key=NOTHING):
         if is_none_or_nothing(__key):
-            __key = _get_store_key()
+            __key = self.get_current_key__()
         
         if __key in store_dict:
             del store_dict[__key]
@@ -40,6 +51,13 @@ class Store:
     
     def __delattr__(self, __name: str) -> None:
         delattr(self.current__(), __name)
+    
+    @staticmethod
+    def get_current_key__() -> str:
+        return 'p{pid}-t{tid}'.format(
+            pid=os.getpid(),
+            tid=threading.get_ident()
+        )
 
 
 StoreSetSelf = TypeVar('StoreSetSelf', bound='StoreSet')
@@ -51,13 +69,13 @@ class StoreSet:
         self.name = __name
         self.value = __value
         self.restore = restore
-        self.key = _get_store_key() if is_none_or_nothing(key) is True else key
+        self.key = store.get_current_key__() if is_none_or_nothing(key) is True else key
         self._store = store.scope__(self.key)
         # get the store value before ``StoreSet``
         self.restore_value = self._store[__name]
     
     def __call__(self, func: Callable) -> Any:
-        @SmartWraps(func)
+        @wraps(func)
         def wrapper(*args, **kwargs):
             self._set_value()
             result = func(*args, **kwargs)
@@ -84,14 +102,6 @@ class StoreSet:
 
 # outer storage
 store_dict = {}
-
-
-def _get_store_key() -> str:
-    return 'p{pid}-t{tid}'.format(
-        pid=os.getpid(),
-        tid=threading.get_ident()
-    )
-
 
 store = Store()
 

@@ -1,8 +1,8 @@
 from typing import Sequence, Union, List, Callable, Iterable, Tuple
-from torchslime.utils import BaseList, NOTHING, is_nothing, \
-    Count, is_none_or_nothing, Nothing, terminal as Cursor
+from torchslime.utils import Count, terminal as Cursor
 from torchslime.core.context.base import BaseContext
 from torchslime.log import logger
+from torchslime.utils.bases import NOTHING, BaseList, Nothing, is_none_or_nothing, is_nothing
 from torchslime.utils.tstype import INT_SEQ_N
 from torchslime.components.registry import Registry
 from torchslime.components.exception import HandlerException, HandlerTerminate
@@ -226,7 +226,7 @@ class Handler:
         }
 
 
-display_wrap_func = Registry('display_wrap_func', global_register=False)
+display_wrap_func = Registry('display_wrap_func', mapper_register=False)
 
 
 @display_wrap_func.register('exception')

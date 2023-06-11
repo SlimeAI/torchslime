@@ -1,8 +1,9 @@
-from torchslime.utils import Base, NOTHING, BaseList, Nothing, TorchComm
+from torchslime.utils import TorchComm
 from torch.nn import Module
 from torch import device, Tensor
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
+from torchslime.utils.bases import NOTHING, Base, BaseList, Nothing
 from torchslime.utils.tstype import NUMBER
 from typing import Any, Sequence, Union, Dict, Tuple, Callable, Type
 from torchslime.log import logger

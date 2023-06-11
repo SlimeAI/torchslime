@@ -1,4 +1,4 @@
-from torchslime.utils import BaseList
+from torchslime.utils.bases import BaseList
 
 
 class PluginHook:

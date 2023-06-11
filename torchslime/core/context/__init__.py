@@ -1,9 +1,10 @@
 from typing import Any, Dict, Optional, Union, TypeVar, Callable
 from torchslime.components.data import ConstantProvider, DataParser, DataProvider, IndexParser
 from torchslime.components.metric import M_SEQ, MetricContainer, LossReductionFactory
-from torchslime.utils import NOTHING, get_device, type_cast, MethodChaining, CallDebug, \
-    is_nothing, count_params, BaseList
+from torchslime.utils import get_device, type_cast, count_params
 from torchslime.log import logger
+from torchslime.utils.bases import NOTHING, BaseList, is_nothing
+from torchslime.utils.decorators import CallDebug, MethodChaining
 from torchslime.utils.tstype import NUMBER, INT_SEQ_N
 from torchslime.core.context.base import BaseContext, DistributedContext
 from torch.utils.data import DataLoader

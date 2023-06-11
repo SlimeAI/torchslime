@@ -1,6 +1,7 @@
 from typing import Union, Dict, Sequence, Callable
+from torchslime.utils.bases import NOTHING, BaseDict, BaseList, Nothing, is_nothing
 from torchslime.utils.tstype import NUMBER, NUMBER_T
-from torchslime.utils import Count, Nothing, is_nothing, dict_merge, NOTHING, BaseList, BaseDict, safe_divide
+from torchslime.utils import Count, dict_merge, safe_divide
 from torchslime.core.context.base import BaseContext
 from torchslime.log import logger
 from torch import Tensor
@@ -77,7 +78,7 @@ class LossWrapper(BaseDict):
         return isinstance(loss, (dict, Dict))
 
     def decode(self):
-        return self.get_dict().get('loss', NOTHING) if self.__wrapped is True else self.get_dict()
+        return self.get_dict__().get('loss', NOTHING) if self.__wrapped is True else self.get_dict__()
     
     def set_wrapped(self, wrapped: bool):
         self.__wrapped = wrapped

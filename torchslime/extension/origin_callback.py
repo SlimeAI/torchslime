@@ -1,10 +1,11 @@
 import os
 
-from torchslime.utils import is_nothing, NOTHING
+from torchslime.utils.bases import is_nothing
 from torchslime.callback import Callback, DistributedCallbackWrapper
 from torchslime.core.context.base import BaseContext
 from torchslime.experiment.directory import get_checkpoint_path, join_path, get_metric_path, safe_makedirs
 from torchslime.log import logger
+from torchslime.utils.bases import NOTHING
 from torchslime.utils.tstype import INT_SEQ_N
 import torch
 from typing import Sequence, Union, Callable

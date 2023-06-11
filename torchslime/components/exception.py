@@ -1,4 +1,4 @@
-from torchslime.utils import NOTHING
+from torchslime.utils.bases import NOTHING
 
 
 """

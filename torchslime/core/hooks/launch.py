@@ -3,8 +3,9 @@ Distributed Launch Hook
 """
 from torchslime.core.context import Context
 from torchslime.core.handlers import Handler
-from torchslime.utils import is_none_or_nothing, NOTHING, is_torch_distributed_ready
+from torchslime.utils import is_torch_distributed_ready
 from torchslime.log import logger
+from torchslime.utils.bases import NOTHING, is_none_or_nothing
 
 
 class LaunchHook:

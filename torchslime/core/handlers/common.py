@@ -1,18 +1,21 @@
 from typing import Dict, Sequence, Union, List, Callable, Any
-from torchslime.utils import BaseList, IterTool, safe_divide, type_cast, \
-    CallDebug, SmartWraps, terminal as Cursor
+from torchslime.utils import IterTool, safe_divide, type_cast, \
+    terminal as Cursor
+from torchslime.utils.bases import BaseList
+from torchslime.utils.decorators import CallDebug
 from torchslime.utils.formatter import progress_format, eta_format
 from torchslime.core.context.base import BaseContext
 from torchslime.core.handlers import Handler, HandlerContainer, H_SEQ
 from torchslime.log import logger
 from torch import set_grad_enabled
+from functools import wraps
 
 
 def TorchGrad(func):
     """
     Set grad enabled or not according to the context mode.
     """
-    @SmartWraps(func)
+    @wraps(func)
     def grad_switch(self, ctx: BaseContext):
         # only when context status is in ['TRAIN'] is the grad enabled
         with set_grad_enabled(str(ctx.hook.state) in ['TRAIN']):

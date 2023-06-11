@@ -4,134 +4,12 @@ from typing import Dict, Union, Tuple, Sequence, MutableSequence, Generic, TypeV
 from torch import Tensor
 import torch
 from torch.nn import Module
-import threading
-import multiprocessing
-from functools import wraps
 from time import time
-import traceback
 import inspect
 import pickle
 import io
 import os
-
-
-def SmartWraps(cls):
-    """
-    Smart wrapper that wraps functions and classes when using decorator.
-    It is smarter than functools.wraps, for it can recognize whether the decorated item is a class or a
-    function and then applies class wrapper or function wrapper respectively.
-    When it is used to a function, the result is the same as functools.wraps,
-    while when it is used to a class, you can get the original class by accessing the '_wrapped_class' attribute,
-    so you can use this feature to do other useful things, such as 'isinstance', etc.
-
-    WARNING: DO NOT use ``_wrapped`` as attribute name in the decorated class.
-    """
-    def decorator(func):
-        if inspect.isclass(cls):
-            _wrapped = cls._wrapped if hasattr(cls, '_wrapped') else cls
-            class Wrapper(metaclass=_get_wrapper_type(_wrapped)):
-                def __new__(_cls: type, *args, **kwargs):
-                    obj = func(*args, **kwargs)
-                    return obj
-            return _update_class_wrapper(_wrapped)(Wrapper)
-        elif inspect.isfunction(cls) or inspect.ismethod(cls):
-            @wraps(cls)
-            def wrapper(*args, **kwargs):
-                return func(*args, **kwargs)
-            return wrapper
-    return decorator
-
-
-def _update_class_wrapper(_wrapped: type):
-    WRAPPER_ASSIGNMENTS = ('__module__', '__name__', '__qualname__', '__doc__')
-    WRAPPER_UPDATES = ('__dict__',)
-
-    def _super_setattr(__wrapper, __name, __value):
-        super(__wrapper.__class__, __wrapper).__setattr__(__name, __value)
-
-    def partial_func(_wrapper):
-        for attr in WRAPPER_ASSIGNMENTS:
-            if hasattr(_wrapped, attr):
-                _super_setattr(_wrapper, attr, getattr(_wrapped, attr))
-        for attr in WRAPPER_UPDATES:
-            for key, value in getattr(_wrapped, attr, {}).items():
-                if key == '__dict__':
-                    continue
-                _super_setattr(_wrapper, key, value)
-        return _wrapper
-    return partial_func
-
-
-def _get_wrapper_type(_wrapped: type):
-    
-    class WrapperType(type):
-        
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            super().__setattr__('_wrapped', _wrapped)
-        
-        def __setattr__(self, __name: str, __value: Any) -> None:
-            setattr(getattr(self, '_wrapped', NOTHING), __name, __value)
-            return super().__setattr__(__name, __value)
-        
-        def __new__(cls, name, bases, attrs):
-            # copy bases from the wrapped class
-            bases = _wrapped.__bases__
-            return super().__new__(cls, name, bases, attrs)
-    
-    return WrapperType
-
-
-def Singleton(cls):
-    """
-    Decorator that makes decorated classes singleton.
-    It makes the creation of the singleton object thread-safe by using double-checked locking.
-    """
-    t_lock = threading.Lock()
-    p_lock = multiprocessing.Lock()
-    _instance = {}
-    
-    @SmartWraps(cls)
-    def wrapper(*args, **kwargs):
-        if cls not in _instance:
-            with t_lock, p_lock:
-                if cls not in _instance:
-                    _instance[cls] = cls(*args, **kwargs)
-        return _instance[cls]
-    return wrapper
-
-
-def CallDebug(module_name):
-    """A decorator that output debug information before and after a method is called.
-
-    Args:
-        func (_type_): _description_
-    """
-    def decorator(func):
-        from torchslime.log import logger
-        from torchslime.components.store import store
-
-        func_id = str(id(func))
-        
-        @SmartWraps(func)
-        def wrapper(*args, **kwargs):
-            # do not use debug
-            if store.scope__('inner__').use_call_debug is not True:
-                return func(*args, **kwargs)
-
-            # cache debug info
-            call_debug_cache = store.scope__('inner__').call_debug_cache
-            _exec_info = call_debug_cache[func_id]
-            if is_none_or_nothing(_exec_info) is True:
-                _exec_info = get_exec_info(func)
-                call_debug_cache[func_id] = _exec_info
-            
-            logger.debug('{} begins.'.format(module_name), _exec_info=_exec_info)
-            result = func(*args, **kwargs)
-            logger.debug('{} ends.'.format(module_name), _exec_info=_exec_info)
-            return result
-        return wrapper
-    return decorator
+from types import MethodType, FunctionType
 
 
 def get_exec_info(obj):
@@ -164,215 +42,12 @@ def bound_clip(value, _min, _max):
         else value
 
 
-@Singleton
-class Nothing:
-    """
-    'Nothing' object, different from python 'None'.
-    It often comes from getting properties or items that the object does not have, or simply represents a default value.
-    'Nothing' allows any attribute-get or method-call operations without throwing Errors, making the program more stable.
-    It will show Warnings in the console instead.
-    """
-
-    def __init__(self):
-        super().__init__()
-
-    def __call__(self, *args, **kwargs):
-        return self
-
-    def __getattribute__(self, *_):
-        return self
-
-    def __getitem__(self, *_):
-        return self
-
-    def __setattr__(self, *_):
-        pass
-
-    def __setitem__(self, *_):
-        pass
-
-    def __len__(self):
-        return 0
-
-    def __iter__(self):
-        return self
-    
-    def __next__(self):
-        raise StopIteration
-
-    def __str__(self) -> str:
-        return 'NOTHING'
-
-    def __repr__(self) -> str:
-        return 'NOTHING'
-
-    def __format__(self, __format_spec: str) -> str:
-        return 'NOTHING'
-
-    def __contains__(self) -> bool:
-        return False
-
-    def __eq__(self, obj) -> bool:
-        if is_nothing(obj):
-            return True
-        return False
-
-    def __add__(self, _):
-        return self
-    
-    def __sub__(self, _):
-        return self
-
-    def __mul__(self, _):
-        return self
-    
-    def __truediv__(self, _):
-        return self
-    
-    def __radd__(self, _):
-        return self
-    
-    def __rsub__(self, _):
-        return self
-
-    def __rmul__(self, _):
-        return self
-    
-    def __rtruediv__(self, _):
-        return self
-
-    def __float__(self):
-        return 0.0
-    
-    def __bool__(self) -> bool:
-        return False
-
-
-NOTHING = Nothing()
-
-
-def is_nothing(obj):
-    """Check whether an object is an instance of 'Nothing'
-
-    Args:
-        obj (Any): object
-
-    Returns:
-        bool: whether the object is instance of 'Nothing'
-    """
-    return NOTHING is obj
-
-
-def is_none_or_nothing(obj):
-    """Check whether an object is None, Nothing or neither.
-    
-    Args:
-        obj (Any): object
-
-    Returns:
-        bool: check result.
-    """
-    return obj is None or is_nothing(obj)
-
-
 def dict_merge(dict1: Dict, dict2: Dict):
     return { **dict1, **dict2 }
 
 
 def safe_divide(dividend, divisor, default=0):
     return dividend / divisor if divisor != 0 else default
-
-
-class Base:
-    """
-    Base class, making its subclasses be able to use '[]' operations(just like python dict).
-    Return 'Nothing' if the object does not have the property being retrieved, without throwing Errors.
-    What's more, it allows its subclasses assign properties using a dict.
-    """
-
-    def update__(self, **kwargs):
-        self.from_dict__(kwargs)
-
-    def from_dict__(self, _dict: Dict):
-        """assign properties to the object using a dict.
-
-        Args:
-            kwargs (Dict): property dict.
-        """
-        self.__dict__ = dict_merge(self.__dict__, _dict)
-
-    def check__(self, item: str):
-        """check whether the object has a specific attribute.
-        dot operator supported.
-
-        Args:
-            items (str): _description_
-        """
-        attrs = item.split('.')
-        temp = self
-        for attr in attrs:
-            try:
-                temp = temp[attr]
-                # if the value is NOTHING, then return False directly.
-                if is_nothing(temp):
-                    return False
-            except Exception:
-                # output error information
-                self.process_exc__()
-                return False
-        return True
-
-    @staticmethod
-    def process_exc__():
-        from torchslime.log import logger
-        # output error
-        logger.error(
-            'Python exception raised:\n' +
-            traceback.format_exc()
-        )
-        return NOTHING
-
-    def pop__(self, __name: str):
-        attr = getattr(self, __name)
-        delattr(self, __name)
-        return attr
-
-    def __getattr__(self, *_):
-        return NOTHING
-
-    def __getattribute__(self, __name: str):
-        return super().__getattribute__(str(__name))
-    
-    def __setattr__(self, __name: str, __value: Any) -> None:
-        try:
-            super().__setattr__(str(__name), __value)
-        except Exception:
-            return
-
-    def __delattr__(self, __name: str) -> None:
-        # safe delete
-        try:
-            super().__delattr__(str(__name))
-        except Exception:
-            return
-
-    def __getitem__(self, __name: str):
-        try:
-            return getattr(self, __name)
-        except Exception:
-            return self.process_exc__()
-    
-    def __setitem__(self, __name: str, __value: Any):
-        try:
-            return setattr(self, __name, __value)
-        except Exception:
-            return self.process_exc__()
-    
-    def __delitem__(self, __name: str):
-        try:
-            return delattr(self, __name)
-        except Exception:
-            return
 
 
 class Count:
@@ -391,209 +66,6 @@ class Count:
         tmp = self.value
         self.value += 1
         return tmp
-
-
-class BaseList:
-
-    def __init__(self, list_like: Any = None):
-        if is_none_or_nothing(list_like):
-            self.__list = []
-        else:
-            # TODO: Iterable WARNING, BaseList only supports list or tuple expansion, other iterable items will be processed as ``[item]``
-            self.__list = list(list_like) if isinstance(list_like, (list, tuple)) else [list_like]
-
-    @classmethod
-    def create(
-        cls,
-        list_like: Any = None,
-        return_none: bool = True,
-        return_nothing: bool = True,
-        return_ellipsis: bool = True
-    ):
-        """
-        If the ``list_like`` object is ``None``, ``NOTHING`` or ``...`` and the corresponding return config is True, then
-        return itself, otherwise return ``BaseList`` object.
-
-        WARNING: This changes the default behavior of ``BaseList``, which creates an empty list when the list_like object is 
-        ``None`` or ``NOTHING`` and creates ``[...]`` when the list_like object is ``...``.
-        """
-        if (is_nothing(list_like) and return_nothing is True) or \
-            (list_like is None and return_none is True) or \
-            (list_like is ... and return_ellipsis is True):
-            return list_like
-        else:
-            return cls(list_like)
-
-    def set_list(self, _list: list):
-        self.__list = _list
-    
-    def get_list(self):
-        return self.__list
-
-    """
-    List operation adapter.
-    """
-    @overload
-    def index(self, __value) -> int: pass
-    @overload
-    def index(self, __value, __start) -> int: pass
-    @overload
-    def index(self, __value, __start, __stop) -> int: pass
-    @overload
-    def pop(self): pass
-    @overload
-    def pop(self, __index): pass
-    
-    def append(self, __object) -> None:
-        return self.__list.append(__object)
-    
-    def clear(self) -> None:
-        return self.__list.clear()
-    
-    def copy(self):
-        return self.__list.copy()
-    
-    def count(self, __value) -> int:
-        return self.__list.count(__value)
-    
-    def extend(self, __iterable: Iterable) -> None:
-        return self.__list.extend(__iterable)
-    
-    def index(self, *args) -> int:
-        return self.__list.index(*args)
-    
-    def insert(self, __index, __object) -> None:
-        return self.__list.insert(__index, __object)
-    
-    def pop(self, *args):
-        return self.__list.pop(*args)
-    
-    def remove(self, __value) -> None:
-        return self.__list.remove(__value)
-    
-    def reverse(self) -> None:
-        return self.__list.reverse()
-    
-    def __setitem__(self, __i_s, __o):
-        return self.__list.__setitem__(__i_s, __o)
-    
-    def __getitem__(self, __i_s):
-        return self.__list.__getitem__(__i_s)
-
-    def __contains__(self, __o: object) -> bool:
-        return self.__list.__contains__(__o)
-
-    def __len__(self) -> int:
-        return self.__list.__len__()
-    
-    def __delitem__(self, __i) -> None:
-        return self.__list.__delitem__(__i)
-    
-    def __iadd__(self, __x: Iterable):
-        return self.__list.__iadd__(__x)
-    
-    def __imul__(self, __n):
-        return self.__list.__imul__(__n)
-    
-    def __iter__(self) -> Iterator:
-        return self.__list.__iter__()
-    
-    def __add__(self, __x: list) -> list:
-        return self.__list.__add__(__x)
-    
-    def __reversed__(self) -> Iterator:
-        return self.__list.__reversed__()
-
-    def __mul__(self, __n) -> list:
-        return self.__list.__mul__(__n)
-
-    def __rmul__(self, __n):
-        return self.__list.__rmul__(__n)
-
-    def __str__(self) -> str:
-        return self.__list.__str__()
-
-    def __repr__(self) -> str:
-        return self.__list.__repr__()
-
-
-class BaseDict:
-
-    def __init__(self, _dict: Union[Dict, None, Nothing]):
-        self.__dict = _dict if isinstance(_dict, (dict, Dict)) else {}
-
-    def set_dict(self, _dict: dict):
-        self.__dict = _dict
-    
-    def get_dict(self):
-        return self.__dict
-
-    """
-    Dict operation adapter.
-    """
-    @overload
-    def setdefault(self, __key): pass
-    @overload
-    def setdefault(self, __key, __default): pass
-    @overload
-    def get(self, __key): pass
-    @overload
-    def get(self, __key, __default): pass
-    @overload
-    def pop(self, __key): pass
-    @overload
-    def pop(self, __key, __default): pass
-
-    def copy(self):
-        return self.__dict.copy()
-
-    def keys(self):
-        return self.__dict.keys()
-
-    def values(self):
-        return self.__dict.values()
-
-    def items(self):
-        return self.__dict.items()
-    
-    def clear(self):
-        return self.__dict.clear()
-
-    def update(self, *args, **kwargs):
-        return self.__dict.update(*args, **kwargs)
-    
-    def setdefault(self, *args):
-        return self.__dict.setdefault(*args)
-
-    def get(self, *args):
-        return self.__dict.get(*args)
-
-    def pop(self, *args):
-        return self.__dict.pop(*args)
-
-    def __len__(self) -> int:
-        return self.__dict.__len__()
-    
-    def __getitem__(self, __key):
-        return self.__dict.__getitem__(__key)
-    
-    def __setitem__(self, __key, __value) -> None:
-        return self.__dict.__setitem__(__key, __value)
-    
-    def __delitem__(self, __key) -> None:
-        return self.__dict.__delitem__(__key)
-
-    def __iter__(self) -> Iterator:
-        return self.__dict.__iter__()
-
-    def __contains__(self, __o: object) -> bool:
-        return self.__dict.__contains__(__o)
-    
-    def __str__(self) -> str:
-        return self.__dict.__str__()
-    
-    def __repr__(self) -> str:
-        return self.__dict.__repr__()
 
 
 def inf_range(start: int = 0, step: int = 1):
@@ -887,14 +359,6 @@ def list_take(list_like, index: Union[Sequence[int], int]):
         return tuple(list_like[i] if i < list_len else NOTHING for i in index)
 
 
-def MethodChaining(func):
-    @SmartWraps(func)
-    def wrapper(self, *args, **kwargs):
-        func(self, *args, **kwargs)
-        return self
-    return wrapper
-
-
 class Iter:
 
     def __init__(self, _iterable):
@@ -1007,3 +471,26 @@ class GIDValue:
 
     def __repr__(self) -> str:
         pass
+
+
+class ContextDecorator:
+
+    pass
+
+
+class StrTemplate:
+
+    pass
+
+
+def is_slime_naming(__name: str) -> bool:
+    # TODO: refactor with regular expression
+    __name = str(__name)
+    return __name.startswith('_') is False and __name.endswith('__') is True
+
+
+def is_function_or_method(__item: Any) -> bool:
+    return isinstance(__item, (MethodType, FunctionType))
+
+
+from torchslime.utils.bases import NOTHING
