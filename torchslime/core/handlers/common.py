@@ -33,7 +33,7 @@ class EmptyHandler(Handler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
     
-    @CallDebug('EmptyHandler')
+    @CallDebug(module_name='EmptyHandler')
     def handle(self, _: BaseContext):
         """do nothing"""
         pass
@@ -60,7 +60,7 @@ class EpochIterationHandler(HandlerContainer):
     def __init__(self, handlers: H_SEQ = None, *args, **kwargs):
         super().__init__(handlers, *args, **kwargs)
 
-    @CallDebug('EpochIterationHandler')
+    @CallDebug(module_name='EpochIterationHandler')
     def handle(self, ctx: BaseContext):
         # context check
         ctx.ctx_check('epoch.total', silent=False)
@@ -78,7 +78,7 @@ class IterationHandler(HandlerContainer):
     def __init__(self, handlers: H_SEQ = None, *args, **kwargs):
         super().__init__(handlers, *args, **kwargs)
 
-    @CallDebug('IterationHandler')
+    @CallDebug(module_name='IterationHandler')
     @TorchGrad
     def handle(self, ctx: BaseContext):
         # context check
@@ -100,7 +100,7 @@ class ForwardHandler(Handler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    @CallDebug('ForwardHandler')
+    @CallDebug(module_name='ForwardHandler')
     def handle(self, ctx: BaseContext):
         # context check
         ctx.ctx_check([
@@ -128,7 +128,7 @@ class LossHandler(Handler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
     
-    @CallDebug('LossHandler')
+    @CallDebug(module_name='LossHandler')
     def handle(self, ctx: BaseContext):
         # context check
         if ctx.ctx_check('run.loss_func') is True:
@@ -148,7 +148,7 @@ class BackwardHandler(Handler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    @CallDebug('BackwardHandler')
+    @CallDebug(module_name='BackwardHandler')
     def handle(self, ctx: BaseContext):
         # context check
         if ctx.ctx_check(['step.loss']) is True:
@@ -163,7 +163,7 @@ class OptimizerHandler(HandlerContainer):
     def __init__(self, handlers: H_SEQ = None, *args, **kwargs):
         super().__init__(handlers, *args, **kwargs)
     
-    @CallDebug('OptimizerHandler')
+    @CallDebug(module_name='OptimizerHandler')
     def handle(self, ctx: BaseContext):
         # backward handler
         super().handle(ctx)
@@ -178,7 +178,7 @@ class MetricsHandler(Handler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
     
-    @CallDebug('MetricsHandler')
+    @CallDebug(module_name='MetricsHandler')
     def handle(self, ctx: BaseContext):
         # context check
         ctx.ctx_check('step', silent=False)
@@ -191,7 +191,7 @@ class GatherAverageHandler(Handler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
     
-    @CallDebug('GatherAverageHandler')
+    @CallDebug(module_name='GatherAverageHandler')
     def handle(self, ctx: BaseContext):
         from torchslime.core.context import Context
         from torchslime.components.metric import LossWrapper
@@ -242,7 +242,7 @@ class AverageInitHandler(Handler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
     
-    @CallDebug('AverageInitHandler')
+    @CallDebug(module_name='AverageInitHandler')
     def handle(self, ctx: BaseContext):
         ctx.hook.state.init_avg_inner_ctx(ctx, self.INNER_KEY)
         # reset avg info
@@ -257,7 +257,7 @@ class AverageHandler(Handler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
     
-    @CallDebug('AverageHandler')
+    @CallDebug(module_name='AverageHandler')
     def handle(self, ctx: BaseContext):
         from torchslime.components.metric import LossWrapper
         # get inner context variables
@@ -299,7 +299,7 @@ class DisplayHandler(Handler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
     
-    @CallDebug('DisplayHandler')
+    @CallDebug(module_name='DisplayHandler')
     def handle(self, ctx: BaseContext):
         current = ctx.step.current
         total = ctx.step.total
@@ -333,7 +333,7 @@ class DatasetHandler(Handler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
     
-    @CallDebug('DatasetHandler')
+    @CallDebug(module_name='DatasetHandler')
     def handle(self, ctx: BaseContext):
         # context check
         ctx.ctx_check('status', silent=False)
@@ -352,7 +352,7 @@ class StateHandler(Handler):
             logger.warn('An unsupported status is set, this may cause some problems.')
         self.state = state
     
-    @CallDebug('StatusHandler')
+    @CallDebug(module_name='StatusHandler')
     def handle(self, ctx: BaseContext):
         # context check
         ctx.ctx_check([
@@ -379,7 +379,7 @@ class LRDecayHandler(Handler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
     
-    @CallDebug('LRDecayHandler')
+    @CallDebug(module_name='LRDecayHandler')
     def handle(self, ctx: BaseContext):
         if ctx.ctx_check(['run.lr_decay']) is True:
             ctx.run.lr_decay.step()

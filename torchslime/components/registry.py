@@ -17,7 +17,13 @@ class Registry(BaseDict):
         self.__namespace = namespace
         self.strict = strict
     
-    def register(self, name: Union[str, Nothing, None] = NOTHING, strict: Union[bool, Nothing, None] = NOTHING):
+    def register(
+        self,
+        _cls=NOTHING,
+        *,
+        name: Union[str, Nothing, None] = NOTHING,
+        strict: Union[bool, Nothing, None] = NOTHING
+    ):
         strict = self._get_strict(strict)
 
         def decorator(cls):
@@ -31,16 +37,30 @@ class Registry(BaseDict):
                 ))
             self.get_dict__()[name] = cls
             return cls
-        return decorator
+        
+        if is_none_or_nothing(_cls) is True:
+            return decorator
+        
+        return decorator(cls=_cls)
 
-    def register_multi(self, names: Sequence[str], strict: Union[bool, Nothing, None] = NOTHING):
+    def register_multi(
+        self,
+        names: Sequence[str],
+        *,
+        _cls=NOTHING,
+        strict: Union[bool, Nothing, None] = NOTHING
+    ):
         strict = self._get_strict(strict)
 
         def decorator(cls):
             for name in names:
-                self.register(name, strict=strict)(cls)
+                self.register(_cls=cls, name=name, strict=strict)
             return cls
-        return decorator
+        
+        if is_none_or_nothing(_cls) is True:
+            return decorator
+        
+        return decorator(cls=_cls)
 
     def get(self, __name):
         return self.get_dict__().get(__name)

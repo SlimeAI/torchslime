@@ -26,7 +26,7 @@ class Context(BaseContext):
         # set model and apply type cast
         self.model = type_cast(model, self.device)
 
-    @CallDebug('Context.Train')
+    @CallDebug(module_name='Context.Train')
     def train(
         self,
         train_dataset: DATASET,
@@ -54,7 +54,7 @@ class Context(BaseContext):
             self.run.train.display_traceback(target_handlers=he.exception_handler)
             raise he.exception
 
-    @CallDebug('Context.Predict')
+    @CallDebug(module_name='Context.Predict')
     def predict(
         self,
         dataset: DATASET
@@ -67,7 +67,7 @@ class Context(BaseContext):
         logger.info(self.hook.launch.get_device_info(self))
         self.run.predict(self)
 
-    @CallDebug('Context.Eval')
+    @CallDebug(module_name='Context.Eval')
     def eval(
         self,
         dataset: DATASET
@@ -80,19 +80,19 @@ class Context(BaseContext):
         logger.info(self.hook.launch.get_device_info(self))
         self.run.eval(self)
 
-    @CallDebug('Context.Summary')
+    @CallDebug(module_name='Context.Summary')
     def summary(self):
         # TODO
         pass
 
-    @CallDebug('Context.CountParams')
+    @CallDebug(module_name='Context.CountParams')
     def count_params(self, format: str = None, decimal: int = 2, log: bool = True):
         result = count_params(self.model, format, decimal)
         if log is True:
             logger.info('Model parameters: {0}'.format(result))
         return result
 
-    @CallDebug('Context.Compile')
+    @CallDebug(module_name='Context.Compile')
     @MethodChaining
     def compile(
         self,
@@ -113,43 +113,43 @@ class Context(BaseContext):
         self.compile_optimizer(optimizer, lr, optimizer_options)
         self.compile_lr_decay(lr_decay, lr_decay_options)
 
-    @CallDebug('Context.compile_loss_func')
+    @CallDebug(module_name='Context.compile_loss_func')
     def compile_loss_func(self, loss_func):
         if loss_func is not None:
             self.run.loss_func = loss_func
 
-    @CallDebug('Context.compile_loss_reduction')
+    @CallDebug(module_name='Context.compile_loss_reduction')
     def compile_loss_reduction(self, loss_reduction):
         if loss_reduction is not None:
             self.run.loss_reduction = LossReductionFactory.get(loss_reduction)
 
-    @CallDebug('Context.compile_metrics')
+    @CallDebug(module_name='Context.compile_metrics')
     def compile_metrics(self, metrics):
         if metrics is not None:
             self.run.metrics = MetricContainer(metrics) if is_nothing(metrics) is False else NOTHING
 
-    @CallDebug('Context.compile_data_parser')
+    @CallDebug(module_name='Context.compile_data_parser')
     def compile_data_parser(self, data_parser):
         if data_parser is not None:
             self.run.data_parser = data_parser if is_nothing(data_parser) is False else IndexParser()
 
-    @CallDebug('Context.compile_optimizer')
+    @CallDebug(module_name='Context.compile_optimizer')
     def compile_optimizer(self, optimizer, lr, optimizer_options):
         if optimizer is not None:
             if isinstance(optimizer, Optimizer):
                 self.run.optimizer = optimizer
 
-    @CallDebug('Context.compile_lr_decay')
+    @CallDebug(module_name='Context.compile_lr_decay')
     def compile_lr_decay(self, lr_decay, lr_decay_options):
         if lr_decay is not None:
             if isinstance(lr_decay, str) is False:
                 self.run.lr_decay = lr_decay
 
-    @CallDebug('Context.compile_total_epochs')
+    @CallDebug(module_name='Context.compile_total_epochs')
     def compile_total_epochs(self, total_epochs):
         self.iteration.total_epochs = total_epochs if isinstance(total_epochs, int) else NOTHING
 
-    @CallDebug('Context.compile_dataset')
+    @CallDebug(module_name='Context.compile_dataset')
     def compile_dataset(self, dataset, mode: str):
         if dataset is not None:
             if is_nothing(dataset):
@@ -162,7 +162,7 @@ class Context(BaseContext):
                 logger.warn('compile_dataset mode not supported.')
             setattr(self.run, '{}_provider'.format(mode), dataset)
 
-    @CallDebug('Context.compile_grad_acc')
+    @CallDebug(module_name='Context.compile_grad_acc')
     def compile_grad_acc(self, grad_acc: int):
         if grad_acc is not None:
             self.run.grad_acc = grad_acc
