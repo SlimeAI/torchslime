@@ -1,11 +1,10 @@
-from torchslime.utils.bases import Base
 from functools import wraps
 from typing import Any, Union, TypeVar, Callable
 import threading
 import os
-from torchslime.utils.bases import NOTHING, is_none_or_nothing
-
-from torchslime.utils.decorators import Singleton
+from torchslime.utils.bases import Base, NOTHING, is_none_or_nothing
+from torchslime.utils.decorators import Singleton, ItemAttrBinding, ObjectAttrBinding
+from torchslime.utils import is_slime_naming
 
 
 class StoreScope(Base):
@@ -15,14 +14,16 @@ class StoreScope(Base):
         self.key__ = key__
 
 
+@ObjectAttrBinding
+@ItemAttrBinding
 @Singleton
 class Store:
     
     def scope__(self, __key) -> StoreScope:
-        if __key in store_dict:
-            return store_dict[__key]
+        if __key in _store_dict:
+            return _store_dict[__key]
         else:
-            return store_dict.setdefault(__key, StoreScope(key__=__key))
+            return _store_dict.setdefault(__key, StoreScope(key__=__key))
 
     def current__(self) -> StoreScope:
         return self.scope__(self.get_current_key__())
@@ -31,19 +32,22 @@ class Store:
         if is_none_or_nothing(__key):
             __key = self.get_current_key__()
         
-        if __key in store_dict:
-            del store_dict[__key]
+        if __key in _store_dict:
+            del _store_dict[__key]
 
-    def __getitem__(self, __name: str):
-        return self.current__()[__name]
-    
-    def __setitem__(self, __name: str, __value: Any):
-        self.current__()[__name] = __value
-    
-    def __delitem__(self, __name: str):
-        del self.current__()[__name]
+    # original object operation
+    def object_set__(self, __name: str, __value: Any) -> None: pass
+    def object_get__(self, __name: str) -> Any: pass
+    def object_del__(self, __name: str) -> None: pass
 
     def __getattr__(self, __name: str) -> Any:
+        return getattr(self.current__(), __name)
+
+    def __getattribute__(self, __name: str) -> Any:
+        # magic naming or slime naming
+        if is_slime_naming(__name) is True:
+            return super().__getattribute__(__name)
+        # else get from StoreScope object
         return getattr(self.current__(), __name)
 
     def __setattr__(self, __name: str, __value: Any) -> None:
@@ -101,7 +105,7 @@ class StoreSet:
 
 
 # outer storage
-store_dict = {}
+_store_dict = {}
 
 store = Store()
 

@@ -104,6 +104,27 @@ def get_original_cls_func(func):
     return func
 
 
+def DecoratorCall(*, index=NOTHING, keyword=NOTHING):
+    """
+    [func-decorator]
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            arg_match = NOTHING
+
+            if is_none_or_nothing(keyword) is False:
+                arg_match = kwargs.get(str(keyword), NOTHING)
+            
+            if is_none_or_nothing(index) is False and is_none_or_nothing(arg_match) is True:
+                arg_match = NOTHING if index >= len(args) else args[index]
+
+            _decorator = func(*args, **kwargs)
+            return _decorator if is_none_or_nothing(arg_match) is True else _decorator(arg_match)
+        return wrapper
+    return decorator
+
+
 def Singleton(cls):
     """
     [class, level-1]
@@ -130,7 +151,8 @@ def Singleton(cls):
     return cls
 
 
-def CallDebug(_func=NOTHING, *, module_name):
+@DecoratorCall(index=0, keyword='_func')
+def CallDebug(_func=NOTHING, *, module_name=NOTHING):
     """
     [func, level-2]
     A decorator that output debug information before and after a method is called.
@@ -140,8 +162,17 @@ def CallDebug(_func=NOTHING, *, module_name):
     def decorator(func):
         from torchslime.log import logger
         from torchslime.components.store import store
+        from time import time
 
-        func_id = str(id(func))
+        func_id = '{_id}_{_time}'.format(
+            _id=str(id(func)),
+            _time=str(time())
+        )
+
+        nonlocal module_name
+
+        if is_none_or_nothing(module_name) is True:
+            module_name = getattr(func, '__name__', NOTHING)
 
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -161,11 +192,7 @@ def CallDebug(_func=NOTHING, *, module_name):
             logger.debug('{} ends.'.format(module_name), _exec_info=_exec_info)
             return result
         return wrapper
-    
-    if is_none_or_nothing(_func) is True:
-        return decorator
-    
-    return decorator(func=_func)
+    return decorator
 
 
 def MethodChaining(func):
@@ -186,6 +213,7 @@ def Deprecated():
     pass
 
 
+@DecoratorCall(keyword='_cls')
 def ReadonlyAttr(attrs: list, *, _cls=NOTHING, nothing_allowed: bool = True, empty_allowed: bool = True):
     """
     [class, level-2]
@@ -211,8 +239,72 @@ def ReadonlyAttr(attrs: list, *, _cls=NOTHING, nothing_allowed: bool = True, emp
                 raise AttributeError('{name} is readonly attribute'.format(name=__name))
         
         return cls
-    
-    if is_none_or_nothing(_cls) is True:
-        return decorator
-    
-    return decorator(cls=_cls)
+    return decorator
+
+
+@DecoratorCall(index=0, keyword='_cls')
+def ItemAttrBinding(_cls=NOTHING, *, set_binding: bool = True, get_binding: bool = True, del_binding: bool = True):
+    """
+    [class]
+    """
+    def decorator(cls):
+        cls_wraps = ClassWraps(cls)
+
+        if set_binding is True:
+            setitem_wraps = cls_wraps.__setitem__
+
+            @setitem_wraps
+            def setitem(self, __name: str, __value: Any) -> None:
+                setattr(self, __name, __value)
+        
+        if get_binding is True:
+            getitem_wraps = cls_wraps.__getitem__
+
+            @getitem_wraps
+            def getitem(self, __name: str) -> Any:
+                return getattr(self, __name)
+        
+        if del_binding is True:
+            delitem_wraps = cls_wraps.__delitem__
+
+            @delitem_wraps
+            def delitem(self, __name: str) -> None:
+                delattr(self, __name)
+        
+        return cls
+
+    return decorator
+
+
+@DecoratorCall(index=0, keyword='_cls')
+def ObjectAttrBinding(_cls=NOTHING, *, set_binding: bool = True, get_binding: bool = True, del_binding: bool = True):
+    """
+    [class]
+    """
+    def decorator(cls):
+        cls_wraps = ClassWraps(cls)
+
+        if set_binding is True:
+            object_set_wraps = cls_wraps.object_set__
+
+            @object_set_wraps
+            def object_set(self, __name: str, __value: Any) -> None:
+                object.__setattr__(self, __name, __value)
+        
+        if get_binding is True:
+            object_get_wraps = cls_wraps.object_get__
+
+            @object_get_wraps
+            def object_get(self, __name: str) -> Any:
+                return object.__getattribute__(self, __name)
+        
+        if del_binding is True:
+            object_del_wraps = cls_wraps.object_del__
+
+            @object_del_wraps
+            def object_del(self, __name: str) -> None:
+                object.__delattr__(self, __name)
+        
+        return cls
+
+    return decorator

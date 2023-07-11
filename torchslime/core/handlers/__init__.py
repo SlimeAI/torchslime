@@ -260,7 +260,7 @@ class HandlerContainer(Handler, BaseList):
         )
         # set parent
         for handler in self:
-            handler: Handler = handler
+            handler: Handler
             handler.set_parent(self)
     
     def handle(self, ctx: BaseContext):
@@ -273,7 +273,7 @@ class HandlerContainer(Handler, BaseList):
         
         super().get_by_id(_id, result)
         for handler in self:
-            handler: Handler = handler
+            handler: Handler
             handler.get_by_id(_id, result)
         return NOTHING if len(result) < 1 else result[0]
     
@@ -283,7 +283,7 @@ class HandlerContainer(Handler, BaseList):
         
         super().get_by_class(__class, result)
         for handler in self:
-            handler: Handler = handler
+            handler: Handler
             handler.get_by_class(__class, result)
         return result
 
@@ -293,7 +293,7 @@ class HandlerContainer(Handler, BaseList):
         
         super().get_by_filter(__function, result)
         for handler in self:
-            handler: Handler = handler
+            handler: Handler
             handler.get_by_filter(__function, result)
         return result
     
@@ -304,7 +304,7 @@ class HandlerContainer(Handler, BaseList):
     
     def clear(self):
         for handler in self:
-            handler: Handler = handler
+            handler: Handler
             handler.del_parent()
         return super().clear()
     
@@ -334,7 +334,7 @@ class HandlerContainer(Handler, BaseList):
         result = super().__setitem__(__i_s, handler)
         if isinstance(__i_s, slice):
             for _handler in handler:
-                _handler: Handler = _handler
+                _handler: Handler
                 _handler.set_parent(self)
         else:
             handler.set_parent(self)
@@ -344,7 +344,7 @@ class HandlerContainer(Handler, BaseList):
         handler: Union[Handler, Iterable[Handler]] = super().__getitem__(__i)
         if isinstance(__i, slice):
             for _handler in handler:
-                _handler: Handler = _handler
+                _handler: Handler
                 _handler.del_parent()
         else:
             handler.del_parent()

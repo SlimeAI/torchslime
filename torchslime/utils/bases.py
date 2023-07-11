@@ -12,7 +12,7 @@ class Base:
     What's more, it allows its subclasses assign properties using a dict.
     """
 
-    def update__(self, **kwargs):
+    def from_kwargs__(self, **kwargs):
         self.from_dict__(kwargs)
 
     def from_dict__(self, _dict: Dict):
@@ -41,6 +41,9 @@ class Base:
                 self.process_exc__()
                 return False
         return True
+
+    def hasattr__(self, __name: str) -> bool:
+        return str(__name) in self.__dict__
 
     @staticmethod
     def process_exc__():
@@ -147,7 +150,7 @@ class BaseDict:
 # Nothing class, NOTHING instance and related operations.
 #
 
-class NothingSingleton(type):
+class _NothingSingleton(type):
     """
     Nothing Singleton should be implemented independently, because the ``Singleton`` decorator relies on the basic NOTHING object, which may cause circular reference.
     """
@@ -163,7 +166,7 @@ class NothingSingleton(type):
                     self.__instance = super().__call__(*args, **kwargs)
         return self.__instance
 
-class Nothing(metaclass=NothingSingleton):
+class Nothing(metaclass=_NothingSingleton):
     """
     'Nothing' object, different from python 'None'.
     It often comes from getting properties or items that the object does not have, or simply represents a default value.

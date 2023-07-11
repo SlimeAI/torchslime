@@ -10,6 +10,7 @@ import pickle
 import io
 import os
 from types import MethodType, FunctionType
+import re
 
 
 def get_exec_info(obj):
@@ -483,14 +484,24 @@ class StrTemplate:
     pass
 
 
+MAGIC_PATTERN = re.compile('^_{2}[^_](?:.*[^_])?_{2}$')
+
+def is_magic_naming(__name: str) -> bool:
+    return re.match(MAGIC_PATTERN, str(__name)) is not None
+
+
+SLIME_PATTERN = re.compile('^[^_](?:.*[^_])?_{2}$')
+
 def is_slime_naming(__name: str) -> bool:
-    # TODO: refactor with regular expression
-    __name = str(__name)
-    return __name.startswith('_') is False and __name.endswith('__') is True
+    return re.match(SLIME_PATTERN, str(__name)) is not None
 
 
 def is_function_or_method(__item: Any) -> bool:
     return isinstance(__item, (MethodType, FunctionType))
+
+
+def xor__(__x, __y) -> bool:
+    return bool((__x and not __y) or (not __x and __y))
 
 
 from torchslime.utils.bases import NOTHING

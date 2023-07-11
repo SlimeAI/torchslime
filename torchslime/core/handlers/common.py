@@ -195,7 +195,7 @@ class GatherAverageHandler(Handler):
     def handle(self, ctx: BaseContext):
         from torchslime.core.context import Context
         from torchslime.components.metric import LossWrapper
-        ctx: Context = ctx
+        ctx: Context
         torch_comm = ctx.distributed.torch_comm
         # gather data
         gathered_loss_values: List[LossWrapper] = \
