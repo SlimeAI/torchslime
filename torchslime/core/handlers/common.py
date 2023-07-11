@@ -18,7 +18,7 @@ def TorchGrad(func):
     @wraps(func)
     def grad_switch(self, ctx: BaseContext):
         # only when context status is in ['TRAIN'] is the grad enabled
-        with set_grad_enabled(str(ctx.hook.state) in ['TRAIN']):
+        with set_grad_enabled(str(ctx.hook_ctx.state) in ['TRAIN']):
             func(self, ctx)
     return grad_switch
 
@@ -65,11 +65,11 @@ class EpochIterationHandler(HandlerContainer):
         # context check
         ctx.ctx_check('epoch.total', silent=False)
         # epoch loops
-        for current in range(ctx.iteration.total_epochs):
+        for current in range(ctx.iteration_ctx.total_epochs):
             # set current epoch to the context
-            ctx.iteration.current_epoch = current
+            ctx.iteration_ctx.current_epoch = current
             # output epoch info. TODO: change logger operation to a handler?
-            logger.log('Epoch {}\n'.format(ctx.iteration.current_epoch + 1))
+            logger.log('Epoch {}\n'.format(ctx.iteration_ctx.current_epoch + 1))
             super().handle(ctx)
 
 
@@ -83,8 +83,8 @@ class IterationHandler(HandlerContainer):
     def handle(self, ctx: BaseContext):
         # context check
         if ctx.ctx_check('run.dataset') is True:
-            for batch, progress, time, current, total in IterTool(ctx.run.dataset, True, True, True, True):
-                ctx.step.from_dict__({
+            for batch, progress, time, current, total in IterTool(ctx.run_ctx.dataset, True, True, True, True):
+                ctx.step_ctx.from_dict__({
                     'batch': batch, # original batch data of the dataset
                     'progress': progress, # progress of iteration(includes current step and total steps)
                     'time': time, # time of the iter(current time)
@@ -110,11 +110,11 @@ class ForwardHandler(Handler):
             'step'
         ], silent=False)
         # forward
-        x, y_true, extra = ctx.run.data_parser(ctx)
+        x, y_true, extra = ctx.run_ctx.data_parser(ctx)
         y_pred = ctx.model(type_cast(x, ctx.device))
         y_true = type_cast(y_true, ctx.device)
         # clone and update context info
-        ctx.step.from_dict__({
+        ctx.step_ctx.from_dict__({
             # the result of the forward progress
             'x': x,
             'y_true': y_true,
@@ -133,9 +133,9 @@ class LossHandler(Handler):
         # context check
         if ctx.ctx_check('run.loss_func') is True:
             # compute loss
-            loss = ctx.run.loss_func(ctx.step.y_pred, ctx.step.y_true)
-            ctx.step.loss = loss
-            ctx.step.loss_value = self._parse_float(ctx.run.loss_wrapper.get_copy(loss)).decode()
+            loss = ctx.run_ctx.loss_func(ctx.step_ctx.y_pred, ctx.step_ctx.y_true)
+            ctx.step_ctx.loss = loss
+            ctx.step_ctx.loss_value = self._parse_float(ctx.run_ctx.loss_wrapper.get_copy(loss)).decode()
     
     def _parse_float(self, loss_dict):
         for key in loss_dict:
@@ -152,10 +152,10 @@ class BackwardHandler(Handler):
     def handle(self, ctx: BaseContext):
         # context check
         if ctx.ctx_check(['step.loss']) is True:
-            last = ctx.step.total % ctx.run.grad_acc
-            grad_acc = ctx.run.grad_acc if (ctx.step.total - ctx.step.current - 1) >= last else last
+            last = ctx.step_ctx.total % ctx.run_ctx.grad_acc
+            grad_acc = ctx.run_ctx.grad_acc if (ctx.step_ctx.total - ctx.step_ctx.current - 1) >= last else last
             # backward
-            (ctx.run.loss_reduction(ctx) / grad_acc).backward()
+            (ctx.run_ctx.loss_reduction(ctx) / grad_acc).backward()
 
 
 class OptimizerHandler(HandlerContainer):
@@ -168,9 +168,9 @@ class OptimizerHandler(HandlerContainer):
         # backward handler
         super().handle(ctx)
         if ctx.ctx_check(['run.optimizer']) is True and \
-            ((ctx.step.current + 1) % ctx.run.grad_acc == 0 or ctx.step.current + 1 == ctx.step.total):
-            ctx.run.optimizer.step()
-            ctx.run.optimizer.zero_grad()
+            ((ctx.step_ctx.current + 1) % ctx.run_ctx.grad_acc == 0 or ctx.step_ctx.current + 1 == ctx.step_ctx.total):
+            ctx.run_ctx.optimizer.step()
+            ctx.run_ctx.optimizer.zero_grad()
 
 
 class MetricsHandler(Handler):
@@ -183,7 +183,7 @@ class MetricsHandler(Handler):
         # context check
         ctx.ctx_check('step', silent=False)
         if ctx.ctx_check('run.metrics') is True:
-            ctx.step.metrics = ctx.run.metrics(ctx)
+            ctx.step_ctx.metrics = ctx.run_ctx.metrics(ctx)
 
 
 class GatherAverageHandler(Handler):
@@ -196,24 +196,24 @@ class GatherAverageHandler(Handler):
         from torchslime.core.context import Context
         from torchslime.components.metric import LossWrapper
         ctx: Context
-        torch_comm = ctx.distributed.torch_comm
+        torch_comm = ctx.distributed_ctx.torch_comm
         # gather data
         gathered_loss_values: List[LossWrapper] = \
-            torch_comm.all_gather_object(ctx.run.loss_wrapper.get_copy(ctx.step.loss_value))
-        gathered_metrics: List[Dict] = torch_comm.all_gather_object(ctx.step.metrics)
+            torch_comm.all_gather_object(ctx.run_ctx.loss_wrapper.get_copy(ctx.step_ctx.loss_value))
+        gathered_metrics: List[Dict] = torch_comm.all_gather_object(ctx.step_ctx.metrics)
         
         """
         Compute average loss values.
         """
-        loss_value = ctx.run.loss_wrapper.get(self._avg_dict(gathered_loss_values))
+        loss_value = ctx.run_ctx.loss_wrapper.get(self._avg_dict(gathered_loss_values))
         # if and only if all gathered loss values wrapped, is ``loss_values.__wrapped`` is True
         loss_value.set_wrapped(all(gathered_loss_value.get_wrapped() for gathered_loss_value in gathered_loss_values))
-        ctx.step.loss_value = loss_value.decode()
+        ctx.step_ctx.loss_value = loss_value.decode()
         
         """
         Compute average metrics.
         """
-        ctx.step.metrics = self._avg_dict(gathered_metrics)
+        ctx.step_ctx.metrics = self._avg_dict(gathered_metrics)
     
     def _avg_dict(self, dict_list) -> dict:
         item_dict = {}
@@ -244,9 +244,9 @@ class AverageInitHandler(Handler):
     
     @CallDebug(module_name='AverageInitHandler')
     def handle(self, ctx: BaseContext):
-        ctx.hook.state.init_avg_inner_ctx(ctx, self.INNER_KEY)
+        ctx.hook_ctx.state.init_avg_inner_ctx(ctx, self.INNER_KEY)
         # reset avg info
-        ctx.hook.state.clear_avg_info(ctx, self.INNER_KEY)
+        ctx.hook_ctx.state.clear_avg_info(ctx, self.INNER_KEY)
 
 
 class AverageHandler(Handler):
@@ -261,12 +261,12 @@ class AverageHandler(Handler):
     def handle(self, ctx: BaseContext):
         from torchslime.components.metric import LossWrapper
         # get inner context variables
-        summary = ctx.hook.state.get_avg_inner_ctx(ctx, self.INNER_KEY)
+        summary = ctx.hook_ctx.state.get_avg_inner_ctx(ctx, self.INNER_KEY)
         
         """
         Get average loss and metrics.
         """
-        loss_value: LossWrapper = ctx.run.loss_wrapper.get(ctx.step.loss_value)
+        loss_value: LossWrapper = ctx.run_ctx.loss_wrapper.get(ctx.step_ctx.loss_value)
         summary_loss_value: LossWrapper = summary['loss_value']
         # update wrapped
         summary_loss_value.set_wrapped(summary_loss_value.get_wrapped() and loss_value.get_wrapped())
@@ -274,13 +274,13 @@ class AverageHandler(Handler):
         avg_loss = self._compute_avg(
             loss_value, summary_loss_value, summary_loss_value_count
         )
-        avg_loss: LossWrapper = ctx.run.loss_wrapper.get(avg_loss)
+        avg_loss: LossWrapper = ctx.run_ctx.loss_wrapper.get(avg_loss)
         avg_loss.set_wrapped(summary_loss_value.get_wrapped())
         
         avg_metrics = self._compute_avg(
-            ctx.step.metrics, summary['metrics'], summary['metrics_count']
+            ctx.step_ctx.metrics, summary['metrics'], summary['metrics_count']
         )
-        ctx.hook.state.set_avg_loss_value_and_metrics(ctx, avg_loss.decode(), avg_metrics)
+        ctx.hook_ctx.state.set_avg_loss_value_and_metrics(ctx, avg_loss.decode(), avg_metrics)
 
     def _compute_avg(self, item_dict: dict, value_dict: dict, count_dict: dict):
         result = {}
@@ -301,10 +301,10 @@ class DisplayHandler(Handler):
     
     @CallDebug(module_name='DisplayHandler')
     def handle(self, ctx: BaseContext):
-        current = ctx.step.current
-        total = ctx.step.total
+        current = ctx.step_ctx.current
+        total = ctx.step_ctx.total
 
-        loss_value, metrics = ctx.hook.state.get_avg_loss_value_and_metrics(ctx)
+        loss_value, metrics = ctx.hook_ctx.state.get_avg_loss_value_and_metrics(ctx)
         data = {**loss_value, **metrics}
         data = ' - '.join(
             list(map(lambda item: '{0}: {1:.5f}'.format(*item), data.items()))
@@ -312,13 +312,13 @@ class DisplayHandler(Handler):
 
         with Cursor.cursor_invisible():
             Cursor.refresh_print(
-                str(ctx.hook.state),
+                str(ctx.hook_ctx.state),
                 # progress bar
-                progress_format(ctx.step.progress, newline=False),
+                progress_format(ctx.step_ctx.progress, newline=False),
                 # eta with color blue
                 '{0}ETA: {1}{2}'.format(
                     Cursor.single_color('b'),
-                    eta_format(ctx.step.time, total - current - 1),
+                    eta_format(ctx.step_ctx.time, total - current - 1),
                     Cursor.reset_style()
                 ),
                 # loss and metrics output
@@ -338,7 +338,7 @@ class DatasetHandler(Handler):
         # context check
         ctx.ctx_check('status', silent=False)
         # get dataset through status
-        ctx.hook.state.get_dataset(ctx)
+        ctx.hook_ctx.state.get_dataset(ctx)
 
 
 class StateHandler(Handler):
@@ -360,9 +360,9 @@ class StateHandler(Handler):
         ], silent=False)
         # set status to the context
         from torchslime.core.hooks.state import ctx_state
-        ctx.hook.state = ctx_state.get(self.state)()
+        ctx.hook_ctx.state = ctx_state.get(self.state)()
         # change pytorch model mode
-        ctx.hook.state.set_model_mode(ctx)
+        ctx.hook_ctx.state.set_model_mode(ctx)
     
     def _get_display_attrs(self) -> dict:
         custom_attrs = {
@@ -382,4 +382,4 @@ class LRDecayHandler(Handler):
     @CallDebug(module_name='LRDecayHandler')
     def handle(self, ctx: BaseContext):
         if ctx.ctx_check(['run.lr_decay']) is True:
-            ctx.run.lr_decay.step()
+            ctx.run_ctx.lr_decay.step()

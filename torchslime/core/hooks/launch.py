@@ -56,7 +56,7 @@ class DistributedLaunch(LaunchHook):
         if is_none_or_nothing(exec_ranks):
             return
         # exec in the specific ranks
-        rank = ctx.distributed.get_rank()
+        rank = ctx.distributed_ctx.get_rank()
         exec_ranks = handler.get_exec_ranks()
         if rank in exec_ranks:
             handler.handle(ctx)
@@ -77,14 +77,14 @@ class DistributedLaunch(LaunchHook):
         return dist.get_world_size(group=group)
 
     def after_build_train(self, ctx: Context):
-        handler = ctx.handler
-        metric_handlers = ctx.run.train.get_by_class(handler.Metrics)
+        handler = ctx.handler_ctx
+        metric_handlers = ctx.run_ctx.train.get_by_class(handler.Metrics)
         for m_handler in metric_handlers:
             m_handler.insert_after_self(handler.GatherAverage(_id=''))
 
     def after_build_eval(self, ctx: Context):
-        handler = ctx.handler
-        metric_handlers = ctx.run.train.get_by_class(handler.Metrics)
+        handler = ctx.handler_ctx
+        metric_handlers = ctx.run_ctx.train.get_by_class(handler.Metrics)
         for m_handler in metric_handlers:
             m_handler.insert_after_self(handler.GatherAverage(_id=''))
     

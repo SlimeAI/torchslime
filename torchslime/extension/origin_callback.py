@@ -45,8 +45,8 @@ class SaveCheckpoint(Callback):
         assert len(self.save_options) > 0, 'You should choose at least one item to be saved when using the "SaveCheckpoint" Callback.'
     
     def epoch_end(self, ctx: BaseContext):
-        if (isinstance(self.save_per, (list, tuple)) and (ctx.iteration.current_epoch + 1) in self.save_per)\
-            or (ctx.iteration.current_epoch + 1) % self.save_per == 0:
+        if (isinstance(self.save_per, (list, tuple)) and (ctx.iteration_ctx.current_epoch + 1) in self.save_per)\
+            or (ctx.iteration_ctx.current_epoch + 1) % self.save_per == 0:
             if len(self.save_options) > 1:
                 item = self.save_dict(ctx, self.save_options)
             else:
@@ -57,7 +57,7 @@ class SaveCheckpoint(Callback):
             elif callable(self.checkpoint_name):
                 checkpoint_name = self.checkpoint_name(ctx)
             else:
-                checkpoint_name = 'checkpoint_{0}.pth'.format(ctx.iteration.current_epoch + 1)
+                checkpoint_name = 'checkpoint_{0}.pth'.format(ctx.iteration_ctx.current_epoch + 1)
             torch.save(item, join_path(self.checkpoint_path, checkpoint_name))
 
     def save_dict(self, ctx: BaseContext, save_options):
@@ -75,9 +75,9 @@ class SaveCheckpoint(Callback):
         if key == 'model':
             return ctx.model.state_dict()
         elif key == 'optimizer':
-            return ctx.run.optimizer.state_dict()
+            return ctx.run_ctx.optimizer.state_dict()
         elif key == 'epoch':
-            return ctx.iteration.current_epoch + 1
+            return ctx.iteration_ctx.current_epoch + 1
 
 
 class DistributedSaveCheckpoint(DistributedCallbackWrapper):
@@ -120,10 +120,10 @@ class SaveMetrics(Callback):
         assert len(self.save_options) > 0, 'You should choose at least one item to be saved when using the "SaveMetrics" Callback.'
 
     def epoch_end(self, ctx: BaseContext):
-        if (isinstance(self.save_per, (list, tuple)) and (ctx.iteration.current_epoch + 1) in self.save_per)\
-            or (ctx.iteration.current_epoch + 1) % self.save_per == 0:
+        if (isinstance(self.save_per, (list, tuple)) and (ctx.iteration_ctx.current_epoch + 1) in self.save_per)\
+            or (ctx.iteration_ctx.current_epoch + 1) % self.save_per == 0:
             list_len = self.append_list(self.parse(ctx, self.save_options))
-            if list_len > ctx.iteration.current_epoch + 1:
+            if list_len > ctx.iteration_ctx.current_epoch + 1:
                 logger.warn('The length of metric list is greater than number of epochs that have been executed, possibly there are some other items included in the list.')
 
     def parse(self, ctx: BaseContext, save_options):

@@ -40,18 +40,18 @@ class Context(BaseContext):
         self.compile_grad_acc(grad_acc)
 
         # build train handler
-        self.hook.build._build_train(self)
+        self.hook_ctx.build._build_train(self)
 
-        logger.info(self.hook.launch.get_device_info(self))
+        logger.info(self.hook_ctx.launch.get_device_info(self))
 
         from torchslime.components.exception import HandlerException, HandlerTerminate
         try:
-            self.run.train(self)
+            self.run_ctx.train(self)
         except HandlerTerminate as ht:
-            self.run.train.display_traceback(target_handlers=ht.raise_handler, wrap_func='terminate', level='info')
+            self.run_ctx.train.display_traceback(target_handlers=ht.raise_handler, wrap_func='terminate', level='info')
             logger.info('Handler terminated with message: {msg}'.format(msg=ht.msg))
         except HandlerException as he:
-            self.run.train.display_traceback(target_handlers=he.exception_handler)
+            self.run_ctx.train.display_traceback(target_handlers=he.exception_handler)
             raise he.exception
 
     @CallDebug(module_name='Context.Predict')
@@ -62,10 +62,10 @@ class Context(BaseContext):
         self.compile_dataset(dataset, 'eval')
 
         # build predict handler
-        self.hook.build._build_predict(self)
+        self.hook_ctx.build._build_predict(self)
 
-        logger.info(self.hook.launch.get_device_info(self))
-        self.run.predict(self)
+        logger.info(self.hook_ctx.launch.get_device_info(self))
+        self.run_ctx.predict(self)
 
     @CallDebug(module_name='Context.Eval')
     def eval(
@@ -75,10 +75,10 @@ class Context(BaseContext):
         self.compile_dataset(dataset, 'eval')
 
         # build eval handler
-        self.hook.build._build_eval(self)
+        self.hook_ctx.build._build_eval(self)
 
-        logger.info(self.hook.launch.get_device_info(self))
-        self.run.eval(self)
+        logger.info(self.hook_ctx.launch.get_device_info(self))
+        self.run_ctx.eval(self)
 
     @CallDebug(module_name='Context.Summary')
     def summary(self):
@@ -116,38 +116,38 @@ class Context(BaseContext):
     @CallDebug(module_name='Context.compile_loss_func')
     def compile_loss_func(self, loss_func):
         if loss_func is not None:
-            self.run.loss_func = loss_func
+            self.run_ctx.loss_func = loss_func
 
     @CallDebug(module_name='Context.compile_loss_reduction')
     def compile_loss_reduction(self, loss_reduction):
         if loss_reduction is not None:
-            self.run.loss_reduction = LossReductionFactory.get(loss_reduction)
+            self.run_ctx.loss_reduction = LossReductionFactory.get(loss_reduction)
 
     @CallDebug(module_name='Context.compile_metrics')
     def compile_metrics(self, metrics):
         if metrics is not None:
-            self.run.metrics = MetricContainer(metrics) if is_nothing(metrics) is False else NOTHING
+            self.run_ctx.metrics = MetricContainer(metrics) if is_nothing(metrics) is False else NOTHING
 
     @CallDebug(module_name='Context.compile_data_parser')
     def compile_data_parser(self, data_parser):
         if data_parser is not None:
-            self.run.data_parser = data_parser if is_nothing(data_parser) is False else IndexParser()
+            self.run_ctx.data_parser = data_parser if is_nothing(data_parser) is False else IndexParser()
 
     @CallDebug(module_name='Context.compile_optimizer')
     def compile_optimizer(self, optimizer, lr, optimizer_options):
         if optimizer is not None:
             if isinstance(optimizer, Optimizer):
-                self.run.optimizer = optimizer
+                self.run_ctx.optimizer = optimizer
 
     @CallDebug(module_name='Context.compile_lr_decay')
     def compile_lr_decay(self, lr_decay, lr_decay_options):
         if lr_decay is not None:
             if isinstance(lr_decay, str) is False:
-                self.run.lr_decay = lr_decay
+                self.run_ctx.lr_decay = lr_decay
 
     @CallDebug(module_name='Context.compile_total_epochs')
     def compile_total_epochs(self, total_epochs):
-        self.iteration.total_epochs = total_epochs if isinstance(total_epochs, int) else NOTHING
+        self.iteration_ctx.total_epochs = total_epochs if isinstance(total_epochs, int) else NOTHING
 
     @CallDebug(module_name='Context.compile_dataset')
     def compile_dataset(self, dataset, mode: str):
@@ -160,15 +160,15 @@ class Context(BaseContext):
             mode_supported = ['train', 'eval']
             if mode not in mode_supported:
                 logger.warn('compile_dataset mode not supported.')
-            setattr(self.run, '{}_provider'.format(mode), dataset)
+            setattr(self.run_ctx, '{}_provider'.format(mode), dataset)
 
     @CallDebug(module_name='Context.compile_grad_acc')
     def compile_grad_acc(self, grad_acc: int):
         if grad_acc is not None:
-            self.run.grad_acc = grad_acc
+            self.run_ctx.grad_acc = grad_acc
 
     def is_distributed(self):
-        return self.hook.launch.is_distributed()
+        return self.hook_ctx.launch.is_distributed()
 
     # @InvocationDebug('Context.TrainBuilder')
     # @MethodChaining

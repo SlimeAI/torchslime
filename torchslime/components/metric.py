@@ -112,7 +112,7 @@ class LossReductionFactory:
 
 
 def _mean_loss_reduction(ctx: BaseContext):
-    loss_tensors = ctx.run.loss_wrapper.get(ctx.step.loss).values()
+    loss_tensors = ctx.run_ctx.loss_wrapper.get(ctx.step_ctx.loss).values()
     result = safe_divide(sum(loss_tensors), len(loss_tensors), NOTHING)
     if is_nothing(result):
         logger.warn('Mean loss reduction got NOTHING. This may be caused by one of the following reasons:\n'
@@ -122,7 +122,7 @@ def _mean_loss_reduction(ctx: BaseContext):
 
 
 def _sum_loss_reduction(ctx: BaseContext):
-    loss_tensors = ctx.run.loss_wrapper.get(ctx.step.loss).values()
+    loss_tensors = ctx.run_ctx.loss_wrapper.get(ctx.step_ctx.loss).values()
     result = sum(loss_tensors) if len(loss_tensors) > 0 else NOTHING
     if is_nothing(result):
         logger.warn('Sum loss reduction got NOTHING. This may be caused by one of the following reasons:\n'
@@ -134,7 +134,7 @@ def _sum_loss_reduction(ctx: BaseContext):
 def _weighted_loss_reduction(weight: dict):
     _weight = dict(weight)
     def _reduction(ctx: BaseContext):
-        loss_dict = ctx.run.loss_wrapper.get(ctx.step.loss)
+        loss_dict = ctx.run_ctx.loss_wrapper.get(ctx.step_ctx.loss)
         # check keys intersection
         loss_keys = set(loss_dict.keys())
         weight_keys = set(_weight.keys())

@@ -34,7 +34,7 @@ class Handler:
 
     def __call__(self, ctx: BaseContext):
         try:
-            ctx.hook.launch.handler_call(self, ctx)
+            ctx.hook_ctx.launch.handler_call(self, ctx)
         except HandlerTerminate as ht:
             # set ``raise_handler`` to the nearest handler
             if is_none_or_nothing(ht.raise_handler) is True:

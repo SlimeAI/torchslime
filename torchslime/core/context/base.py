@@ -26,23 +26,21 @@ class BaseContext(Base):
         # model
         self.model: Module = NOTHING
         # run context
-        self.run: RunContext = RunContext(ctx=self)
+        self.run_ctx: RunContext = RunContext(ctx=self)
         # information about iteration
-        self.iteration: IterationContext = IterationContext(ctx=self)
+        self.iteration_ctx: IterationContext = IterationContext(ctx=self)
         # information in one step
-        self.step: StepContext = StepContext(ctx=self)
+        self.step_ctx: StepContext = StepContext(ctx=self)
         # handler context
-        self.handler: HandlerContext = HandlerContext(ctx=self)
+        self.handler_ctx: HandlerContext = HandlerContext(ctx=self)
         # custom context
-        self.custom: CustomContext = CustomContext(ctx=self)
+        self.custom_ctx: CustomContext = CustomContext(ctx=self)
         # inner context
-        self.inner: InnerContext = InnerContext(ctx=self)
+        self.inner_ctx: InnerContext = InnerContext(ctx=self)
         # hook context
-        self.hook: HookContext = HookContext(ctx=self)
+        self.hook_ctx: HookContext = HookContext(ctx=self)
         # distributed context
-        self.distributed: DistributedContext = DistributedContext(ctx=self)
-        # config context
-        self.config: ConfigContext = ConfigContext(ctx=self)
+        self.distributed_ctx: DistributedContext = DistributedContext(ctx=self)
 
     @property
     def model(self):
@@ -283,19 +281,10 @@ class DistributedContext(TempContext):
         """
         Check whether the torch distributed settings are ready.
         """
-        self.ctx.hook.launch.is_distributed_ready()
+        self.ctx.hook_ctx.launch.is_distributed_ready()
 
     def get_rank(self, group=None):
-        self.ctx.hook.launch.get_rank(group=group)
+        self.ctx.hook_ctx.launch.get_rank(group=group)
     
     def get_world_size(self, group=None):
-        self.ctx.hook.launch.get_world_size(group=group)
-
-
-class ConfigContext(TempContext):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-    
-    def initialize(self):
-        return super().initialize()
+        self.ctx.hook_ctx.launch.get_world_size(group=group)

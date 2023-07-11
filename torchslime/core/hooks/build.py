@@ -11,7 +11,7 @@ class BuildHook:
     def after_build_predict(self, ctx: Context): pass
 
     def _build_train(self, ctx: Context):
-        h = ctx.hook
+        h = ctx.hook_ctx
         h.plugins.before_build(ctx)
         h.plugins.before_build_train(ctx)
         h.build.build_train(ctx)
@@ -21,7 +21,7 @@ class BuildHook:
         h.plugins.after_build_train(ctx)
     
     def _build_eval(self, ctx: Context):
-        h = ctx.hook
+        h = ctx.hook_ctx
         h.plugins.before_build(ctx)
         h.plugins.before_build_eval(ctx)
         h.build.build_eval(ctx)
@@ -31,7 +31,7 @@ class BuildHook:
         h.plugins.after_build_eval(ctx)
 
     def _build_predict(self, ctx: Context):
-        h = ctx.hook
+        h = ctx.hook_ctx
         h.plugins.before_build(ctx)
         h.plugins.before_build_predict(ctx)
         h.build.build_predict(ctx)
@@ -45,9 +45,9 @@ class VanillaBuild(BuildHook):
     
     def build_train(self, ctx: Context):
         # get handler classes from context
-        handler = ctx.handler
+        handler = ctx.handler_ctx
         # build training process using handlers
-        ctx.run.train = handler.Container([
+        ctx.run_ctx.train = handler.Container([
             # epoch iter
             handler.EpochIteration([
                 # set status to 'train'
@@ -98,14 +98,14 @@ class VanillaBuild(BuildHook):
         ], _id='container')
     
     def after_build_train(self, ctx: Context):
-        ctx.hook.lr_decay_mode
+        ctx.hook_ctx.lr_decay_mode
         return
 
     def build_eval(self, ctx: Context):
         # get handler classes from context
-        handler = ctx.handler
+        handler = ctx.handler_ctx
         # build evaluating process using handlers
-        ctx.run.eval = handler.Container([
+        ctx.run_ctx.eval = handler.Container([
             # set status to 'eval'
             handler.State('eval', _id='eval_status'),
             # get dataset
@@ -129,9 +129,9 @@ class VanillaBuild(BuildHook):
     
     def build_predict(self, ctx: Context):
         # get handler classes from context
-        handler = ctx.handler
+        handler = ctx.handler_ctx
         # build predicting process using handlers
-        ctx.run.predict = handler.Container([
+        ctx.run_ctx.predict = handler.Container([
             # set status to 'predict'
             handler.State('predict', _id='predict_status'),
             # get dataset

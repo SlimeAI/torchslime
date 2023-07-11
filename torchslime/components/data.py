@@ -58,5 +58,5 @@ class IndexParser(DataParser):
         self.extra = extra
 
     def get(self, ctx: BaseContext) -> Tuple[Any, Any, Any]:
-        batch = ctx.step.batch
+        batch = ctx.step_ctx.batch
         return list_take(batch, self.x), list_take(batch, self.y), list_take(batch, self.extra)
