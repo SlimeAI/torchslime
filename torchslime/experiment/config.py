@@ -2,6 +2,7 @@ from typing import Any, Union, Sequence, Callable
 from torchslime.utils.bases import Base, Nothing, NOTHING, is_none_or_nothing, BaseList, is_nothing
 from torchslime.utils.decorators import ItemAttrBinding, ObjectAttrBinding, Singleton
 from torchslime.utils import is_slime_naming, xor__
+from torchslime.log import logger
 from torchslime.components.exception import APIMisused
 
 #
@@ -50,14 +51,11 @@ class ConfigContainer(metaclass=_ConfigContainerType):
                 if self.config_items__.hasattr__(key):
                     continue
 
-                if isinstance(value, (ConfigField, _ConfigContainerType)):
+                if isinstance(value, ConfigField):
                     # set config items cache
                     self.config_items__[key] = value
                     # set default config values
                     self.config__[key] = value()
-                elif isinstance(value, ConfigContainer):
-                    # TODO: warn and do nothing
-                    pass
 
     def __call__(self) -> Config:
         self.config__: Config
@@ -74,10 +72,7 @@ class ConfigContainer(metaclass=_ConfigContainerType):
     def __setattr__(self, __name: str, __value: Any) -> None:
         config_item = self.config_items__[__name]
 
-        if isinstance(config_item, _ConfigContainerType):
-            # TODO: warn
-            pass
-        elif isinstance(config_item, ConfigField):
+        if isinstance(config_item, ConfigField):
             __value = config_item(__value)
         setattr(self.config__, __name, __value)
 
@@ -106,6 +101,10 @@ class ConfigFactory(ConfigContainer):
             self.set_loaders__([FACTORY_LOADER, CLILoader()])
         else:
             self.set_loaders__(BaseList(loaders).get_list__())
+
+    @classmethod
+    def get__(cls, *args, **kwargs) -> Config:
+        return cls(*args, **kwargs)()
 
     def get_loaders__(self) -> list:
         return self.object_get__('loaders__')
@@ -164,6 +163,25 @@ class ConfigField:
             # TODO: warn
             pass
         self.fieldname = name
+
+class ContainerField(ConfigField):
+
+    def __init__(self, container_class: _ConfigContainerType) -> None:
+        super().__init__(
+            default_factory=container_class,
+            validator=self.validator
+        )
+    
+    def validator(self, item):
+        # only warning and do nothing here
+        if not isinstance(item, ConfigContainer):
+            logger.warn(
+                'You are setting a ``ConfigContainer`` item to a plain object item, '
+                'and pre-defined validators and parsers in the item will not work. '
+                'Fieldname being set: {fieldname}'.format(fieldname=self.fieldname)
+            )
+        # always return True here
+        return True
 
 #
 # Config Loader
