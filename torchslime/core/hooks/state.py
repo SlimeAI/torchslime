@@ -1,12 +1,12 @@
 """
 State Pattern for model state management.
 """
-from torchslime.utils.bases import is_nothing
+from torchslime.utils.bases import is_nothing, NOTHING
 from torchslime.components.registry import Registry
 from torchslime.core.context.base import BaseContext
 from typing import Tuple
 
-from torchslime.utils.bases import NOTHING
+from torch.utils.data import DataLoader
 
 ctx_state = Registry('ctx_state')
 
@@ -15,7 +15,8 @@ class StateHook:
 
     def __init__(self) -> None: pass
     def set_model_mode(self, ctx: BaseContext): pass
-    def get_dataset(self, ctx: BaseContext): pass
+    def get_loader(self, ctx: BaseContext) -> DataLoader: pass
+    def set_loader(self, ctx: BaseContext): pass
     def get_avg_loss_value_and_metrics(self, ctx: BaseContext) -> Tuple[dict, dict]: pass
     def set_avg_loss_value_and_metrics(self, ctx: BaseContext, loss_value, metrics): pass
     def get_avg_inner_ctx(self, ctx: BaseContext, INNER_KEY): pass
@@ -49,9 +50,9 @@ class TrainState(StateHook):
     def set_model_mode(self, ctx: BaseContext):
         ctx.model.train()
 
-    def get_dataset(self, ctx: BaseContext):
+    def set_loader(self, ctx: BaseContext):
         ctx.ctx_check('run.train_provider', silent=False)
-        ctx.run_ctx.dataset = ctx.run_ctx.train_provider(ctx)
+        ctx.run_ctx.train_loader = ctx.run_ctx.train_provider(ctx)
 
     def get_avg_loss_value_and_metrics(self, ctx: BaseContext) -> Tuple[dict, dict]:
         loss_value = ctx.run_ctx.loss_wrapper.get_copy(ctx.iteration_ctx.train_loss_value)
@@ -89,9 +90,9 @@ class EvalState(StateHook):
     def set_model_mode(self, ctx: BaseContext):
         ctx.model.eval()
 
-    def get_dataset(self, ctx: BaseContext):
+    def set_loader(self, ctx: BaseContext):
         ctx.ctx_check('run.eval_provider', silent=False)
-        ctx.run_ctx.dataset = ctx.run_ctx.eval_provider(ctx)
+        ctx.run_ctx.eval_loader = ctx.run_ctx.eval_provider(ctx)
 
     def get_avg_loss_value_and_metrics(self, ctx: BaseContext) -> Tuple[dict, dict]:
         loss_value = ctx.run_ctx.loss_wrapper.get_copy(ctx.iteration_ctx.eval_loss_value)

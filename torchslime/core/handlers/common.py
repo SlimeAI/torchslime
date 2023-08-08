@@ -1,7 +1,7 @@
 from typing import Dict, Sequence, Union, List, Callable, Any
 from torchslime.utils import IterTool, safe_divide, type_cast, \
     terminal as Cursor
-from torchslime.utils.bases import BaseList
+from torchslime.utils.bases import BaseList, is_none_or_nothing
 from torchslime.utils.decorators import CallDebug
 from torchslime.utils.formatter import progress_format, eta_format
 from torchslime.core.context.base import BaseContext
@@ -81,18 +81,22 @@ class IterationHandler(HandlerContainer):
     @CallDebug(module_name='IterationHandler')
     @TorchGrad
     def handle(self, ctx: BaseContext):
-        # context check
-        if ctx.ctx_check('run.dataset') is True:
-            for batch, progress, time, current, total in IterTool(ctx.run_ctx.dataset, True, True, True, True):
-                ctx.step_ctx.from_dict__({
-                    'batch': batch, # original batch data of the dataset
-                    'progress': progress, # progress of iteration(includes current step and total steps)
-                    'time': time, # time of the iter(current time)
-                    'current': current, # the current step
-                    'total': total # total steps of iteration
-                })
-                # carry out the subsequent actions
-                super().handle(ctx)
+        loader = ctx.hook_ctx.state.get_loader(ctx)
+        # loader check
+        if is_none_or_nothing(loader):
+            logger.warn('Got empty data loader.')
+            return
+        
+        for batch, progress, time, current, total in IterTool(loader, True, True, True, True):
+            ctx.step_ctx.from_dict__({
+                'batch': batch, # original batch data of the dataset
+                'progress': progress, # progress of iteration(includes current step and total steps)
+                'time': time, # time of the iter(current time)
+                'current': current, # the current step
+                'total': total # total steps of iteration
+            })
+            # carry out the subsequent actions
+            super().handle(ctx)
 
 
 class ForwardHandler(Handler):
@@ -338,40 +342,7 @@ class DatasetHandler(Handler):
         # context check
         ctx.ctx_check('status', silent=False)
         # get dataset through status
-        ctx.hook_ctx.state.get_dataset(ctx)
-
-
-class StateHandler(Handler):
-
-    def __init__(self, state: str = 'train', *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # get status supported
-        from torchslime.core.hooks.state import ctx_state
-        mode_supported = list(ctx_state.keys())
-        if state not in mode_supported:
-            logger.warn('An unsupported status is set, this may cause some problems.')
-        self.state = state
-    
-    @CallDebug(module_name='StatusHandler')
-    def handle(self, ctx: BaseContext):
-        # context check
-        ctx.ctx_check([
-            'model'
-        ], silent=False)
-        # set status to the context
-        from torchslime.core.hooks.state import ctx_state
-        ctx.hook_ctx.state = ctx_state.get(self.state)()
-        # change pytorch model mode
-        ctx.hook_ctx.state.set_model_mode(ctx)
-    
-    def _get_display_attrs(self) -> dict:
-        custom_attrs = {
-            'state': 'state'
-        }
-        return {
-            **super()._get_display_attrs(),
-            **custom_attrs
-        }
+        ctx.hook_ctx.state.set_loader(ctx)
 
 
 class LRDecayHandler(Handler):

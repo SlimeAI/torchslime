@@ -75,8 +75,6 @@ class StoreSet:
         self.restore = restore
         self.key = store.get_current_key__() if is_none_or_nothing(key) is True else key
         self._store = store.scope__(self.key)
-        # get the store value before ``StoreSet``
-        self.restore_value = self._store[__name]
     
     def __call__(self, func: Callable) -> Any:
         @wraps(func)
@@ -95,6 +93,9 @@ class StoreSet:
         self._restore_value()
     
     def _set_value(self):
+        # cache the store value before ``StoreSet``
+        self.restore_value = self._store[self.name]
+        # set value
         self._store[self.name] = self.value
 
     def _restore_value(self):
@@ -102,6 +103,7 @@ class StoreSet:
             self._store[self.name] = self.restore_value
         else:
             del self._store[self.name]
+        del self.restore_value
 
 
 # outer storage

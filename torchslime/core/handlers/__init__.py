@@ -1,4 +1,5 @@
 from typing import Sequence, Union, List, Callable, Iterable, Tuple
+from torchslime.core.handlers.common import H_SEQ, BaseContext
 from torchslime.utils import Count, terminal as Cursor
 from torchslime.core.context.base import BaseContext
 from torchslime.log import logger
@@ -264,7 +265,7 @@ class HandlerContainer(Handler, BaseList):
             handler.set_parent(self)
     
     def handle(self, ctx: BaseContext):
-        for handler in self:
+        for handler in self.get_list__():
             handler(ctx)
     
     def get_by_id(self, _id: str, result: Union[list, None, Nothing] = NOTHING) -> 'Handler':
@@ -361,7 +362,7 @@ class HandlerContainer(Handler, BaseList):
         # prefix
         display_list.append(indent_str + prefix_content)
         # handler
-        for handler in self:
+        for handler in self.get_list__():
             display_list.extend(handler._get_display_list(indent + 1, target_handlers=target_handlers, wrap_func=wrap_func))
         # suffix
         display_list.append(indent_str + '], ' + self._get_attr_str() + ')')
@@ -369,3 +370,4 @@ class HandlerContainer(Handler, BaseList):
 
 
 from .common import *
+from .wrappers import *

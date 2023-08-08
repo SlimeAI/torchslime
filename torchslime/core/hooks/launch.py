@@ -3,21 +3,19 @@ Distributed Launch Hook
 """
 from torchslime.core.context import Context
 from torchslime.core.handlers import Handler
+from torchslime.core.hooks.build import _BuildInterface
 from torchslime.utils import is_torch_distributed_ready
 from torchslime.log import logger
 from torchslime.utils.bases import NOTHING, is_none_or_nothing
 
 
-class LaunchHook:
+class LaunchHook(_BuildInterface):
 
     def handler_call(self, handler: Handler, ctx: Context): pass
     def is_distributed(self) -> bool: pass
     def is_distributed_ready(self) -> bool: pass
     def get_rank(self, group=None): pass
     def get_world_size(self, group=None): pass
-    def after_build_train(self, ctx: Context): pass
-    def after_build_predict(self, ctx: Context): pass
-    def after_build_eval(self, ctx: Context): pass
     def get_device_info(self, ctx: Context): pass
 
 
@@ -76,13 +74,13 @@ class DistributedLaunch(LaunchHook):
         import torch.distributed as dist
         return dist.get_world_size(group=group)
 
-    def after_build_train(self, ctx: Context):
+    def after_build_train(self, ctx: Context) -> None:
         handler = ctx.handler_ctx
         metric_handlers = ctx.run_ctx.train.get_by_class(handler.Metrics)
         for m_handler in metric_handlers:
             m_handler.insert_after_self(handler.GatherAverage(_id=''))
 
-    def after_build_eval(self, ctx: Context):
+    def after_build_eval(self, ctx: Context) -> None:
         handler = ctx.handler_ctx
         metric_handlers = ctx.run_ctx.train.get_by_class(handler.Metrics)
         for m_handler in metric_handlers:
