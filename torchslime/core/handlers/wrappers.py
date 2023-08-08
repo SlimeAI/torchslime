@@ -44,19 +44,19 @@ class StateHandler(HandlerWrapper):
     ):
         super().__init__(handlers, *args, **kwargs)
         # get state supported
-        from torchslime.core.hooks.state import ctx_state
-        mode_supported = list(ctx_state.keys())
+        from torchslime.core.hooks.state import state_registry
+        mode_supported = list(state_registry.get_dict__().keys())
         if state not in mode_supported:
             logger.warn('An unsupported state is set, this may cause some problems.')
         self.state = state
         self.restore = restore
     
     def before_handle(self, ctx: BaseContext):
-        from torchslime.core.hooks.state import ctx_state, StateHook
+        from torchslime.core.hooks.state import state_registry, StateHook
         # cache the state before state set
         self.restore_state: Union[StateHook, Nothing] = ctx.hook_ctx.state
         # set state to the context
-        ctx.hook_ctx.state: StateHook = ctx_state.get(self.state)()
+        ctx.hook_ctx.state: StateHook = state_registry.get(self.state)()
         # change pytorch model mode
         ctx.hook_ctx.state.set_model_mode(ctx)
     

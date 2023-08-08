@@ -6,7 +6,9 @@ from torchslime.log import logger
 from torchslime.utils.bases import NOTHING, BaseList, is_nothing
 from torchslime.utils.decorators import CallDebug, MethodChaining
 from torchslime.utils.tstype import NUMBER, INT_SEQ_N
-from torchslime.core.context.base import BaseContext, DistributedContext
+from torchslime.core.context.base import BaseContext
+from torchslime.core.hooks.build import BuildHook, build_registry
+from torchslime.core.hooks.launch import LaunchHook, launch_registry
 from torch.utils.data import DataLoader
 from torch.optim import Optimizer
 from torch import Tensor
@@ -18,13 +20,22 @@ DATASET = Union[DataLoader, DataProvider]
 
 class Context(BaseContext):
 
-    def __init__(self, model, device=None):
+    def __init__(
+        self,
+        model,
+        device=None,
+        build_hook: Union[str, BuildHook] = 'vanilla',
+        launch_hook: Union[str, LaunchHook] = 'vanilla'
+    ):
         # init context
         super().__init__()
         # set device
         self.device = device if device is not None else get_device(model)
         # set model and apply type cast
         self.model = type_cast(model, self.device)
+        # build hooks
+        self.compile_build_hook(build_hook)
+        self.compile_launch_hook(launch_hook)
 
     @CallDebug(module_name='Context.Train')
     def train(
@@ -169,6 +180,24 @@ class Context(BaseContext):
 
     def is_distributed(self):
         return self.hook_ctx.launch.is_distributed()
+
+    @CallDebug(module_name='Context.compile_build_hook')
+    def compile_build_hook(self, build_hook: Union[str, BuildHook]):
+        if isinstance(build_hook, str):
+            self.hook_ctx.build = build_registry.get(build_hook)()
+        elif isinstance(build_hook, BuildHook):
+            self.hook_ctx.build = build_hook
+        else:
+            logger.warn('Build hook type unsupported.')
+    
+    @CallDebug(module_name='Context.compile_launch_hook')
+    def compile_launch_hook(self, launch_hook: Union[str, LaunchHook]):
+        if isinstance(launch_hook, str):
+            self.hook_ctx.launch = launch_registry.get(launch_hook)()
+        elif isinstance(launch_hook, LaunchHook):
+            self.hook_ctx.launch = launch_hook
+        else:
+            logger.warn('Launch hook type unsupported.')
 
     # @InvocationDebug('Context.TrainBuilder')
     # @MethodChaining

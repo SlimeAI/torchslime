@@ -2,8 +2,7 @@ from torchslime.utils import TorchComm
 from torch.nn import Module
 from torch import device, Tensor
 from torch.optim.optimizer import Optimizer
-from torch.utils.data import DataLoader
-from torchslime.utils.bases import NOTHING, Base, BaseList, Nothing
+from torchslime.utils.bases import NOTHING, Base, Nothing
 from torchslime.utils.tstype import NUMBER
 from typing import Any, Sequence, Union, Dict, Tuple, Callable, Type
 from torchslime.log import logger
@@ -167,9 +166,6 @@ class RunContext(TempContext):
         self.eval: Union[HandlerContainer, Nothing] = NOTHING
         self.predict: Union[HandlerContainer, Nothing] = NOTHING
         
-        # train/eval data loader
-        self.train_loader: DataLoader = NOTHING
-        self.eval_loader: DataLoader = NOTHING
         # optimizer
         self.optimizer: Optimizer = NOTHING
         # loss_func
@@ -212,6 +208,7 @@ class HandlerContext(TempContext):
         self.Wrapper = handlers.HandlerWrapper
         self.EpochIteration = handlers.EpochIterationHandler
         self.Iteration = handlers.IterationHandler
+        self.StepIteration = handlers.StepIterationHandler
         self.Forward = handlers.ForwardHandler
         self.Loss = handlers.LossHandler
         self.Backward = handlers.BackwardHandler
@@ -221,7 +218,6 @@ class HandlerContext(TempContext):
         self.Average = handlers.AverageHandler
         self.GatherAverage = handlers.GatherAverageHandler
         self.Display = handlers.DisplayHandler
-        self.Dataset = handlers.DatasetHandler
         self.State = handlers.StateHandler
         self.LRDecay = handlers.LRDecayHandler
         self.Lambda = handlers.LambdaHandler

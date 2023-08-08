@@ -8,7 +8,7 @@ from typing import Tuple
 
 from torch.utils.data import DataLoader
 
-ctx_state = Registry('ctx_state')
+state_registry = Registry('state_registry')
 
 
 class StateHook:
@@ -16,7 +16,6 @@ class StateHook:
     def __init__(self) -> None: pass
     def set_model_mode(self, ctx: BaseContext): pass
     def get_loader(self, ctx: BaseContext) -> DataLoader: pass
-    def set_loader(self, ctx: BaseContext): pass
     def get_avg_loss_value_and_metrics(self, ctx: BaseContext) -> Tuple[dict, dict]: pass
     def set_avg_loss_value_and_metrics(self, ctx: BaseContext, loss_value, metrics): pass
     def get_avg_inner_ctx(self, ctx: BaseContext, INNER_KEY): pass
@@ -41,7 +40,7 @@ class StateHook:
         return 'BASE STATUS'
 
 
-@ctx_state.register('train')
+@state_registry.register(name='train')
 class TrainState(StateHook):
 
     def __init__(self) -> None:
@@ -50,9 +49,9 @@ class TrainState(StateHook):
     def set_model_mode(self, ctx: BaseContext):
         ctx.model.train()
 
-    def set_loader(self, ctx: BaseContext):
-        ctx.ctx_check('run.train_provider', silent=False)
-        ctx.run_ctx.train_loader = ctx.run_ctx.train_provider(ctx)
+    def get_loader(self, ctx: BaseContext) -> DataLoader:
+        ctx.ctx_check('run_ctx.train_provider', silent=False)
+        return ctx.run_ctx.train_provider(ctx)
 
     def get_avg_loss_value_and_metrics(self, ctx: BaseContext) -> Tuple[dict, dict]:
         loss_value = ctx.run_ctx.loss_wrapper.get_copy(ctx.iteration_ctx.train_loss_value)
@@ -81,7 +80,7 @@ class TrainState(StateHook):
         return 'TRAIN'
 
 
-@ctx_state.register('eval')
+@state_registry.register(name='eval')
 class EvalState(StateHook):
 
     def __init__(self) -> None:
@@ -90,9 +89,9 @@ class EvalState(StateHook):
     def set_model_mode(self, ctx: BaseContext):
         ctx.model.eval()
 
-    def set_loader(self, ctx: BaseContext):
-        ctx.ctx_check('run.eval_provider', silent=False)
-        ctx.run_ctx.eval_loader = ctx.run_ctx.eval_provider(ctx)
+    def get_loader(self, ctx: BaseContext) -> DataLoader:
+        ctx.ctx_check('run_ctx.eval_provider', silent=False)
+        return ctx.run_ctx.eval_provider(ctx)
 
     def get_avg_loss_value_and_metrics(self, ctx: BaseContext) -> Tuple[dict, dict]:
         loss_value = ctx.run_ctx.loss_wrapper.get_copy(ctx.iteration_ctx.eval_loss_value)
@@ -121,7 +120,7 @@ class EvalState(StateHook):
         return 'EVAL'
 
 
-@ctx_state.register('val')
+@state_registry.register(name='val')
 class ValState(EvalState):
 
     def __init__(self) -> None:
@@ -144,7 +143,7 @@ class ValState(EvalState):
         return 'VAL'
 
 
-@ctx_state.register('predict')
+@state_registry.register(name='predict')
 class PredictState(EvalState):
 
     def __init__(self) -> None:

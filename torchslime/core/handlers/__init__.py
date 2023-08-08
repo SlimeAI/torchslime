@@ -1,5 +1,4 @@
 from typing import Sequence, Union, List, Callable, Iterable, Tuple
-from torchslime.core.handlers.common import H_SEQ, BaseContext
 from torchslime.utils import Count, terminal as Cursor
 from torchslime.core.context.base import BaseContext
 from torchslime.log import logger
@@ -146,7 +145,7 @@ class Handler:
         self.__parent = NOTHING
     
     def set_exec_ranks(self, exec_ranks: INT_SEQ_N):
-        self.__exec_ranks = BaseList.create(exec_ranks)
+        self.__exec_ranks = BaseList.create__(exec_ranks)
 
     def get_exec_ranks(self):
         return self.__exec_ranks
@@ -163,7 +162,7 @@ class Handler:
         return '\n'.join(self._get_display_list(indent=0))
 
     def display_traceback(self, target_handlers: OPTIONAL_HANDLER, wrap_func: Union[str, Callable] = 'exception', level: str = 'error'):
-        wrap_func = wrap_func if callable(wrap_func) is True else display_wrap_func.get(wrap_func, lambda x: x)
+        wrap_func = wrap_func if callable(wrap_func) is True else display_wrap_func.get(wrap_func)
 
         getattr(logger, level, logger.error)('Handler Traceback:\n{content}'.format(
             content=self.get_display_traceback_str(target_handlers=target_handlers, wrap_func=wrap_func)
@@ -190,12 +189,12 @@ class Handler:
         return display_list
 
     def _is_target_handler(self, target_handlers: OPTIONAL_HANDLER = NOTHING):
-        return self in BaseList.create(
+        return self in BaseList.create__(
             target_handlers,
             return_none=False,
             return_nothing=False,
             return_ellipsis=False
-        )
+        ).get_list__()
 
     def __str__(self) -> str:
         class_name = self._get_class_str()
@@ -230,7 +229,7 @@ class Handler:
 display_wrap_func = Registry('display_wrap_func')
 
 
-@display_wrap_func.register('exception')
+@display_wrap_func.register(name='exception')
 def _exception_wrap(item) -> str:
     _separator_len = 10
     # ×  <---------- EXCEPTION Here ----------
@@ -238,7 +237,7 @@ def _exception_wrap(item) -> str:
     return Cursor.single_color('r') + item + '  ' + _exception_indicator + Cursor.single_color('w')
 
 
-@display_wrap_func.register('terminate')
+@display_wrap_func.register(name='terminate')
 def _terminate_wrap(item) -> str:
     _separator_len = 10
     # ||---------- Handler TERMINATE ----------||
@@ -257,10 +256,10 @@ class HandlerContainer(Handler, BaseList):
         # remove None and NOTHING
         BaseList.__init__(
             self,
-            list(filter(lambda item: is_none_or_nothing(item) is not True, handlers if isinstance(handlers, Iterable) else []))
+            list(filter(lambda item: is_none_or_nothing(item) is not True, handlers if isinstance(handlers, (list, tuple)) else []))
         )
         # set parent
-        for handler in self:
+        for handler in self.get_list__():
             handler: Handler
             handler.set_parent(self)
     

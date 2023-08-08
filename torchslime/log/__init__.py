@@ -57,34 +57,34 @@ class Logger(BaseList):
     def debug(self, msg, _exec_info: dict = NOTHING, _frame_offset: int = 0):
         if self.config['debug'] is True:
             item = self.format(msg, _exec_info, _frame_offset, DEBUG_PREFIX)
-            for logger_item in self:
+            for logger_item in self.get_list__():
                 logger_item: LoggerItem
                 logger_item.debug(item)
 
     def info(self, msg, _exec_info: dict = NOTHING, _frame_offset: int = 0):
         if self.config['info'] is True:
             item = self.format(msg, _exec_info, _frame_offset, INFO_PREFIX)
-            for logger_item in self:
+            for logger_item in self.get_list__():
                 logger_item: LoggerItem
                 logger_item.info(item)
 
     def warn(self, msg, _exec_info: dict = NOTHING, _frame_offset: int = 0):
         if self.config['warn'] is True:
             item = self.format(msg, _exec_info, _frame_offset, WARN_PREFIX)
-            for logger_item in self:
+            for logger_item in self.get_list__():
                 logger_item: LoggerItem
                 logger_item.warn(item)
 
     def error(self, msg, _exec_info: dict = NOTHING, _frame_offset: int = 0):
         if self.config['error'] is True:
             item = self.format(msg, _exec_info, _frame_offset, ERROR_PREFIX)
-            for logger_item in self:
+            for logger_item in self.get_list__():
                 logger_item: LoggerItem
                 logger_item.error(item)
 
     def log(self, msg):
         if self.config['log'] is True:
-            for logger_item in self:
+            for logger_item in self.get_list__():
                 logger_item: LoggerItem
                 logger_item.log(msg)
     
@@ -165,7 +165,7 @@ class DistributedLogger(Logger):
         self.set_exec_ranks([0])
     
     def set_exec_ranks(self, exec_ranks: INT_SEQ_N):
-        self.exec_ranks = BaseList.create(exec_ranks)
+        self.exec_ranks = BaseList.create__(exec_ranks)
     
     def debug(self, msg, _exec_info: dict = NOTHING, _frame_offset: int = 0):
         if self._check_exec() is True:

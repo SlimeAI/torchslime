@@ -51,7 +51,7 @@ class LambdaHandler(Handler, BaseList):
     
     def handle(self, ctx: BaseContext):
         # execute lambda functions
-        for _lambda in self:
+        for _lambda in self.get_list__():
             _lambda(ctx)
 
 
@@ -63,7 +63,7 @@ class EpochIterationHandler(HandlerContainer):
     @CallDebug(module_name='EpochIterationHandler')
     def handle(self, ctx: BaseContext):
         # context check
-        ctx.ctx_check('epoch.total', silent=False)
+        ctx.ctx_check('iteration_ctx.total_epochs', silent=False)
         # epoch loops
         for current in range(ctx.iteration_ctx.total_epochs):
             # set current epoch to the context
@@ -89,14 +89,24 @@ class IterationHandler(HandlerContainer):
         
         for batch, progress, time, current, total in IterTool(loader, True, True, True, True):
             ctx.step_ctx.from_dict__({
-                'batch': batch, # original batch data of the dataset
-                'progress': progress, # progress of iteration(includes current step and total steps)
-                'time': time, # time of the iter(current time)
-                'current': current, # the current step
-                'total': total # total steps of iteration
+                'batch': batch,  # original batch data of the dataset
+                'progress': progress,  # progress of iteration(includes current step and total steps)
+                'time': time,  # time of the iter(current time)
+                'current': current,  # the current step
+                'total': total  # total steps of iteration
             })
+            # current global step increases by 1
+            ctx.iteration_ctx.current_step += 1
             # carry out the subsequent actions
             super().handle(ctx)
+
+
+class StepIterationHandler(HandlerContainer):
+    # TODO: step iteration
+    @CallDebug(module_name='StepIterationHandler')
+    @TorchGrad
+    def handle(self, ctx: BaseContext):
+        return super().handle(ctx)
 
 
 class ForwardHandler(Handler):
@@ -330,19 +340,6 @@ class DisplayHandler(Handler):
                 # print new line if progress end
                 end='\n' if current + 1 == total else ''
             )
-
-
-class DatasetHandler(Handler):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-    
-    @CallDebug(module_name='DatasetHandler')
-    def handle(self, ctx: BaseContext):
-        # context check
-        ctx.ctx_check('status', silent=False)
-        # get dataset through status
-        ctx.hook_ctx.state.set_loader(ctx)
 
 
 class LRDecayHandler(Handler):
