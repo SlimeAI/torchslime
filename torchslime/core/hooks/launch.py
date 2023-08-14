@@ -6,7 +6,7 @@ from torchslime.core.handlers import Handler
 from torchslime.core.hooks.build import _BuildInterface
 from torchslime.utils import is_torch_distributed_ready
 from torchslime.log import logger
-from torchslime.utils.bases import NOTHING, is_none_or_nothing
+from torchslime.utils.bases import NOTHING, is_none_or_nothing, is_pass
 from torchslime.components.registry import Registry
 
 launch_registry = Registry('launch_registry')
@@ -51,8 +51,9 @@ class VanillaLaunch(LaunchHook):
 class DistributedLaunch(LaunchHook):
     
     def handler_call(self, handler: Handler, ctx: BaseContext):
+        exec_ranks = handler.get_exec_ranks()
         # always exec
-        if exec_ranks is ...:
+        if is_pass(exec_ranks):
             handler.handle(ctx)
             return
         # never exec
@@ -81,15 +82,17 @@ class DistributedLaunch(LaunchHook):
 
     def after_build_train(self, ctx: BaseContext) -> None:
         handler = ctx.handler_ctx
-        metric_handlers = ctx.run_ctx.train.get_by_class(handler.Metrics)
-        for m_handler in metric_handlers:
-            m_handler.insert_after_self(handler.GatherAverage(_id=''))
+        average_handlers = ctx.run_ctx.train.get_by_class(handler.Average)
+        for a_handler in average_handlers:
+            state = a_handler.get_id().split('_')[-1]
+            a_handler.insert_before_self(handler.GatherAverage(_id='gather_average_{state}'.format(state=state)))
 
     def after_build_eval(self, ctx: BaseContext) -> None:
         handler = ctx.handler_ctx
-        metric_handlers = ctx.run_ctx.train.get_by_class(handler.Metrics)
-        for m_handler in metric_handlers:
-            m_handler.insert_after_self(handler.GatherAverage(_id=''))
+        average_handlers = ctx.run_ctx.eval.get_by_class(handler.Average)
+        for a_handler in average_handlers:
+            state = a_handler.get_id().split('_')[0]
+            a_handler.insert_before_self(handler.GatherAverage(_id='gather_average_{state}'.format(state=state)))
     
     def get_device_info(self, ctx: BaseContext):
         return super().get_device_info(ctx)

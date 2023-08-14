@@ -1,6 +1,6 @@
 from torchslime.utils import bound_clip
 from torchslime.log.common import TerminalLoggerItem, LoggerItem
-from torchslime.utils.bases import NOTHING, BaseList, is_none_or_nothing
+from torchslime.utils.bases import NOTHING, BaseList, is_none_or_nothing, is_pass
 from torchslime.utils.decorators import Singleton
 from torchslime.utils.tstype import INT_SEQ_N
 from datetime import datetime
@@ -57,34 +57,34 @@ class Logger(BaseList):
     def debug(self, msg, _exec_info: dict = NOTHING, _frame_offset: int = 0):
         if self.config['debug'] is True:
             item = self.format(msg, _exec_info, _frame_offset, DEBUG_PREFIX)
-            for logger_item in self.get_list__():
+            for logger_item in self:
                 logger_item: LoggerItem
                 logger_item.debug(item)
 
     def info(self, msg, _exec_info: dict = NOTHING, _frame_offset: int = 0):
         if self.config['info'] is True:
             item = self.format(msg, _exec_info, _frame_offset, INFO_PREFIX)
-            for logger_item in self.get_list__():
+            for logger_item in self:
                 logger_item: LoggerItem
                 logger_item.info(item)
 
     def warn(self, msg, _exec_info: dict = NOTHING, _frame_offset: int = 0):
         if self.config['warn'] is True:
             item = self.format(msg, _exec_info, _frame_offset, WARN_PREFIX)
-            for logger_item in self.get_list__():
+            for logger_item in self:
                 logger_item: LoggerItem
                 logger_item.warn(item)
 
     def error(self, msg, _exec_info: dict = NOTHING, _frame_offset: int = 0):
         if self.config['error'] is True:
             item = self.format(msg, _exec_info, _frame_offset, ERROR_PREFIX)
-            for logger_item in self.get_list__():
+            for logger_item in self:
                 logger_item: LoggerItem
                 logger_item.error(item)
 
     def log(self, msg):
         if self.config['log'] is True:
-            for logger_item in self.get_list__():
+            for logger_item in self:
                 logger_item: LoggerItem
                 logger_item.log(msg)
     
@@ -190,8 +190,8 @@ class DistributedLogger(Logger):
     def _check_exec(self):
         import torch.distributed as dist
         rank = dist.get_rank()
-        return is_none_or_nothing(self.exec_ranks) is False and \
-            (self.exec_ranks is ... or rank in self.exec_ranks)
+        return not is_none_or_nothing(self.exec_ranks) and \
+            (is_pass(self.exec_ranks) or rank in self.exec_ranks)
     
     def _get_rank_info(self):
         import torch.distributed as dist

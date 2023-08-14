@@ -66,9 +66,21 @@ class Not(_ConditionOperator):
 # Condition Functions
 #
 
-def validation_step_check(ctx: BaseContext) -> bool:
-    pass
-
-
-def validation_epoch_check(ctx: BaseContext) -> bool:
-    pass
+def validation_check(ctx: BaseContext) -> bool:
+    valid_freq = ctx.run_ctx.valid_freq
+    if isinstance(valid_freq, Callable):
+        return valid_freq(ctx)
+    elif isinstance(valid_freq, list):
+        # TODO
+        pass
+    else:
+        # NOTE: current step is added by 1
+        current = ctx.iteration_ctx.current + 1
+        total = ctx.iteration_ctx.total
+        
+        valid_per = total // valid_freq
+        is_validation = current % valid_per == 0
+        is_final_validation = (total - current) < valid_per
+        is_final = current >= total
+        # the last validation is set at the last step, rather than set by ``valid_per``
+        return (is_validation and not is_final_validation) or is_final

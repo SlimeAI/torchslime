@@ -4,7 +4,7 @@ from torch import device, Tensor
 from torch.optim.optimizer import Optimizer
 from torchslime.utils.bases import NOTHING, Base, Nothing
 from torchslime.utils.tstype import NUMBER
-from typing import Any, Sequence, Union, Dict, Tuple, Callable, Type
+from typing import Any, Sequence, Union, Dict, Tuple, Callable, Type, List
 from torchslime.log import logger
 
 
@@ -133,16 +133,10 @@ class IterationContext(TempContext):
         """
         epoch context attribute placeholders(for code hints)
         """
-        # global step information
-        # total steps
-        self.total_steps: int = NOTHING
-        # the current step
-        self.current_step: int = NOTHING
-        # epoch information
-        # total epochs
-        self.total_epochs: int = NOTHING
-        # the current epoch
-        self.current_epoch: int = NOTHING
+        # iteration information (epoch/step)
+        self.current: int = NOTHING
+        self.total: int = NOTHING
+        self.start: int = 0
         # average information in one period (e.g. epoch or a specified number of steps)
         # average train metrics
         self.train_metrics: Dict = NOTHING
@@ -169,6 +163,8 @@ class RunContext(TempContext):
         # data loader
         self.train_loader = NOTHING
         self.eval_loader = NOTHING
+        # validation freq
+        self.valid_freq: Union[int, List[int], Callable[[BaseContext], bool]] = 1
         # optimizer
         self.optimizer: Optimizer = NOTHING
         # loss_func
@@ -253,9 +249,7 @@ class HookContext(TempContext):
         super().__init__(*args, **kwargs)
     
     def initialize(self):
-        self.valid_mode = 'epoch'
-        self.train_mode = 'epoch'
-        self.lr_decay_mode = 'epoch'
+        self.lr_decay_mode = 'step'
         
         # hooks
         from ..hooks.plugin import PluginContainer

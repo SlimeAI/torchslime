@@ -382,7 +382,9 @@ def is_none_or_nothing(obj) -> bool:
 from .decorators import Singleton
 
 @Singleton
-class Pass: pass
+class Pass:
+    def __str__(self) -> str:
+        return 'PASS'
 
 PASS = Pass()
 

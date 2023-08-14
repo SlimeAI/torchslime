@@ -1,15 +1,16 @@
 from torchslime.core.context import BaseContext
 from torchslime.components.registry import Registry
-from torchslime.core.handlers.conditions import validation_step_check
+from torchslime.core.handlers.conditions import validation_check
+from torchslime.log import logger
 
 build_registry = Registry('build_registry')
 
 
 class BuildHook:
 
-    def build_train(self, ctx: BaseContext): pass
-    def build_eval(self, ctx: BaseContext): pass
-    def build_predict(self, ctx: BaseContext): pass
+    def build_train(self, ctx: BaseContext) -> None: pass
+    def build_eval(self, ctx: BaseContext) -> None: pass
+    def build_predict(self, ctx: BaseContext) -> None: pass
 
     def _build_train(self, ctx: BaseContext):
         """
@@ -68,10 +69,6 @@ class VanillaBuild(BuildHook):
         handler = ctx.handler_ctx
         # build training process using handlers
         ctx.run_ctx.train = handler.Container([
-            # set global step to 0
-            handler.Lambda([
-                lambda ctx: setattr(ctx.iteration_ctx, 'current_step', 0)
-            ], _id='global_step_init'),
             # epoch iter
             handler.EpochIteration([
                 handler.Wrapper([
@@ -91,35 +88,40 @@ class VanillaBuild(BuildHook):
                         handler.Metrics(_id='metrics_train'),
                         # compute average loss value and metrics
                         handler.Average(_id='average_train'),
+                        # apply learning rate decay
+                        handler.LRDecay(_id='lr_decay'),
                         # display in console or in log files
                         handler.Display(_id='display_train')
-                    ], _id='iteration_train'),
-                    # apply learning rate decay
-                    handler.LRDecay(_id='lr_decay')
+                    ], _id='iteration_train')
                 ], wrappers=[
                     # set state to 'train'
                     handler.State(state='train', _id='state_train')
                 ], _id='wrapper_train'),
-                handler.Wrapper([
-                    # init average setting
-                    handler.AverageInit(_id='average_init_val'),
-                    # dataset iter
-                    handler.Iteration([
-                        # forward
-                        handler.Forward(_id='forward_val'),
-                        # compute loss
-                        handler.Loss(_id='loss_val'),
-                        # metrics
-                        handler.Metrics(_id='metrics_val'),
-                        # compute average loss value and metrics
-                        handler.Average(_id='average_val'),
-                        # display in console or in log files
-                        handler.Display(_id='display_val')
-                    ], _id='iteration_val')
-                ], wrappers=[
-                    # set state to 'val'
-                    handler.State(state='val', _id='state_val')
-                ], _id='wrapper_val')
+                handler.Condition([
+                    handler.Lambda([
+                        lambda _: logger.info('\nValidation starts.')
+                    ], _id='print_val_start'),
+                    handler.Wrapper([
+                        # init average setting
+                        handler.AverageInit(_id='average_init_val'),
+                        # dataset iter
+                        handler.Iteration([
+                            # forward
+                            handler.Forward(_id='forward_val'),
+                            # compute loss
+                            handler.Loss(_id='loss_val'),
+                            # metrics
+                            handler.Metrics(_id='metrics_val'),
+                            # compute average loss value and metrics
+                            handler.Average(_id='average_val'),
+                            # display in console or in log files
+                            handler.Display(_id='display_val')
+                        ], _id='iteration_val')
+                    ], wrappers=[
+                        # set state to 'val'
+                        handler.State(state='val', _id='state_val')
+                    ], _id='wrapper_val')
+                ], condition=validation_check)
             ], _id='epoch_iteration')
         ], _id='container')
         
@@ -130,10 +132,6 @@ class VanillaBuild(BuildHook):
         handler = ctx.handler_ctx
         # build evaluating process using handlers
         ctx.run_ctx.eval = handler.Container([
-            # set global step to 0
-            handler.Lambda([
-                lambda ctx: setattr(ctx.iteration_ctx, 'current_step', 0)
-            ], _id='global_step_init'),
             handler.Wrapper([
                 # clear average metrics
                 handler.AverageInit(_id='eval_average_init'),
@@ -161,10 +159,6 @@ class VanillaBuild(BuildHook):
         handler = ctx.handler_ctx
         # build predicting process using handlers
         ctx.run_ctx.predict = handler.Container([
-            # set global step to 0
-            handler.Lambda([
-                lambda ctx: setattr(ctx.iteration_ctx, 'current_step', 0)
-            ], _id='global_step_init'),
             handler.Wrapper([
                 # dataset iteration
                 handler.Iteration([
@@ -188,10 +182,6 @@ class StepBuild(VanillaBuild):
         handler = ctx.handler_ctx
         # build training process using handlers
         ctx.run_ctx.train = handler.Container([
-            # set global step to 0
-            handler.Lambda([
-                lambda ctx: setattr(ctx.iteration_ctx, 'current_step', 0)
-            ], _id='global_step_init'),
             # train
             handler.Wrapper([
                 # init average setting
@@ -216,6 +206,9 @@ class StepBuild(VanillaBuild):
                     handler.Display(_id='display_train'),
                     # validation
                     handler.Condition([
+                        handler.Lambda([
+                            lambda _: logger.info('\nValidation starts.')
+                        ], _id='print_val_start'),
                         handler.Wrapper([
                             # init average setting
                             handler.AverageInit(_id='average_init_val'),
@@ -236,7 +229,7 @@ class StepBuild(VanillaBuild):
                             # set state to 'val'
                             handler.State(state='val', _id='state_val')
                         ], _id='wrapper_val')
-                    ], condition=validation_step_check)
+                    ], condition=validation_check)
                 ], _id='iteration_train')
             ], wrappers=[
                 # set state to 'train'

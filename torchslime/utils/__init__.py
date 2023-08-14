@@ -80,6 +80,17 @@ def inf_range(start: int = 0, step: int = 1):
         value += step
 
 
+def inf_iter(__iterable: Iterable):
+    while True:
+        for item in __iterable:
+            yield item
+
+
+def inf_enumerate(__iterable: Iterable, start: int = 0):
+    for item in enumerate(inf_iter(__iterable), start=start):
+        yield item
+
+
 class TorchComm:
 
     def __init__(self) -> None:
@@ -270,7 +281,7 @@ class TorchComm:
     def _get_device(self, group=None):
         import torch.distributed as dist
         backend_dict = {
-            'nccl': torch.device('cuda', torch.cuda.current_device()),
+            'nccl': torch.device('cuda', torch.cuda.current_device()) if torch.cuda.is_available() else NOTHING,
             'mpi': torch.device('cpu'),
             'gloo': torch.device('cpu')
         }

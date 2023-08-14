@@ -11,6 +11,7 @@ from torchslime.core.context.base import BaseContext
 from torchslime.log import logger
 from torchslime.utils.bases import (
     NOTHING,
+    PASS,
     BaseList,
     Nothing,
     is_none_or_nothing,
@@ -38,7 +39,7 @@ class Handler:
         self,
         *,
         _id: Union[str, None, Nothing] = None,
-        exec_ranks: INT_SEQ_N = ...
+        exec_ranks: INT_SEQ_N = PASS
     ):
         super().__init__()
         # TODO: thread-safe and process-safe
@@ -210,7 +211,7 @@ class Handler:
             return_none=False,
             return_nothing=False,
             return_pass=False
-        ).get_list__()
+        )
 
     def __str__(self) -> str:
         class_name = self._get_class_str()

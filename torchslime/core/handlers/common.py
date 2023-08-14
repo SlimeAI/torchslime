@@ -8,8 +8,8 @@ from typing import (
     Any
 )
 from torchslime.utils import IterTool, safe_divide, type_cast, \
-    terminal as Cursor
-from torchslime.utils.bases import BaseList, is_none_or_nothing, Nothing
+    terminal as Cursor, inf_enumerate
+from torchslime.utils.bases import BaseList, is_none_or_nothing, Nothing, NOTHING, is_nothing
 from torchslime.utils.decorators import CallDebug
 from torchslime.utils.formatter import progress_format, eta_format
 from torchslime.core.context.base import BaseContext
@@ -51,7 +51,7 @@ class EmptyHandler(Handler):
 L_SEQ = Union[Callable[[BaseContext], Any], Sequence[Callable[[BaseContext], Any]]]
 
 
-class LambdaHandler(Handler, BaseList):
+class LambdaHandler(Handler, BaseList[Callable[[BaseContext], None]]):
     
     def __init__(self, _lambda: L_SEQ, *args, **kwargs):
         Handler.__init__(self, *args, **kwargs)
@@ -59,11 +59,14 @@ class LambdaHandler(Handler, BaseList):
     
     def handle(self, ctx: BaseContext):
         # execute lambda functions
-        for _lambda in self.get_list__():
+        for _lambda in self:
             _lambda(ctx)
 
 
 class EpochIterationHandler(HandlerContainer):
+    """
+    Train Only
+    """
 
     def __init__(self, handlers: Union[Iterable[Handler], None, Nothing] = None, *args, **kwargs):
         super().__init__(handlers, *args, **kwargs)
@@ -71,13 +74,13 @@ class EpochIterationHandler(HandlerContainer):
     @CallDebug(module_name='EpochIterationHandler')
     def handle(self, ctx: BaseContext):
         # context check
-        ctx.ctx_check('iteration_ctx.total_epochs', silent=False)
+        ctx.ctx_check('iteration_ctx.total', silent=False)
         # epoch loops
-        for current in range(ctx.iteration_ctx.total_epochs):
+        for current in range(ctx.iteration_ctx.start, ctx.iteration_ctx.total):
             # set current epoch to the context
-            ctx.iteration_ctx.current_epoch = current
+            ctx.iteration_ctx.current = current
             # output epoch info. TODO: change logger operation to a handler?
-            logger.log('Epoch {}\n'.format(ctx.iteration_ctx.current_epoch + 1))
+            logger.log('Epoch {}\n'.format(ctx.iteration_ctx.current + 1))
             super().handle(ctx)
 
 
@@ -103,18 +106,41 @@ class IterationHandler(HandlerContainer):
                 'current': current,  # the current step
                 'total': total  # total steps of iteration
             })
-            # current global step increases by 1
-            ctx.iteration_ctx.current_step += 1
             # carry out the subsequent actions
             super().handle(ctx)
 
 
 class StepIterationHandler(HandlerContainer):
-    # TODO: step iteration
+    """
+    Train Only
+    """
+    
     @CallDebug(module_name='StepIterationHandler')
     @TorchGrad
     def handle(self, ctx: BaseContext):
-        return super().handle(ctx)
+        loader = ctx.hook_ctx.state.get_loader(ctx)
+        # loader check
+        if is_none_or_nothing(loader):
+            logger.warn('Got empty data loader.')
+            return
+        
+        total = ctx.iteration_ctx.total
+        for (step, batch), time in IterTool(inf_enumerate(loader, start=ctx.iteration_ctx.start), time=True):
+            # current global step increases by 1
+            ctx.iteration_ctx.current = step
+
+            ctx.step_ctx.from_dict__({
+                'batch': batch,  # original batch data of the dataset
+                'progress': (step, total),  # progress of iteration(includes current step and total steps)
+                'time': time,  # time of the iter(current time)
+                'current': step,  # the current step
+                'total': total  # total steps of iteration
+            })
+            # carry out the subsequent actions
+            super().handle(ctx)
+            # break if finish
+            if step + 1 >= total:
+                break
 
 
 class ForwardHandler(Handler):
@@ -128,8 +154,8 @@ class ForwardHandler(Handler):
         ctx.ctx_check([
             'model',
             'device',
-            'run.data_parser',
-            'step'
+            'run_ctx.data_parser',
+            'step_ctx'
         ], silent=False)
         # forward
         x, y_true, extra = ctx.run_ctx.data_parser(ctx)
@@ -153,7 +179,7 @@ class LossHandler(Handler):
     @CallDebug(module_name='LossHandler')
     def handle(self, ctx: BaseContext):
         # context check
-        if ctx.ctx_check('run.loss_func') is True:
+        if ctx.ctx_check('run_ctx.loss_func') is True:
             # compute loss
             loss = ctx.run_ctx.loss_func(ctx.step_ctx.y_pred, ctx.step_ctx.y_true)
             ctx.step_ctx.loss = loss
@@ -173,7 +199,7 @@ class BackwardHandler(Handler):
     @CallDebug(module_name='BackwardHandler')
     def handle(self, ctx: BaseContext):
         # context check
-        if ctx.ctx_check(['step.loss']) is True:
+        if ctx.ctx_check(['step_ctx.loss']):
             last = ctx.step_ctx.total % ctx.run_ctx.grad_acc
             grad_acc = ctx.run_ctx.grad_acc if (ctx.step_ctx.total - ctx.step_ctx.current - 1) >= last else last
             # backward
@@ -189,7 +215,7 @@ class OptimizerHandler(HandlerContainer):
     def handle(self, ctx: BaseContext):
         # backward handler
         super().handle(ctx)
-        if ctx.ctx_check(['run.optimizer']) is True and \
+        if ctx.ctx_check(['run_ctx.optimizer']) and \
             ((ctx.step_ctx.current + 1) % ctx.run_ctx.grad_acc == 0 or ctx.step_ctx.current + 1 == ctx.step_ctx.total):
             ctx.run_ctx.optimizer.step()
             ctx.run_ctx.optimizer.zero_grad()
@@ -203,8 +229,8 @@ class MetricsHandler(Handler):
     @CallDebug(module_name='MetricsHandler')
     def handle(self, ctx: BaseContext):
         # context check
-        ctx.ctx_check('step', silent=False)
-        if ctx.ctx_check('run.metrics') is True:
+        ctx.ctx_check('step_ctx', silent=False)
+        if ctx.ctx_check('run_ctx.metrics'):
             ctx.step_ctx.metrics = ctx.run_ctx.metrics(ctx)
 
 
@@ -318,8 +344,9 @@ class AverageHandler(Handler):
 
 class DisplayHandler(Handler):
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, *args, exec_ranks=NOTHING, **kwargs):
+        exec_ranks = [0] if is_nothing(exec_ranks) else exec_ranks
+        super().__init__(*args, exec_ranks=exec_ranks, **kwargs)
     
     @CallDebug(module_name='DisplayHandler')
     def handle(self, ctx: BaseContext):
@@ -357,5 +384,5 @@ class LRDecayHandler(Handler):
     
     @CallDebug(module_name='LRDecayHandler')
     def handle(self, ctx: BaseContext):
-        if ctx.ctx_check(['run.lr_decay']) is True:
+        if ctx.ctx_check(['run_ctx.lr_decay']) is True:
             ctx.run_ctx.lr_decay.step()

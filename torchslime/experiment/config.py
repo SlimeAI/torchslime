@@ -1,4 +1,9 @@
-from typing import Any, Union, Sequence, Callable
+from typing import (
+    Any,
+    Union,
+    Iterable,
+    Callable
+)
 from torchslime.utils.bases import Base, Nothing, NOTHING, is_none_or_nothing, BaseList, is_nothing
 from torchslime.utils.decorators import ItemAttrBinding, ObjectAttrBinding, Singleton
 from torchslime.utils import is_slime_naming, xor__
@@ -93,7 +98,7 @@ class ConfigFactory(ConfigContainer):
 
     def __init__(
         self,
-        loaders: Union['ConfigLoader', Sequence['ConfigLoader'], Nothing, None] = NOTHING
+        loaders: Union[Iterable['ConfigLoader'], Nothing, None] = NOTHING
     ) -> None:
         super().__init__()
         

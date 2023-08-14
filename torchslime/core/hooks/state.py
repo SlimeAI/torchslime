@@ -51,8 +51,8 @@ class TrainState(StateHook):
 
     def get_loader(self, ctx: BaseContext) -> DataLoader:
         ctx.ctx_check('run_ctx.train_provider', silent=False)
-        # should cache to ctx.run_ctx.train_loader first
-        return ctx.run_ctx.train_provider(ctx)
+        ctx.run_ctx.train_loader = ctx.run_ctx.train_provider(ctx)
+        return ctx.run_ctx.train_loader
 
     def get_avg_loss_value_and_metrics(self, ctx: BaseContext) -> Tuple[dict, dict]:
         loss_value = ctx.run_ctx.loss_wrapper.create_copy__(ctx.iteration_ctx.train_loss_value)
@@ -92,7 +92,8 @@ class EvalState(StateHook):
 
     def get_loader(self, ctx: BaseContext) -> DataLoader:
         ctx.ctx_check('run_ctx.eval_provider', silent=False)
-        return ctx.run_ctx.eval_provider(ctx)
+        ctx.run_ctx.eval_loader = ctx.run_ctx.eval_provider(ctx)
+        return ctx.run_ctx.eval_loader
 
     def get_avg_loss_value_and_metrics(self, ctx: BaseContext) -> Tuple[dict, dict]:
         loss_value = ctx.run_ctx.loss_wrapper.create_copy__(ctx.iteration_ctx.eval_loss_value)

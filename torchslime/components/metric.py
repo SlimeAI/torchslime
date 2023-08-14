@@ -63,7 +63,6 @@ class LossWrapper(BaseDict):
     def create__(cls, loss):
         is_dict_loss = cls.is_dict_loss(loss)
         wrapper = cls(None, not is_dict_loss)
-        print(wrapper)
         wrapper.set_dict__(loss if is_dict_loss else {'loss': loss})
         return wrapper
 

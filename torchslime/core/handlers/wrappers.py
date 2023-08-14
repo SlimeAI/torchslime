@@ -20,7 +20,7 @@ class HandlerWrapper(HandlerContainer):
         **kwargs
     ):
         super().__init__(handlers, *args, **kwargs)
-        self.wrappers__: Sequence['HandlerWrapper'] = BaseList(wrappers).get_list__()
+        self.wrappers__: Sequence['HandlerWrapper'] = BaseList(wrappers)
 
     def handle(self, ctx: BaseContext):
         self.before_handle(ctx)
