@@ -1,11 +1,19 @@
-from typing import Dict, Sequence, Union, List, Callable, Any
+from typing import (
+    Dict,
+    Sequence,
+    Union,
+    List,
+    Callable,
+    Iterable,
+    Any
+)
 from torchslime.utils import IterTool, safe_divide, type_cast, \
     terminal as Cursor
-from torchslime.utils.bases import BaseList, is_none_or_nothing
+from torchslime.utils.bases import BaseList, is_none_or_nothing, Nothing
 from torchslime.utils.decorators import CallDebug
 from torchslime.utils.formatter import progress_format, eta_format
 from torchslime.core.context.base import BaseContext
-from torchslime.core.handlers import Handler, HandlerContainer, H_SEQ
+from torchslime.core.handlers import Handler, HandlerContainer
 from torchslime.log import logger
 from torch import set_grad_enabled
 from functools import wraps
@@ -57,7 +65,7 @@ class LambdaHandler(Handler, BaseList):
 
 class EpochIterationHandler(HandlerContainer):
 
-    def __init__(self, handlers: H_SEQ = None, *args, **kwargs):
+    def __init__(self, handlers: Union[Iterable[Handler], None, Nothing] = None, *args, **kwargs):
         super().__init__(handlers, *args, **kwargs)
 
     @CallDebug(module_name='EpochIterationHandler')
@@ -75,7 +83,7 @@ class EpochIterationHandler(HandlerContainer):
 
 class IterationHandler(HandlerContainer):
 
-    def __init__(self, handlers: H_SEQ = None, *args, **kwargs):
+    def __init__(self, handlers: Union[Iterable[Handler], None, Nothing] = None, *args, **kwargs):
         super().__init__(handlers, *args, **kwargs)
 
     @CallDebug(module_name='IterationHandler')
@@ -149,7 +157,7 @@ class LossHandler(Handler):
             # compute loss
             loss = ctx.run_ctx.loss_func(ctx.step_ctx.y_pred, ctx.step_ctx.y_true)
             ctx.step_ctx.loss = loss
-            ctx.step_ctx.loss_value = self._parse_float(ctx.run_ctx.loss_wrapper.get_copy(loss)).decode()
+            ctx.step_ctx.loss_value = self._parse_float(ctx.run_ctx.loss_wrapper.create_copy__(loss)).decode()
     
     def _parse_float(self, loss_dict):
         for key in loss_dict:
@@ -174,7 +182,7 @@ class BackwardHandler(Handler):
 
 class OptimizerHandler(HandlerContainer):
 
-    def __init__(self, handlers: H_SEQ = None, *args, **kwargs):
+    def __init__(self, handlers: Union[Iterable[Handler], None, Nothing] = None, *args, **kwargs):
         super().__init__(handlers, *args, **kwargs)
     
     @CallDebug(module_name='OptimizerHandler')
@@ -213,13 +221,13 @@ class GatherAverageHandler(Handler):
         torch_comm = ctx.distributed_ctx.torch_comm
         # gather data
         gathered_loss_values: List[LossWrapper] = \
-            torch_comm.all_gather_object(ctx.run_ctx.loss_wrapper.get_copy(ctx.step_ctx.loss_value))
+            torch_comm.all_gather_object(ctx.run_ctx.loss_wrapper.create_copy__(ctx.step_ctx.loss_value))
         gathered_metrics: List[Dict] = torch_comm.all_gather_object(ctx.step_ctx.metrics)
         
         """
         Compute average loss values.
         """
-        loss_value = ctx.run_ctx.loss_wrapper.get(self._avg_dict(gathered_loss_values))
+        loss_value = ctx.run_ctx.loss_wrapper.create__(self._avg_dict(gathered_loss_values))
         # if and only if all gathered loss values wrapped, is ``loss_values.__wrapped`` is True
         loss_value.set_wrapped(all(gathered_loss_value.get_wrapped() for gathered_loss_value in gathered_loss_values))
         ctx.step_ctx.loss_value = loss_value.decode()
@@ -280,7 +288,7 @@ class AverageHandler(Handler):
         """
         Get average loss and metrics.
         """
-        loss_value: LossWrapper = ctx.run_ctx.loss_wrapper.get(ctx.step_ctx.loss_value)
+        loss_value: LossWrapper = ctx.run_ctx.loss_wrapper.create__(ctx.step_ctx.loss_value)
         summary_loss_value: LossWrapper = summary['loss_value']
         # update wrapped
         summary_loss_value.set_wrapped(summary_loss_value.get_wrapped() and loss_value.get_wrapped())
@@ -288,7 +296,7 @@ class AverageHandler(Handler):
         avg_loss = self._compute_avg(
             loss_value, summary_loss_value, summary_loss_value_count
         )
-        avg_loss: LossWrapper = ctx.run_ctx.loss_wrapper.get(avg_loss)
+        avg_loss: LossWrapper = ctx.run_ctx.loss_wrapper.create__(avg_loss)
         avg_loss.set_wrapped(summary_loss_value.get_wrapped())
         
         avg_metrics = self._compute_avg(

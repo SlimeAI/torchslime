@@ -1,7 +1,11 @@
-from . import HandlerContainer, H_SEQ
+from . import HandlerContainer, Handler
 from torchslime.core.context import BaseContext
 from torchslime.utils.bases import BaseList, Nothing
-from typing import Union, Sequence
+from typing import (
+    Union,
+    Sequence,
+    Iterable
+)
 from torchslime.utils.decorators import CallDebug
 from torchslime.log import logger
 
@@ -10,7 +14,7 @@ class HandlerWrapper(HandlerContainer):
     
     def __init__(
         self,
-        handlers: H_SEQ = None,
+        handlers: Union[Iterable[Handler], None, Nothing] = None,
         *args,
         wrappers: Union['HandlerWrapper', Sequence['HandlerWrapper']] = None,
         **kwargs
@@ -36,7 +40,7 @@ class StateHandler(HandlerWrapper):
     
     def __init__(
         self,
-        handlers: H_SEQ = None,
+        handlers: Union[Iterable[Handler], None, Nothing] = None,
         *args,
         state: str = 'train',
         restore: bool = True,
@@ -45,7 +49,7 @@ class StateHandler(HandlerWrapper):
         super().__init__(handlers, *args, **kwargs)
         # get state supported
         from torchslime.core.hooks.state import state_registry
-        mode_supported = list(state_registry.get_dict__().keys())
+        mode_supported = list(state_registry.keys())
         if state not in mode_supported:
             logger.warn('An unsupported state is set, this may cause some problems.')
         self.state = state

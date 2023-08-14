@@ -166,6 +166,9 @@ class RunContext(TempContext):
         self.eval: Union[HandlerContainer, Nothing] = NOTHING
         self.predict: Union[HandlerContainer, Nothing] = NOTHING
         
+        # data loader
+        self.train_loader = NOTHING
+        self.eval_loader = NOTHING
         # optimizer
         self.optimizer: Optimizer = NOTHING
         # loss_func
@@ -206,6 +209,7 @@ class HandlerContext(TempContext):
         self.Handler = handlers.Handler
         self.Container = handlers.HandlerContainer
         self.Wrapper = handlers.HandlerWrapper
+        self.Condition = handlers.HandlerCondition
         self.EpochIteration = handlers.EpochIterationHandler
         self.Iteration = handlers.IterationHandler
         self.StepIteration = handlers.StepIterationHandler

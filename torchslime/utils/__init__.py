@@ -51,6 +51,10 @@ def safe_divide(dividend, divisor, default=0):
     return dividend / divisor if divisor != 0 else default
 
 
+def is_function_or_method(__item: Any) -> bool:
+    return isinstance(__item, (MethodType, FunctionType))
+
+
 class Count:
     """
     Count times of variable-get.
@@ -494,10 +498,6 @@ SLIME_PATTERN = re.compile('^[^_](?:.*[^_])?_{2}$')
 
 def is_slime_naming(__name: str) -> bool:
     return re.match(SLIME_PATTERN, str(__name)) is not None
-
-
-def is_function_or_method(__item: Any) -> bool:
-    return isinstance(__item, (MethodType, FunctionType))
 
 
 def xor__(__x, __y) -> bool:

@@ -3,8 +3,8 @@ import multiprocessing
 import threading
 from typing import Any, Union
 from types import FunctionType, MethodType
-from torchslime.utils.bases import NOTHING, is_none_or_nothing, is_nothing
-from torchslime.utils import get_exec_info, is_function_or_method
+from .bases import NOTHING, is_none_or_nothing, is_nothing
+from . import get_exec_info, is_function_or_method
 
 #
 # ClassWraps decorator

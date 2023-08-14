@@ -21,12 +21,14 @@ class Metric:
         result = self.get(ctx)
         if isinstance(result, Dict):
             return result
+        # TODO: NUMBER_T restriction should be changed, and tensor, numpy array, etc. should be allowed.
         elif isinstance(result, NUMBER_T):
             if self.name is None:
                 # TODO: thread-safe and process-safe
                 # use default name
                 self.name = 'metric_{}'.format(self._metric_id_gen)
             return { self.name: result }
+        # TODO: warn
         return NOTHING
 
 
@@ -34,7 +36,7 @@ class Metric:
 M_SEQ = Union[Metric, Sequence[Metric]]
 
 
-class MetricContainer(Metric, BaseList):
+class MetricContainer(Metric, BaseList[Metric]):
 
     def __init__(self, metrics: M_SEQ = None):
         Metric.__init__(self)
@@ -55,35 +57,35 @@ class LossWrapper(BaseDict):
 
     def __init__(self, loss_dict: Dict, wrapped: bool):
         super().__init__(loss_dict)
-        self.__wrapped = wrapped
+        self.__wrapped: bool = wrapped
 
     @classmethod
-    def get(cls, loss):
+    def create__(cls, loss):
         is_dict_loss = cls.is_dict_loss(loss)
-        return cls(
-            loss if is_dict_loss is True else {'loss': loss},
-            not is_dict_loss
-        )
+        wrapper = cls(None, not is_dict_loss)
+        print(wrapper)
+        wrapper.set_dict__(loss if is_dict_loss else {'loss': loss})
+        return wrapper
 
     @classmethod
-    def get_copy(cls, loss):
-        return cls.get(dict(loss) if cls.is_dict_loss(loss) is True else loss)
+    def create_copy__(cls, loss):
+        return cls.create__(dict(loss) if cls.is_dict_loss(loss) else loss)
 
     @classmethod
-    def get_empty(cls):
+    def create_empty__(cls):
         return cls({}, True)
 
     @staticmethod
-    def is_dict_loss(loss):
-        return isinstance(loss, (dict, Dict))
+    def is_dict_loss(loss) -> bool:
+        return isinstance(loss, dict)
 
     def decode(self):
-        return self.get_dict__().get('loss', NOTHING) if self.__wrapped is True else self.get_dict__()
+        return self.get('loss', NOTHING) if self.__wrapped is True else self.get_dict__()
     
     def set_wrapped(self, wrapped: bool):
         self.__wrapped = wrapped
     
-    def get_wrapped(self):
+    def get_wrapped(self) -> bool:
         return self.__wrapped
 
 
@@ -112,7 +114,7 @@ class LossReductionFactory:
 
 
 def _mean_loss_reduction(ctx: BaseContext):
-    loss_tensors = ctx.run_ctx.loss_wrapper.get(ctx.step_ctx.loss).values()
+    loss_tensors = ctx.run_ctx.loss_wrapper.create__(ctx.step_ctx.loss).values()
     result = safe_divide(sum(loss_tensors), len(loss_tensors), NOTHING)
     if is_nothing(result):
         logger.warn('Mean loss reduction got NOTHING. This may be caused by one of the following reasons:\n'
@@ -122,7 +124,7 @@ def _mean_loss_reduction(ctx: BaseContext):
 
 
 def _sum_loss_reduction(ctx: BaseContext):
-    loss_tensors = ctx.run_ctx.loss_wrapper.get(ctx.step_ctx.loss).values()
+    loss_tensors = ctx.run_ctx.loss_wrapper.create__(ctx.step_ctx.loss).values()
     result = sum(loss_tensors) if len(loss_tensors) > 0 else NOTHING
     if is_nothing(result):
         logger.warn('Sum loss reduction got NOTHING. This may be caused by one of the following reasons:\n'
@@ -134,7 +136,7 @@ def _sum_loss_reduction(ctx: BaseContext):
 def _weighted_loss_reduction(weight: dict):
     _weight = dict(weight)
     def _reduction(ctx: BaseContext):
-        loss_dict = ctx.run_ctx.loss_wrapper.get(ctx.step_ctx.loss)
+        loss_dict = ctx.run_ctx.loss_wrapper.create__(ctx.step_ctx.loss)
         # check keys intersection
         loss_keys = set(loss_dict.keys())
         weight_keys = set(_weight.keys())

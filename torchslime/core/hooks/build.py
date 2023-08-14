@@ -1,5 +1,6 @@
 from torchslime.core.context import BaseContext
 from torchslime.components.registry import Registry
+from torchslime.core.handlers.conditions import validation_step_check
 
 build_registry = Registry('build_registry')
 
@@ -117,7 +118,7 @@ class VanillaBuild(BuildHook):
                     ], _id='iteration_val')
                 ], wrappers=[
                     # set state to 'val'
-                    handler.State('val', _id='state_val')
+                    handler.State(state='val', _id='state_val')
                 ], _id='wrapper_val')
             ], _id='epoch_iteration')
         ], _id='container')
@@ -151,7 +152,7 @@ class VanillaBuild(BuildHook):
                 ], _id='eval_iteration')
             ], wrappers=[
                 # set state to 'eval'
-                handler.State('eval', _id='eval_state')
+                handler.State(state='eval', _id='eval_state')
             ], _id='wrapper_eval')
         ], _id='eval_container')
     
@@ -174,7 +175,7 @@ class VanillaBuild(BuildHook):
                 ], _id='predict_iteration')
             ], wrappers=[
                 # set state to 'predict'
-                handler.State('predict', _id='predict_state')
+                handler.State(state='predict', _id='predict_state')
             ], _id='wrapper_predict')
         ], _id='predict_container')
 
@@ -191,6 +192,7 @@ class StepBuild(VanillaBuild):
             handler.Lambda([
                 lambda ctx: setattr(ctx.iteration_ctx, 'current_step', 0)
             ], _id='global_step_init'),
+            # train
             handler.Wrapper([
                 # init average setting
                 handler.AverageInit(_id='average_init_train'),
@@ -208,32 +210,34 @@ class StepBuild(VanillaBuild):
                     handler.Metrics(_id='metrics_train'),
                     # compute average loss value and metrics
                     handler.Average(_id='average_train'),
+                    # apply learning rate decay
+                    handler.LRDecay(_id='lr_decay'),
                     # display in console or in log files
                     handler.Display(_id='display_train'),
                     # validation
-                    handler.Wrapper([
-                        # init average setting
-                        handler.AverageInit(_id='average_init_val'),
-                        # dataset iter
-                        handler.Iteration([
-                            # forward
-                            handler.Forward(_id='forward_val'),
-                            # compute loss
-                            handler.Loss(_id='loss_val'),
-                            # metrics
-                            handler.Metrics(_id='metrics_val'),
-                            # compute average loss value and metrics
-                            handler.Average(_id='average_val'),
-                            # display in console or in log files
-                            handler.Display(_id='display_val')
-                        ], _id='iteration_val')
-                    ], wrappers=[
-                        # set state to 'val'
-                        handler.State('val', _id='state_val')
-                    ], _id='wrapper_val')
-                ], _id='iteration_train'),
-                # apply learning rate decay
-                handler.LRDecay(_id='lr_decay')
+                    handler.Condition([
+                        handler.Wrapper([
+                            # init average setting
+                            handler.AverageInit(_id='average_init_val'),
+                            # dataset iter
+                            handler.Iteration([
+                                # forward
+                                handler.Forward(_id='forward_val'),
+                                # compute loss
+                                handler.Loss(_id='loss_val'),
+                                # metrics
+                                handler.Metrics(_id='metrics_val'),
+                                # compute average loss value and metrics
+                                handler.Average(_id='average_val'),
+                                # display in console or in log files
+                                handler.Display(_id='display_val')
+                            ], _id='iteration_val')
+                        ], wrappers=[
+                            # set state to 'val'
+                            handler.State(state='val', _id='state_val')
+                        ], _id='wrapper_val')
+                    ], condition=validation_step_check)
+                ], _id='iteration_train')
             ], wrappers=[
                 # set state to 'train'
                 handler.State(state='train', _id='state_train')

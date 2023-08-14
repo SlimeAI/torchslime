@@ -28,17 +28,17 @@ class Registry(BaseDict):
 
         def decorator(cls):
             nonlocal name
-            if is_none_or_nothing(name) is True:
+            if is_none_or_nothing(name):
                 name = getattr(cls, '__name__', NOTHING)
-            if name in self.get_dict__() and strict is True:
+            if name in self and strict:
                 raise ValueError('Name "{name}" already in registry "{namespace}".'.format(
                     name=name,
                     namespace=self.get_namespace()
                 ))
-            self.get_dict__()[name] = cls
+            self[name] = cls
             return cls
         
-        if is_none_or_nothing(_cls) is True:
+        if is_none_or_nothing(_cls):
             return decorator
         
         return decorator(cls=_cls)
@@ -57,16 +57,16 @@ class Registry(BaseDict):
                 self.register(_cls=cls, name=name, strict=strict)
             return cls
         
-        if is_none_or_nothing(_cls) is True:
+        if is_none_or_nothing(_cls):
             return decorator
         
         return decorator(cls=_cls)
 
     def get(self, __name):
-        return self.get_dict__().get(__name)
+        return super().get(__name)
 
     def get_namespace(self):
         return self.__namespace
 
     def _get_strict(self, strict: Union[bool, Nothing, None]):
-        return strict if is_none_or_nothing(strict) is False else self.strict
+        return strict if not is_none_or_nothing(strict) else self.strict

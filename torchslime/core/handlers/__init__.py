@@ -1,8 +1,24 @@
-from typing import Sequence, Union, List, Callable, Iterable, Tuple
+from typing import (
+    Sequence,
+    Union,
+    List,
+    Callable,
+    Iterable,
+    Tuple
+)
 from torchslime.utils import Count, terminal as Cursor
 from torchslime.core.context.base import BaseContext
 from torchslime.log import logger
-from torchslime.utils.bases import NOTHING, BaseList, Nothing, is_none_or_nothing, is_nothing
+from torchslime.utils.bases import (
+    NOTHING,
+    BaseList,
+    Nothing,
+    is_none_or_nothing,
+    is_nothing,
+    # must import ``SupportsIndex`` from ``torchslime.utils.bases`` 
+    # to be compatible with different Python versions
+    SupportsIndex
+)
 from torchslime.utils.tstype import INT_SEQ_N
 from torchslime.components.registry import Registry
 from torchslime.components.exception import HandlerException, HandlerTerminate
@@ -46,7 +62,7 @@ class Handler:
             raise HandlerException(exception_handler=self, exception=e)
     
     def replace_self(self, handler: 'Handler') -> bool:
-        if self._verify_parent() is not True:
+        if not self._verify_parent():
             return False
         parent = self.get_parent()
         index = parent.index(self)
@@ -54,7 +70,7 @@ class Handler:
         return True
     
     def insert_before_self(self, handler: 'Handler') -> bool:
-        if self._verify_parent() is not True:
+        if not self._verify_parent():
             return False
         parent = self.get_parent()
         index = parent.index(self)
@@ -62,7 +78,7 @@ class Handler:
         return True
     
     def insert_after_self(self, handler: 'Handler') -> bool:
-        if self._verify_parent() is not True:
+        if not self._verify_parent():
             return False
         parent = self.get_parent()
         index = parent.index(self)
@@ -70,7 +86,7 @@ class Handler:
         return True
     
     def remove_self(self) -> bool:
-        if self._verify_parent() is not True:
+        if not self._verify_parent():
             return False
         parent = self.get_parent()
         parent.remove(self)
@@ -193,7 +209,7 @@ class Handler:
             target_handlers,
             return_none=False,
             return_nothing=False,
-            return_ellipsis=False
+            return_pass=False
         ).get_list__()
 
     def __str__(self) -> str:
@@ -245,26 +261,30 @@ def _terminate_wrap(item) -> str:
     return Cursor.single_color('g') + item + '  ' + _terminate_indicator + Cursor.single_color('w')
 
 
-# handler or sequence of handlers
-H_SEQ = Union[Handler, Sequence[Handler]]
+class HandlerContainer(Handler, BaseList[Handler]):
 
-
-class HandlerContainer(Handler, BaseList):
-
-    def __init__(self, handlers: H_SEQ = None, *args, **kwargs):
+    def __init__(
+        self,
+        handlers: Union[Iterable[Handler], None, Nothing] = None,
+        *args,
+        **kwargs
+    ):
         Handler.__init__(self, *args, **kwargs)
-        # remove None and NOTHING
+        # remove ``None`` and ``NOTHING`` in ``handlers``
+        handlers: List[Handler] = list(filter(
+            lambda item: not is_none_or_nothing(item),
+            handlers if isinstance(handlers, Iterable) and not is_none_or_nothing(handlers) else []
+        ))
         BaseList.__init__(
             self,
-            list(filter(lambda item: is_none_or_nothing(item) is not True, handlers if isinstance(handlers, (list, tuple)) else []))
+            handlers
         )
         # set parent
-        for handler in self.get_list__():
-            handler: Handler
+        for handler in self:
             handler.set_parent(self)
     
     def handle(self, ctx: BaseContext):
-        for handler in self.get_list__():
+        for handler in self:
             handler(ctx)
     
     def get_by_id(self, _id: str, result: Union[list, None, Nothing] = NOTHING) -> 'Handler':
@@ -273,7 +293,6 @@ class HandlerContainer(Handler, BaseList):
         
         super().get_by_id(_id, result)
         for handler in self:
-            handler: Handler
             handler.get_by_id(_id, result)
         return NOTHING if len(result) < 1 else result[0]
     
@@ -283,7 +302,6 @@ class HandlerContainer(Handler, BaseList):
         
         super().get_by_class(__class, result)
         for handler in self:
-            handler: Handler
             handler.get_by_class(__class, result)
         return result
 
@@ -293,62 +311,43 @@ class HandlerContainer(Handler, BaseList):
         
         super().get_by_filter(__function, result)
         for handler in self:
-            handler: Handler
             handler.get_by_filter(__function, result)
         return result
     
-    def append(self, handler: Handler):
-        result = super().append(handler)
-        handler.set_parent(self)
-        return result
-    
-    def clear(self):
-        for handler in self:
-            handler: Handler
-            handler.del_parent()
-        return super().clear()
-    
-    def extend(self, handlers: Iterable[Handler]):
-        result = super().extend(handlers)
-        for handler in handlers:
-            handler.set_parent(self)
-        return result
-    
-    def insert(self, __index, handler: Handler):
-        result = super().insert(__index, handler)
-        handler.set_parent(self)
-        return result
-    
-    def pop(self, __index=...):
-        item: Handler = super().pop(__index)
-        item.del_parent()
-        return item
-    
-    def remove(self, handler: Handler):
-        result = super().remove(handler)
-        handler.del_parent()
-        return result
-    
-    def __setitem__(self, __i_s, handler: Union[Handler, Iterable[Handler]]):
-        # TODO: del_parent to the replaced handlers
-        result = super().__setitem__(__i_s, handler)
-        if isinstance(__i_s, slice):
-            for _handler in handler:
-                _handler: Handler
+    def __setitem__(
+        self,
+        __key: Union[SupportsIndex, slice],
+        __value: Union[Handler, Iterable[Handler]]
+    ) -> None:
+        replaced = self[__key]
+        result = super().__setitem__(__key, __value)
+        # delete parents of the replaced handlers and set parents to the replacing handlers
+        if isinstance(__key, slice):
+            for _replaced in replaced:
+                _replaced.del_parent()
+            
+            for _handler in __value:
                 _handler.set_parent(self)
         else:
-            handler.set_parent(self)
+            replaced.del_parent()
+            __value.set_parent(self)
         return result
     
-    def __delitem__(self, __i) -> None:
-        handler: Union[Handler, Iterable[Handler]] = super().__getitem__(__i)
-        if isinstance(__i, slice):
-            for _handler in handler:
-                _handler: Handler
+    def __delitem__(
+        self,
+        __key: Union[SupportsIndex, slice]
+    ) -> None:
+        __value = self[__key]
+        if isinstance(__key, slice):
+            for _handler in __value:
                 _handler.del_parent()
         else:
-            handler.del_parent()
-        return super().__delitem__(__i)
+            __value.del_parent()
+        return super().__delitem__(__key)
+    
+    def insert(self, __index: SupportsIndex, __handler: Handler) -> None:
+        __handler.set_parent(self)
+        return super().insert(__index, __handler)
     
     def _get_display_list(self, indent=0, *, target_handlers: OPTIONAL_HANDLER = NOTHING, wrap_func: Callable = NOTHING) -> list:
         display_list = []
@@ -361,7 +360,7 @@ class HandlerContainer(Handler, BaseList):
         # prefix
         display_list.append(indent_str + prefix_content)
         # handler
-        for handler in self.get_list__():
+        for handler in self:
             display_list.extend(handler._get_display_list(indent + 1, target_handlers=target_handlers, wrap_func=wrap_func))
         # suffix
         display_list.append(indent_str + '], ' + self._get_attr_str() + ')')
@@ -370,3 +369,4 @@ class HandlerContainer(Handler, BaseList):
 
 from .common import *
 from .wrappers import *
+from .conditions import *

@@ -1,8 +1,32 @@
 from torchslime.utils import dict_merge
 import traceback
-from typing import Any, Dict, Union
+import sys
+from typing import (
+    Any,
+    Dict,
+    List,
+    Tuple,
+    Union,
+    MutableSequence,
+    MutableMapping,
+    Iterable,
+    Iterator,
+    TypeVar,
+    Generic,
+    overload
+)
 import threading
 import multiprocessing
+
+if sys.version_info >= (3, 8):
+    from typing import SupportsIndex
+else:
+    from typing_extensions import SupportsIndex
+
+# TypeVars
+_T = TypeVar('_T')
+_KT = TypeVar('_KT')
+_VT = TypeVar('_VT')
 
 
 class Base:
@@ -98,53 +122,139 @@ class Base:
             return
 
 
-class BaseList:
+class BaseList(MutableSequence[_T], Generic[_T]):
 
-    def __init__(self, list_like: Any = None):
-        if is_none_or_nothing(list_like):
-            self.__list = []
+    def __init__(
+        self,
+        __list_like: Union[Iterable[_T], None, 'Nothing'] = None
+    ):
+        if is_none_or_nothing(__list_like):
+            self.__list: List[_T] = []
         else:
-            # TODO: Iterable WARNING, BaseList only supports list or tuple expansion, other iterable items will be processed as ``[item]``
-            self.__list = list(list_like) if isinstance(list_like, (list, tuple)) else [list_like]
+            self.__list: List[_T] = list(__list_like)
 
     @classmethod
     def create__(
         cls,
-        list_like: Any = None,
+        __list_like: Union[_T, Iterable[_T], None, 'Nothing', 'Pass'] = None,
+        *,
+        strict = False,
         return_none: bool = True,
         return_nothing: bool = True,
-        return_ellipsis: bool = True
+        return_pass: bool = True
     ):
+        # TODO: update document
         """
         If the ``list_like`` object is ``None``, ``NOTHING`` or ``...`` and the corresponding return config is True, then
         return itself, otherwise return ``BaseList`` object.
         WARNING: This changes the default behavior of ``BaseList``, which creates an empty list when the list_like object is 
         ``None`` or ``NOTHING`` and creates ``[...]`` when the list_like object is ``...``.
         """
-        if (is_nothing(list_like) and return_nothing is True) or \
-            (list_like is None and return_none is True) or \
-            (list_like is ... and return_ellipsis is True):
-            return list_like
+        if (is_nothing(__list_like) and return_nothing is True) or \
+                (__list_like is None and return_none is True) or \
+                (is_pass(__list_like) and return_pass is True):
+            # return the item itself
+            __list_like: Union[None, Nothing, Pass]
+            return __list_like
+        elif isinstance(__list_like, Iterable) or is_none_or_nothing(__list_like):
+            return cls(__list_like)
+        
+        if strict:
+            raise TypeError('BaseList - ``strict`` is True and ``{}`` object is not iterable'.format(type(__list_like)))
         else:
-            return cls(list_like)
+            return cls([__list_like])
 
-    def set_list__(self, _list: list):
-        self.__list = _list
+    def set_list__(self, __list: List[_T]) -> None:
+        self.__list = __list
 
-    def get_list__(self):
+    def get_list__(self) -> List[_T]:
         return self.__list
+    
+    @overload
+    def __getitem__(self, __i: SupportsIndex) -> _T: pass
+    @overload
+    def __getitem__(self, __s: slice) -> List[_T]: pass
+    @overload
+    def __setitem__(self, __key: SupportsIndex, __value: _T) -> None: pass
+    @overload
+    def __setitem__(self, __key: slice, __value: Iterable[_T]) -> None: pass
+    @overload
+    def __delitem__(self, __key: Union[SupportsIndex, slice]) -> None: pass
+    @overload
+    def insert(self, __index: SupportsIndex, __object: _T) -> None: pass
+    
+    def __getitem__(self, __key):
+        return self.__list[__key]
+    
+    def __setitem__(self, __key, __value):
+        self.__list[__key] = __value
+    
+    def __delitem__(self, __key):
+        del self.__list[__key]
+    
+    def __len__(self):
+        return len(self.__list)
+    
+    def insert(self, __index, __object):
+        return self.__list.insert(__index, __object)
+    
+    def __str__(self) -> str:
+        return '{classname}<{_id}>({_list})'.format(
+            classname=str(self.__class__.__name__),
+            _id=str(hex(id(self))),
+            _list=str(self.__list)
+        )
 
 
-class BaseDict:
+class BaseDict(MutableMapping[_KT, _VT], Generic[_KT, _VT]):
 
-    def __init__(self, _dict: Union[Dict, None, 'Nothing']):
-        self.__dict = _dict if isinstance(_dict, (dict, Dict)) else {}
+    def __init__(
+        self,
+        __dict_like: Union[Dict[_KT, _VT], Iterable[Tuple[_KT, _VT]], None, 'Nothing'] = None,
+        **kwargs
+    ):
+        if is_none_or_nothing(__dict_like):
+            __dict_like = {}    
+        self.__dict: Dict[_KT, _VT] = dict(__dict_like, **kwargs)
 
-    def set_dict__(self, _dict: dict):
-        self.__dict = _dict
+    def set_dict__(self, __dict: Dict[_KT, _VT]) -> None:
+        self.__dict = __dict
 
-    def get_dict__(self):
+    def get_dict__(self) -> Dict[_KT, _VT]:
         return self.__dict
+    
+    @overload
+    def __getitem__(self, __key: _KT) -> _VT: pass
+    @overload
+    def __setitem__(self, __key: _KT, __value: _VT) -> None: pass
+    @overload
+    def __delitem__(self, __key: _KT) -> None: pass
+    @overload
+    def __iter__(self) -> Iterator[_KT]: pass
+    @overload
+    def __len__(self) -> int: pass
+    
+    def __getitem__(self, __key):
+        return self.__dict[__key]
+    
+    def __setitem__(self, __key, __value):
+        self.__dict[__key] = __value
+    
+    def __delitem__(self, __key):
+        del self.__dict[__key]
+    
+    def __iter__(self):
+        return iter(self.__dict)
+    
+    def __len__(self):
+        return len(self.__dict)
+    
+    def __str__(self) -> str:
+        return '{classname}<{_id}>({_dict})'.format(
+            classname=str(self.__class__.__name__),
+            _id=str(hex(id(self))),
+            _dict=str(self.__dict)
+        )
 
 #
 # Nothing class, NOTHING instance and related operations.
@@ -250,7 +360,7 @@ class Nothing(metaclass=_NothingSingleton):
 
 NOTHING = Nothing()
 
-def is_nothing(obj):
+def is_nothing(obj) -> bool:
     """Check whether an object is an instance of 'Nothing'
     Args:
         obj (Any): object
@@ -259,7 +369,7 @@ def is_nothing(obj):
     """
     return NOTHING is obj
 
-def is_none_or_nothing(obj):
+def is_none_or_nothing(obj) -> bool:
     """Check whether an object is None, Nothing or neither.
     Args:
         obj (Any): object
@@ -267,3 +377,14 @@ def is_none_or_nothing(obj):
         bool: check result.
     """
     return obj is None or is_nothing(obj)
+
+
+from .decorators import Singleton
+
+@Singleton
+class Pass: pass
+
+PASS = Pass()
+
+def is_pass(obj) -> bool:
+    return obj is PASS
