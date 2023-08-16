@@ -1,10 +1,9 @@
-from torchslime.utils import TorchComm
 from torch.nn import Module
 from torch import device, Tensor
 from torch.optim.optimizer import Optimizer
 from torchslime.utils.bases import NOTHING, Base, Nothing
 from torchslime.utils.tstype import NUMBER
-from typing import Any, Sequence, Union, Dict, Tuple, Callable, Type, List
+from typing import Any, Sequence, Union, Dict, Tuple, Callable, List
 from torchslime.log import logger
 
 
@@ -25,21 +24,17 @@ class BaseContext(Base):
         # model
         self.model: Module = NOTHING
         # run context
-        self.run_ctx: RunContext = RunContext(ctx=self)
+        self.run_ctx: RunContext = RunContext()
         # information about iteration
-        self.iteration_ctx: IterationContext = IterationContext(ctx=self)
+        self.iteration_ctx: IterationContext = IterationContext()
         # information in one step
-        self.step_ctx: StepContext = StepContext(ctx=self)
+        self.step_ctx: StepContext = StepContext()
         # handler context
-        self.handler_ctx: HandlerContext = HandlerContext(ctx=self)
+        self.handler_ctx: HandlerContext = HandlerContext()
         # custom context
-        self.custom_ctx: CustomContext = CustomContext(ctx=self)
-        # inner context
-        self.inner_ctx: InnerContext = InnerContext(ctx=self)
+        self.custom_ctx: CustomContext = CustomContext()
         # hook context
-        self.hook_ctx: HookContext = HookContext(ctx=self)
-        # distributed context
-        self.distributed_ctx: DistributedContext = DistributedContext(ctx=self)
+        self.hook_ctx: HookContext = HookContext()
 
     @property
     def model(self):
@@ -78,10 +73,8 @@ class TempContext(Base):
     Args:
         Base (_type_): _description_
     """
-    def __init__(self, ctx: BaseContext = NOTHING):
+    def __init__(self):
         super().__init__()
-        # get context
-        self.ctx = ctx
         # initialize
         self.initialize()
     
@@ -91,9 +84,6 @@ class TempContext(Base):
 
 class StepContext(TempContext):
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-    
     def initialize(self):
         """
         step context attribute placeholders(for code hints)
@@ -107,9 +97,9 @@ class StepContext(TempContext):
         # metrics of the step
         self.metrics: Dict = NOTHING
         # loss tensor(s) of the step
-        self.loss: Union[Tensor, Dict[Any, Tensor], Nothing] = NOTHING
+        self.loss: Union[Dict[str, Tensor], Nothing] = NOTHING
         # loss value(s) of the step
-        self.loss_value: Union[float, Dict[Any, float], Nothing] = NOTHING
+        self.loss_values: Union[Dict[str, float], Nothing] = NOTHING
         # extra data passed to the context
         self.extra: Any = NOTHING
         # current iteration step
@@ -126,9 +116,6 @@ class StepContext(TempContext):
 
 class IterationContext(TempContext):
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
     def initialize(self):
         """
         epoch context attribute placeholders(for code hints)
@@ -138,21 +125,19 @@ class IterationContext(TempContext):
         self.total: int = NOTHING
         self.start: int = 0
         # average information in one period (e.g. epoch or a specified number of steps)
+        from torchslime.components.metric import MeterDict
         # average train metrics
-        self.train_metrics: Dict = NOTHING
+        self.train_metrics: MeterDict = MeterDict()
         # average eval metrics
-        self.eval_metrics: Dict = NOTHING
+        self.eval_metrics: MeterDict = MeterDict()
         # average train loss value(s)
-        self.train_loss_value: Union[float, Dict[Any, float], Nothing] = NOTHING
+        self.train_loss_values: MeterDict = MeterDict()
         # average eval loss value(s)
-        self.eval_loss_value: Union[float, Dict[Any, float], Nothing] = NOTHING
+        self.eval_loss_values: MeterDict = MeterDict()
 
 
 class RunContext(TempContext):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-    
+   
     def initialize(self):
         # handler containers that define the process of training, evaluating and predicting.
         from torchslime.core.handlers import HandlerContainer
@@ -168,7 +153,8 @@ class RunContext(TempContext):
         # optimizer
         self.optimizer: Optimizer = NOTHING
         # loss_func
-        self.loss_func: Module = NOTHING
+        from torchslime.components.metric import LossFuncContainer
+        self.loss_func: Union[LossFuncContainer, Nothing] = NOTHING
         # gradient accumulation
         self.grad_acc: int = 1
         # learning rate
@@ -185,10 +171,7 @@ class RunContext(TempContext):
         self.data_parser: DataParser = IndexParser()
         # metric container
         from torchslime.components.metric import MetricContainer
-        self.metrics: MetricContainer = NOTHING
-        # loss wrapper
-        from torchslime.components.metric import LossWrapper
-        self.loss_wrapper: Type[LossWrapper] = LossWrapper
+        self.metrics: Union[MetricContainer, Nothing] = NOTHING
         # loss reduction func
         from torchslime.components.metric import LossReductionFactory
         self.loss_reduction: Callable[[BaseContext], Tensor] = LossReductionFactory.get('mean')
@@ -196,9 +179,6 @@ class RunContext(TempContext):
 
 class HandlerContext(TempContext):
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-    
     def initialize(self):
         from torchslime.core import handlers
         # handler class
@@ -214,8 +194,8 @@ class HandlerContext(TempContext):
         self.Backward = handlers.BackwardHandler
         self.Optimizer = handlers.OptimizerHandler
         self.Metrics = handlers.MetricsHandler
-        self.AverageInit = handlers.AverageInitHandler
-        self.Average = handlers.AverageHandler
+        self.MeterInit = handlers.MeterInitHandler
+        self.Meter = handlers.MeterHandler
         self.GatherAverage = handlers.GatherAverageHandler
         self.Display = handlers.DisplayHandler
         self.State = handlers.StateHandler
@@ -225,29 +205,13 @@ class HandlerContext(TempContext):
 
 class CustomContext(TempContext):
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-    
     def initialize(self):
         self.__dict__.clear()
         logger.debug('Custom context has been initialized.')
 
 
-class InnerContext(TempContext):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-    
-    def initialize(self):
-        self.__dict__.clear()
-        logger.debug('Inner context has been initialized.')
-
-
 class HookContext(TempContext):
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-    
     def initialize(self):
         self.lr_decay_mode = 'step'
         
@@ -260,24 +224,3 @@ class HookContext(TempContext):
         self.build: BuildHook = NOTHING
         from ..hooks.state import StateHook
         self.state: StateHook = NOTHING
-
-
-class DistributedContext(TempContext):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-    
-    def initialize(self):
-        self.torch_comm: TorchComm = TorchComm()
-
-    def is_ready(self):
-        """
-        Check whether the torch distributed settings are ready.
-        """
-        self.ctx.hook_ctx.launch.is_distributed_ready()
-
-    def get_rank(self, group=None):
-        self.ctx.hook_ctx.launch.get_rank(group=group)
-    
-    def get_world_size(self, group=None):
-        self.ctx.hook_ctx.launch.get_world_size(group=group)

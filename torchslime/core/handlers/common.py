@@ -5,11 +5,13 @@ from typing import (
     List,
     Callable,
     Iterable,
-    Any
+    Any,
+    Mapping
 )
 from torchslime.utils import IterTool, safe_divide, type_cast, \
     terminal as Cursor, inf_enumerate
 from torchslime.utils.bases import BaseList, is_none_or_nothing, Nothing, NOTHING, is_nothing
+from torchslime.components.metric import MeterDict
 from torchslime.utils.decorators import CallDebug
 from torchslime.utils.formatter import progress_format, eta_format
 from torchslime.core.context.base import BaseContext
@@ -181,9 +183,9 @@ class LossHandler(Handler):
         # context check
         if ctx.ctx_check('run_ctx.loss_func') is True:
             # compute loss
-            loss = ctx.run_ctx.loss_func(ctx.step_ctx.y_pred, ctx.step_ctx.y_true)
+            loss = ctx.run_ctx.loss_func(ctx)
             ctx.step_ctx.loss = loss
-            ctx.step_ctx.loss_value = self._parse_float(ctx.run_ctx.loss_wrapper.create_copy__(loss)).decode()
+            ctx.step_ctx.loss_values = self._parse_float(dict(loss))
     
     def _parse_float(self, loss_dict):
         for key in loss_dict:
@@ -241,105 +243,40 @@ class GatherAverageHandler(Handler):
     
     @CallDebug(module_name='GatherAverageHandler')
     def handle(self, ctx: BaseContext):
-        from torchslime.core.context import Context
-        from torchslime.components.metric import LossWrapper
-        ctx: Context
-        torch_comm = ctx.distributed_ctx.torch_comm
+        dist_comm = ctx.hook_ctx.launch.dist_comm
         # gather data
-        gathered_loss_values: List[LossWrapper] = \
-            torch_comm.all_gather_object(ctx.run_ctx.loss_wrapper.create_copy__(ctx.step_ctx.loss_value))
-        gathered_metrics: List[Dict] = torch_comm.all_gather_object(ctx.step_ctx.metrics)
+        gathered_loss_values: List[Dict] = dist_comm.all_gather_object(ctx.step_ctx.loss_values)
+        gathered_metrics: List[Dict] = dist_comm.all_gather_object(ctx.step_ctx.metrics)
         
-        """
-        Compute average loss values.
-        """
-        loss_value = ctx.run_ctx.loss_wrapper.create__(self._avg_dict(gathered_loss_values))
-        # if and only if all gathered loss values wrapped, is ``loss_values.__wrapped`` is True
-        loss_value.set_wrapped(all(gathered_loss_value.get_wrapped() for gathered_loss_value in gathered_loss_values))
-        ctx.step_ctx.loss_value = loss_value.decode()
-        
-        """
-        Compute average metrics.
-        """
+        # Compute average loss values and metrics.
+        ctx.step_ctx.loss_values = self._avg_dict(gathered_loss_values)
         ctx.step_ctx.metrics = self._avg_dict(gathered_metrics)
     
-    def _avg_dict(self, dict_list) -> dict:
-        item_dict = {}
-        item_count = {}
-        # iter every dict
-        for _dict in dict_list:
-            # iter every dict item
-            for key, value in _dict.items():
-                # sum dict value
-                item_dict.setdefault(key, 0)
-                item_dict[key] += value
-                # count occurrences of dict items
-                item_count.setdefault(key, 0)
-                item_count[key] += 1
-        # compute average values
-        for key, value in item_dict.items():
-            item_dict[key] = safe_divide(value, item_count.get(key, 0))
-        return item_dict
+    def _avg_dict(self, dicts: List[Mapping]):
+        meter_dict = MeterDict()
+        for _dict in dicts:
+            meter_dict(_dict)
+        return meter_dict.get__('mean')
 
 
-class AverageInitHandler(Handler):
-    
-    # inner context key
-    INNER_KEY = 'AVERAGE_INNER'
+class MeterInitHandler(Handler):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
     
-    @CallDebug(module_name='AverageInitHandler')
+    @CallDebug(module_name='MeterInitHandler')
     def handle(self, ctx: BaseContext):
-        ctx.hook_ctx.state.init_avg_inner_ctx(ctx, self.INNER_KEY)
-        # reset avg info
-        ctx.hook_ctx.state.clear_avg_info(ctx, self.INNER_KEY)
+        ctx.hook_ctx.state.init_meter(ctx)
 
 
-class AverageHandler(Handler):
-
-    # inner context key
-    INNER_KEY = 'AVERAGE_INNER'
+class MeterHandler(Handler):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
     
-    @CallDebug(module_name='AverageHandler')
+    @CallDebug(module_name='MeterHandler')
     def handle(self, ctx: BaseContext):
-        from torchslime.components.metric import LossWrapper
-        # get inner context variables
-        summary = ctx.hook_ctx.state.get_avg_inner_ctx(ctx, self.INNER_KEY)
-        
-        """
-        Get average loss and metrics.
-        """
-        loss_value: LossWrapper = ctx.run_ctx.loss_wrapper.create__(ctx.step_ctx.loss_value)
-        summary_loss_value: LossWrapper = summary['loss_value']
-        # update wrapped
-        summary_loss_value.set_wrapped(summary_loss_value.get_wrapped() and loss_value.get_wrapped())
-        summary_loss_value_count: dict = summary['loss_value_count']
-        avg_loss = self._compute_avg(
-            loss_value, summary_loss_value, summary_loss_value_count
-        )
-        avg_loss: LossWrapper = ctx.run_ctx.loss_wrapper.create__(avg_loss)
-        avg_loss.set_wrapped(summary_loss_value.get_wrapped())
-        
-        avg_metrics = self._compute_avg(
-            ctx.step_ctx.metrics, summary['metrics'], summary['metrics_count']
-        )
-        ctx.hook_ctx.state.set_avg_loss_value_and_metrics(ctx, avg_loss.decode(), avg_metrics)
-
-    def _compute_avg(self, item_dict: dict, value_dict: dict, count_dict: dict):
-        result = {}
-        for key, value in item_dict.items():
-            value_dict.setdefault(key, 0)
-            value_dict[key] += value
-            count_dict.setdefault(key, 0)
-            count_dict[key] += 1
-        for key, value in value_dict.items():
-            result[key] = safe_divide(value, count_dict.get(key, 0))
-        return result
+        ctx.hook_ctx.state.update_meter(ctx, ctx.step_ctx.loss_values, ctx.step_ctx.metrics)
 
 
 class DisplayHandler(Handler):
@@ -353,8 +290,8 @@ class DisplayHandler(Handler):
         current = ctx.step_ctx.current
         total = ctx.step_ctx.total
 
-        loss_value, metrics = ctx.hook_ctx.state.get_avg_loss_value_and_metrics(ctx)
-        data = {**loss_value, **metrics}
+        loss_values, metrics = ctx.hook_ctx.state.get_meter(ctx)
+        data = {**loss_values.get__('mean'), **metrics.get__('mean')}
         data = ' - '.join(
             list(map(lambda item: '{0}: {1:.5f}'.format(*item), data.items()))
         )

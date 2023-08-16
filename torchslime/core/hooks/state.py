@@ -3,8 +3,9 @@ State Pattern for model state management.
 """
 from torchslime.utils.bases import is_nothing, NOTHING
 from torchslime.components.registry import Registry
+from torchslime.components.metric import MeterDict
 from torchslime.core.context.base import BaseContext
-from typing import Tuple
+from typing import Tuple, Mapping
 
 from torch.utils.data import DataLoader
 
@@ -16,25 +17,10 @@ class StateHook:
     def __init__(self) -> None: pass
     def set_model_mode(self, ctx: BaseContext): pass
     def get_loader(self, ctx: BaseContext) -> DataLoader: pass
-    def get_avg_loss_value_and_metrics(self, ctx: BaseContext) -> Tuple[dict, dict]: pass
-    def set_avg_loss_value_and_metrics(self, ctx: BaseContext, loss_value, metrics): pass
-    def get_avg_inner_ctx(self, ctx: BaseContext, INNER_KEY): pass
-
-    def init_avg_inner_ctx(self, ctx: BaseContext, INNER_KEY):
-        if is_nothing(ctx.inner_ctx[INNER_KEY]):
-            ctx.inner_ctx[INNER_KEY] = {}
-
-    def clear_avg_info(self, ctx: BaseContext, INNER_KEY):
-        if is_nothing(ctx.inner_ctx[INNER_KEY]):
-            ctx.inner_ctx[INNER_KEY] = {}
-
-    def _get_avg_inner_init_item(self, ctx: BaseContext):
-        return {
-            'loss_value': ctx.run_ctx.loss_wrapper.create_empty__(),
-            'loss_value_count': {},
-            'metrics': {},
-            'metrics_count': {}
-        }
+    # meter operations
+    def init_meter(self, ctx: BaseContext) -> None: pass
+    def update_meter(self, ctx: BaseContext, loss_value: Mapping, metrics: Mapping) -> None: pass
+    def get_meter(self, ctx: BaseContext) -> Tuple[MeterDict, MeterDict]: pass
 
     def __str__(self) -> str:
         return 'BASE STATUS'
@@ -54,28 +40,16 @@ class TrainState(StateHook):
         ctx.run_ctx.train_loader = ctx.run_ctx.train_provider(ctx)
         return ctx.run_ctx.train_loader
 
-    def get_avg_loss_value_and_metrics(self, ctx: BaseContext) -> Tuple[dict, dict]:
-        loss_value = ctx.run_ctx.loss_wrapper.create_copy__(ctx.iteration_ctx.train_loss_value)
-        metrics = ctx.iteration_ctx.train_metrics
-        return loss_value, metrics
+    def init_meter(self, ctx: BaseContext) -> None:
+        ctx.iteration_ctx.train_loss_values.clear()
+        ctx.iteration_ctx.train_metrics.clear()
     
-    def init_avg_inner_ctx(self, ctx: BaseContext, INNER_KEY):
-        super().init_avg_inner_ctx(ctx, INNER_KEY)
-        if is_nothing(ctx.inner_ctx[INNER_KEY].get('train', NOTHING)):
-            ctx.inner_ctx[INNER_KEY]['train'] = self._get_avg_inner_init_item(ctx)
+    def update_meter(self, ctx: BaseContext, loss_value: Mapping, metrics: Mapping) -> None:
+        ctx.iteration_ctx.train_loss_values(loss_value)
+        ctx.iteration_ctx.train_metrics(metrics)
     
-    def set_avg_loss_value_and_metrics(self, ctx: BaseContext, loss_value, metrics):
-        ctx.iteration_ctx.train_loss_value = loss_value
-        ctx.iteration_ctx.train_metrics = metrics
-
-    def get_avg_inner_ctx(self, ctx: BaseContext, INNER_KEY):
-        return ctx.inner_ctx[INNER_KEY].get('train', NOTHING)
-
-    def clear_avg_info(self, ctx: BaseContext, INNER_KEY):
-        super().clear_avg_info(ctx, INNER_KEY)
-        ctx.inner_ctx[INNER_KEY]['train'] = self._get_avg_inner_init_item(ctx)
-        ctx.iteration_ctx.train_metrics = NOTHING
-        ctx.iteration_ctx.train_loss_value = NOTHING
+    def get_meter(self, ctx: BaseContext) -> Tuple[MeterDict, MeterDict]:
+        return ctx.iteration_ctx.train_loss_values, ctx.iteration_ctx.train_metrics
 
     def __str__(self) -> str:
         return 'TRAIN'
@@ -95,28 +69,16 @@ class EvalState(StateHook):
         ctx.run_ctx.eval_loader = ctx.run_ctx.eval_provider(ctx)
         return ctx.run_ctx.eval_loader
 
-    def get_avg_loss_value_and_metrics(self, ctx: BaseContext) -> Tuple[dict, dict]:
-        loss_value = ctx.run_ctx.loss_wrapper.create_copy__(ctx.iteration_ctx.eval_loss_value)
-        metrics = ctx.iteration_ctx.eval_metrics
-        return loss_value, metrics
-
-    def init_avg_inner_ctx(self, ctx: BaseContext, INNER_KEY):
-        super().init_avg_inner_ctx(ctx, INNER_KEY)
-        if is_nothing(ctx.inner_ctx[INNER_KEY].get('eval', NOTHING)):
-            ctx.inner_ctx[INNER_KEY]['eval'] = self._get_avg_inner_init_item(ctx)
-
-    def set_avg_loss_value_and_metrics(self, ctx: BaseContext, loss_value, metrics):
-        ctx.iteration_ctx.eval_loss_value = loss_value
-        ctx.iteration_ctx.eval_metrics = metrics
+    def init_meter(self, ctx: BaseContext) -> None:
+        ctx.iteration_ctx.eval_loss_values.clear()
+        ctx.iteration_ctx.eval_metrics.clear()
     
-    def get_avg_inner_ctx(self, ctx: BaseContext, INNER_KEY):
-        return ctx.inner_ctx[INNER_KEY].get('eval', NOTHING)
-
-    def clear_avg_info(self, ctx: BaseContext, INNER_KEY):
-        super().clear_avg_info(ctx, INNER_KEY)
-        ctx.inner_ctx[INNER_KEY]['eval'] = self._get_avg_inner_init_item(ctx)
-        ctx.iteration_ctx.eval_metrics = NOTHING
-        ctx.iteration_ctx.eval_loss_value = NOTHING
+    def update_meter(self, ctx: BaseContext, loss_value: Mapping, metrics: Mapping) -> None:
+        ctx.iteration_ctx.eval_loss_values(loss_value)
+        ctx.iteration_ctx.eval_metrics(metrics)
+    
+    def get_meter(self, ctx: BaseContext) -> Tuple[MeterDict, MeterDict]:
+        return ctx.iteration_ctx.eval_loss_values, ctx.iteration_ctx.eval_metrics
 
     def __str__(self) -> str:
         return 'EVAL'
@@ -128,18 +90,10 @@ class ValState(EvalState):
     def __init__(self) -> None:
         super().__init__()
 
-    def get_avg_loss_value_and_metrics(self, ctx: BaseContext) -> Tuple[dict, dict]:
-        loss_value = ctx.run_ctx.loss_wrapper.create_copy__(ctx.iteration_ctx.eval_loss_value)
-        _loss_value = {}
-        for key, value in loss_value.items():
-            _loss_value['val_{}'.format(key)] = value
-        loss_value.set_dict__(_loss_value)
-        
-        _metrics = ctx.iteration_ctx.eval_metrics
-        metrics = {}
-        for key, value in _metrics.items():
-            metrics['val_{}'.format(key)] = value
-        return loss_value, metrics
+    def update_meter(self, ctx: BaseContext, loss_value: Mapping, metrics: Mapping) -> None:
+        loss_value = {'val_{}'.format(str(k)):v for k, v in loss_value.items()}
+        metrics = {'val_{}'.format(str(k)):v for k, v in metrics.items()}
+        super().update_meter(ctx, loss_value, metrics)
 
     def __str__(self) -> str:
         return 'VAL'

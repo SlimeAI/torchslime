@@ -71,8 +71,7 @@ def validation_check(ctx: BaseContext) -> bool:
     if isinstance(valid_freq, Callable):
         return valid_freq(ctx)
     elif isinstance(valid_freq, list):
-        # TODO
-        pass
+        return ctx.iteration_ctx.current in valid_freq
     else:
         # NOTE: current step is added by 1
         current = ctx.iteration_ctx.current + 1

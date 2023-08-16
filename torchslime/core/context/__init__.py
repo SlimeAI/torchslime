@@ -9,12 +9,13 @@ from typing import (
     Iterable
 )
 from torchslime.components.data import ConstantProvider, DataParser, DataProvider, IndexParser
-from torchslime.components.metric import M_SEQ, MetricContainer, LossReductionFactory
+from torchslime.components.metric import MetricContainer, LossReductionFactory, Metric, LossFunc, LossFuncContainer
+from torchslime.components.exception import APIMisused
 from torchslime.utils import get_device, type_cast, count_params
 from torchslime.log import logger
-from torchslime.utils.bases import NOTHING, BaseList, is_nothing
+from torchslime.utils.bases import NOTHING, is_nothing, is_none_or_nothing
 from torchslime.utils.decorators import CallDebug, MethodChaining
-from torchslime.utils.tstype import NUMBER, INT_SEQ_N
+from torchslime.utils.tstype import NUMBER
 from torchslime.core.context.base import BaseContext
 from torchslime.core.hooks.build import BuildHook, build_registry
 from torchslime.core.hooks.launch import LaunchHook, launch_registry
@@ -24,7 +25,6 @@ from torch.optim import Optimizer
 from torch import Tensor
 
 
-ContextSelf = TypeVar('ContextSelf', bound='Context')
 DATASET = Union[DataLoader, DataProvider]
 
 
@@ -48,6 +48,7 @@ class Context(BaseContext):
         self.compile_launch_hook(launch_hook)
 
     @CallDebug(module_name='Context.Train')
+    @MethodChaining
     def train(
         self,
         train_dataset: DATASET,
@@ -56,17 +57,17 @@ class Context(BaseContext):
         grad_acc: int = 1,
         valid_freq: Union[int, List[int], Callable[[BaseContext], bool]] = 1,
         train_start: int = 0
-    ):
+    ) -> 'Context':
+        if is_none_or_nothing(self.run_ctx.train):
+            logger.error('``train`` called before train handlers are built. Call ``build_train`` first.')
+            raise APIMisused('train')
+        
         self.compile_train_end(train_end)
         self.compile_dataset(train_dataset, 'train')
         self.compile_dataset(val_dataset, 'eval')
         self.compile_grad_acc(grad_acc)
         self.compile_valid_freq(valid_freq)
         self.compile_train_start(train_start)
-
-        # build train handler
-        self.hook_ctx.build._build_train(self)
-        self.run_ctx.train.display()
 
         logger.info(self.hook_ctx.launch.get_device_info(self))
 
@@ -80,33 +81,73 @@ class Context(BaseContext):
             self.run_ctx.train.display_traceback(target_handlers=he.exception_handler)
             raise he.exception
 
-    @CallDebug(module_name='Context.Predict')
-    def predict(
-        self,
-        dataset: DATASET
-    ):
-        self.compile_dataset(dataset, 'eval')
-
-        # build predict handler
-        self.hook_ctx.build._build_predict(self)
-        self.run_ctx.predict.display()
-
-        logger.info(self.hook_ctx.launch.get_device_info(self))
-        self.run_ctx.predict(self)
+    @CallDebug(module_name='Context.build_train')
+    @MethodChaining
+    def build_train(self) -> 'Context':
+        self.hook_ctx.build._build_train(self)
+    
+    @CallDebug(module_name='Context.display_train')
+    @MethodChaining
+    def display_train(self) -> 'Context':
+        if is_none_or_nothing(self.run_ctx.train):
+            logger.warn('``display_train`` called before train handlers are built.')
+        self.run_ctx.train.display()
 
     @CallDebug(module_name='Context.Eval')
+    @MethodChaining
     def eval(
         self,
         dataset: DATASET
-    ):
+    ) -> 'Context':
+        if is_none_or_nothing(self.run_ctx.eval):
+            logger.error('``eval`` called before eval handlers are built. Call ``build_eval`` first.')
+            raise APIMisused('eval')
+        
         self.compile_dataset(dataset, 'eval')
 
-        # build eval handler
+        logger.info(self.hook_ctx.launch.get_device_info(self))
+        # TODO: handle exception
+        self.run_ctx.eval(self)
+
+    @CallDebug(module_name='Context.build_eval')
+    @MethodChaining
+    def build_eval(self) -> 'Context':
         self.hook_ctx.build._build_eval(self)
+    
+    @CallDebug(module_name='Context.display_eval')
+    @MethodChaining
+    def display_eval(self) -> 'Context':
+        if is_none_or_nothing(self.run_ctx.eval):
+            logger.warn('``display_eval`` called before eval handlers are built.')
         self.run_ctx.eval.display()
 
+    @CallDebug(module_name='Context.Predict')
+    @MethodChaining
+    def predict(
+        self,
+        dataset: DATASET
+    ) -> 'Context':
+        if is_none_or_nothing(self.run_ctx.predict):
+            logger.error('``predict`` called before predict handlers are built. Call ``build_predict`` first.')
+            raise APIMisused('predict')
+        
+        self.compile_dataset(dataset, 'eval')
+
         logger.info(self.hook_ctx.launch.get_device_info(self))
-        self.run_ctx.eval(self)
+        # TODO: handle exception
+        self.run_ctx.predict(self)
+
+    @CallDebug(module_name='Context.build_predict')
+    @MethodChaining
+    def build_predict(self) -> 'Context':
+        self.hook_ctx.build._build_predict(self)
+    
+    @CallDebug(module_name='Context.display_predict')
+    @MethodChaining
+    def display_predict(self) -> 'Context':
+        if is_none_or_nothing(self.run_ctx.predict):
+            logger.warn('``display_predict`` called before predict handlers are built.')
+        self.run_ctx.predict.display()
 
     @CallDebug(module_name='Context.Summary')
     def summary(self):
@@ -128,17 +169,17 @@ class Context(BaseContext):
     @MethodChaining
     def compile(
         self,
-        loss_func = None,
+        loss_func_list: Union[Iterable[LossFunc], None] = None,
         loss_reduction: Union[str, dict, Callable[[BaseContext], Tensor], None] = None,
-        metrics: M_SEQ = None,
+        metrics: Union[Iterable[Metric], None] = None,
         optimizer: Union[str, Optimizer] = None,
         lr: NUMBER = None,
         lr_decay: Any = None,
         optimizer_options: Optional[Dict] = None,
         lr_decay_options: Optional[Dict] = None,
         data_parser: Optional[DataParser] = None
-    ) -> Union[ContextSelf, 'Context']:
-        self.compile_loss_func(loss_func)
+    ) -> 'Context':
+        self.compile_loss_func(loss_func_list)
         self.compile_loss_reduction(loss_reduction)
         self.compile_metrics(metrics)
         self.compile_data_parser(data_parser)
@@ -146,9 +187,9 @@ class Context(BaseContext):
         self.compile_lr_decay(lr_decay, lr_decay_options)
 
     @CallDebug(module_name='Context.compile_loss_func')
-    def compile_loss_func(self, loss_func):
-        if loss_func is not None:
-            self.run_ctx.loss_func = loss_func
+    def compile_loss_func(self, loss_func_list):
+        if loss_func_list is not None:
+            self.run_ctx.loss_func = LossFuncContainer(loss_func_list)
 
     @CallDebug(module_name='Context.compile_loss_reduction')
     def compile_loss_reduction(self, loss_reduction):
@@ -158,7 +199,7 @@ class Context(BaseContext):
     @CallDebug(module_name='Context.compile_metrics')
     def compile_metrics(self, metrics):
         if metrics is not None:
-            self.run_ctx.metrics = MetricContainer(metrics) if is_nothing(metrics) is False else NOTHING
+            self.run_ctx.metrics = MetricContainer(metrics)
 
     @CallDebug(module_name='Context.compile_data_parser')
     def compile_data_parser(self, data_parser):

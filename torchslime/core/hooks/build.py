@@ -72,8 +72,8 @@ class VanillaBuild(BuildHook):
             # epoch iter
             handler.EpochIteration([
                 handler.Wrapper([
-                    # init average setting
-                    handler.AverageInit(_id='average_init_train'),
+                    # init meter setting
+                    handler.MeterInit(_id='meter_init_train'),
                     # dataset iter
                     handler.Iteration([
                         # forward
@@ -86,8 +86,8 @@ class VanillaBuild(BuildHook):
                         ], _id='optimizer_train'),
                         # compute metrics
                         handler.Metrics(_id='metrics_train'),
-                        # compute average loss value and metrics
-                        handler.Average(_id='average_train'),
+                        # compute meter loss value and metrics
+                        handler.Meter(_id='meter_train'),
                         # apply learning rate decay
                         handler.LRDecay(_id='lr_decay'),
                         # display in console or in log files
@@ -102,8 +102,8 @@ class VanillaBuild(BuildHook):
                         lambda _: logger.info('\nValidation starts.')
                     ], _id='print_val_start'),
                     handler.Wrapper([
-                        # init average setting
-                        handler.AverageInit(_id='average_init_val'),
+                        # init meter setting
+                        handler.MeterInit(_id='meter_init_val'),
                         # dataset iter
                         handler.Iteration([
                             # forward
@@ -112,8 +112,8 @@ class VanillaBuild(BuildHook):
                             handler.Loss(_id='loss_val'),
                             # metrics
                             handler.Metrics(_id='metrics_val'),
-                            # compute average loss value and metrics
-                            handler.Average(_id='average_val'),
+                            # compute meter loss value and metrics
+                            handler.Meter(_id='meter_val'),
                             # display in console or in log files
                             handler.Display(_id='display_val')
                         ], _id='iteration_val')
@@ -133,8 +133,8 @@ class VanillaBuild(BuildHook):
         # build evaluating process using handlers
         ctx.run_ctx.eval = handler.Container([
             handler.Wrapper([
-                # clear average metrics
-                handler.AverageInit(_id='eval_average_init'),
+                # clear meter metrics
+                handler.MeterInit(_id='eval_meter_init'),
                 # dataset iteration
                 handler.Iteration([
                     # forward
@@ -143,8 +143,8 @@ class VanillaBuild(BuildHook):
                     handler.Loss(_id='eval_loss'),
                     # compute metrics
                     handler.Metrics(_id='eval_metrics'),
-                    # compute average metrics
-                    handler.Average(_id='eval_average'),
+                    # compute meter metrics
+                    handler.Meter(_id='eval_meter'),
                     # display
                     handler.Display(_id='eval_display')
                 ], _id='eval_iteration')
@@ -184,8 +184,8 @@ class StepBuild(VanillaBuild):
         ctx.run_ctx.train = handler.Container([
             # train
             handler.Wrapper([
-                # init average setting
-                handler.AverageInit(_id='average_init_train'),
+                # init meter setting
+                handler.MeterInit(_id='meter_init_train'),
                 # dataset iter
                 handler.StepIteration([
                     # forward
@@ -198,8 +198,8 @@ class StepBuild(VanillaBuild):
                     ], _id='optimizer_train'),
                     # compute metrics
                     handler.Metrics(_id='metrics_train'),
-                    # compute average loss value and metrics
-                    handler.Average(_id='average_train'),
+                    # compute meter loss value and metrics
+                    handler.Meter(_id='meter_train'),
                     # apply learning rate decay
                     handler.LRDecay(_id='lr_decay'),
                     # display in console or in log files
@@ -210,8 +210,8 @@ class StepBuild(VanillaBuild):
                             lambda _: logger.info('\nValidation starts.')
                         ], _id='print_val_start'),
                         handler.Wrapper([
-                            # init average setting
-                            handler.AverageInit(_id='average_init_val'),
+                            # init meter setting
+                            handler.MeterInit(_id='meter_init_val'),
                             # dataset iter
                             handler.Iteration([
                                 # forward
@@ -220,15 +220,17 @@ class StepBuild(VanillaBuild):
                                 handler.Loss(_id='loss_val'),
                                 # metrics
                                 handler.Metrics(_id='metrics_val'),
-                                # compute average loss value and metrics
-                                handler.Average(_id='average_val'),
+                                # compute meter loss value and metrics
+                                handler.Meter(_id='meter_val'),
                                 # display in console or in log files
                                 handler.Display(_id='display_val')
                             ], _id='iteration_val')
                         ], wrappers=[
                             # set state to 'val'
                             handler.State(state='val', _id='state_val')
-                        ], _id='wrapper_val')
+                        ], _id='wrapper_val'),
+                        # init train meter after validation
+                        handler.MeterInit(_id='meter_init_train_after_val')
                     ], condition=validation_check)
                 ], _id='iteration_train')
             ], wrappers=[

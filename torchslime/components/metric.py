@@ -1,7 +1,15 @@
-from typing import Union, Dict, Sequence, Callable
-from torchslime.utils.bases import NOTHING, BaseDict, BaseList, Nothing, is_nothing
-from torchslime.utils.tstype import NUMBER, NUMBER_T
-from torchslime.utils import Count, dict_merge, safe_divide
+from typing import (
+    Mapping,
+    Union,
+    Dict,
+    Iterable,
+    Callable,
+    Any
+)
+from torchslime.utils.bases import NOTHING, BaseDict, BaseList, Nothing, is_nothing, is_none_or_nothing
+from torchslime.utils import dict_merge, safe_divide, LessThanAnything, GreaterThanAnything
+from .registry import Registry
+from .exception import APIMisused
 from torchslime.core.context.base import BaseContext
 from torchslime.log import logger
 from torch import Tensor
@@ -10,82 +18,68 @@ import inspect
 
 class Metric:
 
-    _metric_id_gen = Count()
-    def __init__(self, name: str = None):
+    def __init__(self, name: Union[str, None, Nothing] = None):
         self.name = name
 
-    def get(self, ctx: BaseContext) -> Union[Dict, NUMBER]:
-        pass
+    def get(self, ctx: BaseContext) -> Union[Dict, int, float]: pass
 
-    def __call__(self, ctx: BaseContext) -> Union[Dict, Nothing]:
+    def __call__(self, ctx: BaseContext) -> Dict:
         result = self.get(ctx)
+        # metric dict
         if isinstance(result, Dict):
             return result
-        # TODO: NUMBER_T restriction should be changed, and tensor, numpy array, etc. should be allowed.
-        elif isinstance(result, NUMBER_T):
-            if self.name is None:
-                # TODO: thread-safe and process-safe
-                # use default name
-                self.name = 'metric_{}'.format(self._metric_id_gen)
-            return { self.name: result }
-        # TODO: warn
-        return NOTHING
-
-
-# metric callback or sequence of metric callbacks
-M_SEQ = Union[Metric, Sequence[Metric]]
+        # metric value
+        if is_none_or_nothing(self.name):
+            raise APIMisused(
+                'When ``{classname}`` returns non-dict value, '
+                'param ``name`` should be specified and cannot be ``None`` or ``NOTHING``.'.format(
+                    classname=str(self.__class__.__name__)
+                )
+            )
+        return { self.name: result }
 
 
 class MetricContainer(Metric, BaseList[Metric]):
 
-    def __init__(self, metrics: M_SEQ = None):
+    def __init__(self, metrics: Iterable[Metric] = None):
         Metric.__init__(self)
         BaseList.__init__(self, metrics)
 
-    def get(self, ctx: BaseContext) -> Union[Dict, NUMBER]:
+    def get(self, ctx: BaseContext) -> Dict:
         result = {}
         for metric in self:
             _res = metric(ctx)
-            # is not Nothing
-            if is_nothing(_res) is False:
-                # TODO: change the dict merge operation
-                result = dict_merge(result, _res)
+            result = dict_merge(result, _res)
         return result
 
 
-class LossWrapper(BaseDict):
-
-    def __init__(self, loss_dict: Dict, wrapped: bool):
-        super().__init__(loss_dict)
-        self.__wrapped: bool = wrapped
-
-    @classmethod
-    def create__(cls, loss):
-        is_dict_loss = cls.is_dict_loss(loss)
-        wrapper = cls(None, not is_dict_loss)
-        wrapper.set_dict__(loss if is_dict_loss else {'loss': loss})
-        return wrapper
-
-    @classmethod
-    def create_copy__(cls, loss):
-        return cls.create__(dict(loss) if cls.is_dict_loss(loss) else loss)
-
-    @classmethod
-    def create_empty__(cls):
-        return cls({}, True)
-
-    @staticmethod
-    def is_dict_loss(loss) -> bool:
-        return isinstance(loss, dict)
-
-    def decode(self):
-        return self.get('loss', NOTHING) if self.__wrapped is True else self.get_dict__()
+class LossFunc(Metric):
     
-    def set_wrapped(self, wrapped: bool):
-        self.__wrapped = wrapped
+    def get(self, ctx: BaseContext) -> Union[Dict, Tensor]: pass
+
+
+class SimpleLossFunc(LossFunc):
     
-    def get_wrapped(self) -> bool:
-        return self.__wrapped
+    def __init__(self, loss_func: Callable[[Any, Any], Union[Dict, Tensor]], name: Union[str, Nothing, None] = None):
+        super().__init__(name)
+        self.loss_func = loss_func
+    
+    def get(self, ctx: BaseContext) -> Union[Dict, Tensor]:
+        return self.loss_func(ctx.step_ctx.y_pred, ctx.step_ctx.y_true)
+
+
+class LossFuncContainer(MetricContainer):
+    
+    def __init__(self, loss_func_list: Iterable[LossFunc] = None):
+        if not is_none_or_nothing(loss_func_list) and not isinstance(loss_func_list, Iterable):
+            raise ValueError('Param ``loss_func_list`` should be a list.')
+        super().__init__(loss_func_list)
+    
+    def __call__(self, ctx: BaseContext) -> Dict:
+        # if there is only one LossFunc, set the name to 'loss'
+        if len(self) == 1 and isinstance(self[0], Metric) and is_none_or_nothing(self[0].name):
+            self[0].name = 'loss'
+        return super().__call__(ctx)
 
 
 class LossReductionFactory:
@@ -95,13 +89,10 @@ class LossReductionFactory:
         item: Union[str, dict, Callable[[BaseContext], Tensor]]
     ) -> Callable[[BaseContext], Tensor]:
         if isinstance(item, str):
-            str_mapper = {
-                'mean': _mean_loss_reduction,
-                'sum': _sum_loss_reduction
-            }
-            assert item in list(str_mapper.keys()), 'Loss reduction type not supported.'
-            return str_mapper[item]
-        elif isinstance(item, (dict, Dict)):
+            if not item in loss_reduction_registry:
+                raise ValueError('Loss reduction type not supported.')
+            return loss_reduction_registry.get(item)
+        elif isinstance(item, dict):
             # weighted loss reduction
             return _weighted_loss_reduction(item)
         elif inspect.isfunction(item) or inspect.ismethod(item):
@@ -112,9 +103,14 @@ class LossReductionFactory:
                 'Use str, dict or (Context) -> Tensor function instead.')
 
 
+loss_reduction_registry = Registry('loss_reduction_registry')
+
+
+@loss_reduction_registry.register(name='mean')
 def _mean_loss_reduction(ctx: BaseContext):
-    loss_tensors = ctx.run_ctx.loss_wrapper.create__(ctx.step_ctx.loss).values()
-    result = safe_divide(sum(loss_tensors), len(loss_tensors), NOTHING)
+    loss_tensors = ctx.step_ctx.loss.values()
+    tensor_len = len(loss_tensors)
+    result = sum(map(lambda loss_tensor: safe_divide(loss_tensor, tensor_len, NOTHING), loss_tensors))
     if is_nothing(result):
         logger.warn('Mean loss reduction got NOTHING. This may be caused by one of the following reasons:\n'
             '1. Values returned by the loss func contain NOTHING.\n'
@@ -122,8 +118,9 @@ def _mean_loss_reduction(ctx: BaseContext):
     return result
 
 
+@loss_reduction_registry.register(name='sum')
 def _sum_loss_reduction(ctx: BaseContext):
-    loss_tensors = ctx.run_ctx.loss_wrapper.create__(ctx.step_ctx.loss).values()
+    loss_tensors = ctx.step_ctx.loss.values()
     result = sum(loss_tensors) if len(loss_tensors) > 0 else NOTHING
     if is_nothing(result):
         logger.warn('Sum loss reduction got NOTHING. This may be caused by one of the following reasons:\n'
@@ -135,7 +132,7 @@ def _sum_loss_reduction(ctx: BaseContext):
 def _weighted_loss_reduction(weight: dict):
     _weight = dict(weight)
     def _reduction(ctx: BaseContext):
-        loss_dict = ctx.run_ctx.loss_wrapper.create__(ctx.step_ctx.loss)
+        loss_dict = ctx.step_ctx.loss
         # check keys intersection
         loss_keys = set(loss_dict.keys())
         weight_keys = set(_weight.keys())
@@ -152,3 +149,49 @@ def _weighted_loss_reduction(weight: dict):
                 '3. There are no matched keys between loss keys and weight keys.')
         return result
     return _reduction
+
+
+class Meter:
+    
+    def __init__(self) -> None:
+        self.initialize()
+
+    def initialize(self) -> None:
+        self.count = 0
+        self.min = GreaterThanAnything()
+        self.max = LessThanAnything()
+        self.mean = 0
+    
+    def __call__(self, __value) -> None:
+        # use ``self.min > xxx`` here (rather than ``xxx < self.min``) to make sure to apply ``__gt__`` in ``GreaterThanAnything``
+        if self.min > __value:
+            self.min = __value
+        if self.max < __value:
+            self.max = __value
+        self.mean = self.mean * (self.count / (self.count + 1)) + __value / (self.count + 1)
+        self.count += 1
+    
+    def get__(self, __key: Union[str, None, Nothing] = None):
+        result = {
+            'mean': self.mean,
+            'min': self.min,
+            'max': self.max,
+            'count': self.count
+        }
+        return result if is_none_or_nothing(__key) else result.get(__key, NOTHING)
+
+
+class MeterDict(BaseDict[str, Meter]):
+    
+    def __call__(self, __value: Mapping[str, Any]) -> None:
+        for key, value in __value.items():
+            if key not in self:
+                self[key] = Meter()
+            # compute meter
+            self[key](value)
+
+    def get__(self, __key: Union[str, None, Nothing] = None) -> Dict:
+        result = {}
+        for key, meter in self.items():
+            result[key] = meter.get__(__key)
+        return result
