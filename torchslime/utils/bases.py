@@ -120,6 +120,13 @@ class Base:
             return delattr(self, __name)
         except Exception:
             return
+    
+    def __str__(self) -> str:
+        return '{classname}<{_id}>({_dict})'.format(
+            classname=str(self.__class__.__name__),
+            _id=str(hex(id(self))),
+            _dict=str(self.__dict__)
+        )
 
 
 class BaseList(MutableSequence[_T], Generic[_T]):

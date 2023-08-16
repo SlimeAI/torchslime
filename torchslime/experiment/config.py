@@ -2,9 +2,12 @@ from typing import (
     Any,
     Union,
     Iterable,
-    Callable
+    Callable,
+    List,
+    Dict,
+    Type
 )
-from torchslime.utils.bases import Base, Nothing, NOTHING, is_none_or_nothing, BaseList, is_nothing
+from torchslime.utils.bases import Base, Nothing, NOTHING, is_none_or_nothing, BaseList, is_nothing, is_pass, PASS
 from torchslime.utils.decorators import ItemAttrBinding, ObjectAttrBinding, Singleton
 from torchslime.utils import is_slime_naming, xor__
 from torchslime.log import logger
@@ -14,17 +17,32 @@ from torchslime.components.exception import APIMisused
 # Experiment Config object
 #
 
-class Config(Base): pass
+class Config(Base):
+    
+    def __repr__(self) -> str:
+        return self.__str__()
+    
+    def __str__(self) -> str:
+        return '{classname}({_dict})'.format(
+            classname=str(self.__class__.__name__),
+            _dict=str(self.__dict__)
+        )
+    
+    def to_dict__(self) -> Dict:
+        # TODO: to be implemented
+        pass
 
 #
 # Config Container
 #
 
-class _ConfigContainerType(type): pass
+class _ConfigBase:
+
+    def __call__(self, plain: bool = True): pass
 
 @ObjectAttrBinding
 @ItemAttrBinding
-class ConfigContainer(metaclass=_ConfigContainerType):
+class ConfigContainer(_ConfigBase):
 
     def __init__(self) -> None:
         self.set_config__(Config())
@@ -62,17 +80,17 @@ class ConfigContainer(metaclass=_ConfigContainerType):
                     # set default config values
                     self.config__[key] = value()
 
-    def __call__(self) -> Config:
+    def __call__(self, plain: bool = True) -> Union[Config, Dict]:
         self.config__: Config
 
         containers = list(filter(
-            lambda item: isinstance(item[1], ConfigContainer),
+            lambda item: isinstance(item[1], _ConfigBase),
             self.config__.__dict__.items()
         ))
-        # get raw Config object
+        # get raw dict or Config object
         for key, value in containers:
-            self.config__[key] = value()
-        return self.config__
+            self.config__[key] = value(plain)
+        return self.config__.__dict__ if plain else self.config__
 
     def __setattr__(self, __name: str, __value: Any) -> None:
         config_item = self.config_items__[__name]
@@ -94,6 +112,39 @@ class ConfigContainer(metaclass=_ConfigContainerType):
     def __delattr__(self, __name: str) -> None:
         delattr(self.config__, __name)
 
+class ConfigContainerList(_ConfigBase, BaseList[_ConfigBase]):
+    
+    def __init__(
+        self,
+        container_class: Type[_ConfigBase],
+        container_list: Union[Iterable[_ConfigBase], None, Nothing] = NOTHING
+    ):
+        # set ``container_class`` before all list operations
+        self.container_class = container_class
+        super().__init__()
+        # extend ``container_list`` here to enable type checking
+        self.extend(container_list)
+    
+    def __setitem__(self, __key, __value):
+        self.check__(__value)
+        return super().__setitem__(__key, __value)
+    
+    def insert(self, __index, __object):
+        self.check__(__object)
+        return super().insert(__index, __object)
+    
+    def check__(self, __item):
+        # check container class
+        if not isinstance(__item, self.container_class):
+            raise ValueError('Validation error: ``{classname}`` only accepts specified ``{expected}``, but ``{actual}`` received.'.format(
+                classname=str(self.__class__.__name__),
+                expected=str(self.container_class.__name__),
+                actual=str(__item.__class__.__name__)
+            ))
+    
+    def __call__(self, plain: bool = True) -> List[Union[List, Config, Dict]]:
+        return [item(plain) for item in self]
+
 class ConfigFactory(ConfigContainer):
 
     def __init__(
@@ -108,24 +159,27 @@ class ConfigFactory(ConfigContainer):
             self.set_loaders__(BaseList(loaders).get_list__())
 
     @classmethod
-    def get__(cls, *args, **kwargs) -> Config:
-        return cls(*args, **kwargs)()
+    def get__(
+        cls,
+        loaders: Union[Iterable['ConfigLoader'], Nothing, None] = NOTHING,
+        plain: bool = True
+    ) -> Config:
+        return cls(loaders)(plain)
 
-    def get_loaders__(self) -> list:
+    def get_loaders__(self) -> List['ConfigLoader']:
         return self.object_get__('loaders__')
     
-    def set_loaders__(self, loaders: list) -> None:
+    def set_loaders__(self, loaders: List['ConfigLoader']) -> None:
         self.object_set__('loaders__', loaders)
 
     # user-defined config setter
     def set__(self): pass
 
-    def __call__(self) -> Config:
+    def __call__(self, plain: bool = True) -> Config:
         for loader in self.get_loaders__():
-            loader: ConfigLoader
             loader.load(self)
         
-        return super().__call__()
+        return super().__call__(plain)
 
 #
 # Config Field
@@ -135,12 +189,12 @@ class ConfigField:
 
     def __init__(
         self,
-        default: Any = NOTHING,
-        default_factory: Callable[[], Any] = NOTHING,
+        default: Any = PASS,
+        default_factory: Callable[[], Any] = PASS,
         validator: Callable[[Any], bool] = NOTHING,
         parser: Callable[[Any], Any] = NOTHING
     ) -> None:
-        if not xor__(is_nothing(default), is_nothing(default_factory)):
+        if not xor__(is_pass(default), is_pass(default_factory)):
             raise APIMisused('One and only one of the ``default`` and ``default_factory`` params must be specified.')
         
         self.default = default
@@ -151,33 +205,33 @@ class ConfigField:
         if not hasattr(self, 'fieldname'):
             self.fieldname = NOTHING
 
-    def __call__(self, __value: Any = NOTHING) -> Any:
+    def __call__(self, __value: Any = PASS) -> Any:
         # get default value
-        if is_nothing(__value) is True:
-            __value = self.default if not is_nothing(self.default) else self.default_factory()
+        if is_pass(__value):
+            __value = self.default if not is_pass(self.default) else self.default_factory()
         # validate
-        if is_none_or_nothing(self.validator) is False and self.validator(__value) is False:
+        if not is_none_or_nothing(self.validator) and not self.validator(__value):
             raise ValueError('Validation error: {fieldname}'.format(fieldname=self.fieldname))
         # parse
-        if is_none_or_nothing(self.parser) is False:
+        if not is_none_or_nothing(self.parser):
             __value = self.parser(__value)
         return __value
     
     def __set_name__(self, _, name):
-        if is_nothing(getattr(self, 'fieldname', NOTHING)) is False:
+        if not is_nothing(getattr(self, 'fieldname', NOTHING)):
             # TODO: warn
             pass
         self.fieldname = name
 
 class ContainerField(ConfigField):
 
-    def __init__(self, container_class: _ConfigContainerType) -> None:
+    def __init__(self, container_class: Type[ConfigContainer]) -> None:
         super().__init__(
             default_factory=container_class,
-            validator=self.validator
+            validator=self._validator
         )
     
-    def validator(self, item):
+    def _validator(self, item):
         # only warning and do nothing here
         if not isinstance(item, ConfigContainer):
             logger.warn(
@@ -188,7 +242,41 @@ class ContainerField(ConfigField):
         # always return True here
         return True
 
-# TODO: ListField
+class ContainerListField(ConfigField):
+    
+    def __init__(
+        self,
+        container_class: Union[Type[ConfigContainer], Type[ConfigContainerList]],
+        default_factory: Union[Callable[[], Iterable[Union[ConfigContainer, ConfigContainerList]]], None, Nothing] = NOTHING
+    ) -> None:
+        super().__init__(
+            default_factory=self._default_factory(container_class, default_factory),
+            validator=self._validator
+        )
+    
+    def _default_factory(
+        self,
+        container_class: Union[Type[ConfigContainer], Type[ConfigContainerList]],
+        default_factory: Union[Callable[[], Iterable[Union[ConfigContainer, ConfigContainerList]]], None, Nothing]
+    ):
+        def partial():
+            if is_none_or_nothing(default_factory):
+                container_list = []
+            else:
+                container_list = default_factory()
+            return ConfigContainerList(container_class, container_list)
+        return partial
+
+    def _validator(self, item):
+        # only warning and do nothing here
+        if not isinstance(item, ConfigContainerList):
+            logger.warn(
+                'You are setting a ``ConfigContainerList`` item to a plain object item, '
+                'and pre-defined type checker in the item will not work. '
+                'Fieldname being set: {fieldname}'.format(fieldname=self.fieldname)
+            )
+        # always return True here
+        return True
 
 #
 # Config Loader
