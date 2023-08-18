@@ -47,7 +47,7 @@ class Context(BaseContext):
         self.compile_build_hook(build_hook)
         self.compile_launch_hook(launch_hook)
 
-    @CallDebug(module_name='Context.Train')
+    @CallDebug(module_name='Context.train')
     @MethodChaining
     def train(
         self,
@@ -71,15 +71,7 @@ class Context(BaseContext):
 
         logger.info(self.hook_ctx.launch.get_device_info(self))
 
-        from torchslime.components.exception import HandlerException, HandlerTerminate
-        try:
-            self.run_ctx.train(self)
-        except HandlerTerminate as ht:
-            self.run_ctx.train.display_traceback(target_handlers=ht.raise_handler, wrap_func='terminate', level='info')
-            logger.info('Handler terminated with message: {msg}'.format(msg=ht.msg))
-        except HandlerException as he:
-            self.run_ctx.train.display_traceback(target_handlers=he.exception_handler)
-            raise he.exception
+        _handler_call(self.run_ctx.train, self)
 
     @CallDebug(module_name='Context.build_train')
     @MethodChaining
@@ -93,7 +85,7 @@ class Context(BaseContext):
             logger.warn('``display_train`` called before train handlers are built.')
         self.run_ctx.train.display()
 
-    @CallDebug(module_name='Context.Eval')
+    @CallDebug(module_name='Context.eval')
     @MethodChaining
     def eval(
         self,
@@ -106,8 +98,8 @@ class Context(BaseContext):
         self.compile_dataset(dataset, 'eval')
 
         logger.info(self.hook_ctx.launch.get_device_info(self))
-        # TODO: handle exception
-        self.run_ctx.eval(self)
+        
+        _handler_call(self.run_ctx.eval, self)
 
     @CallDebug(module_name='Context.build_eval')
     @MethodChaining
@@ -121,7 +113,7 @@ class Context(BaseContext):
             logger.warn('``display_eval`` called before eval handlers are built.')
         self.run_ctx.eval.display()
 
-    @CallDebug(module_name='Context.Predict')
+    @CallDebug(module_name='Context.predict')
     @MethodChaining
     def predict(
         self,
@@ -134,8 +126,8 @@ class Context(BaseContext):
         self.compile_dataset(dataset, 'eval')
 
         logger.info(self.hook_ctx.launch.get_device_info(self))
-        # TODO: handle exception
-        self.run_ctx.predict(self)
+        
+        _handler_call(self.run_ctx.predict, self)
 
     @CallDebug(module_name='Context.build_predict')
     @MethodChaining
@@ -149,23 +141,26 @@ class Context(BaseContext):
             logger.warn('``display_predict`` called before predict handlers are built.')
         self.run_ctx.predict.display()
 
-    @CallDebug(module_name='Context.Summary')
-    def summary(self):
+    @CallDebug(module_name='Context.summary')
+    @MethodChaining
+    def summary(self) -> 'Context':
         # TODO
         pass
 
     @CallDebug(module_name='Context.install_plugins')
-    def install_plugins(self, plugins: Iterable[PluginHook]):
+    @MethodChaining
+    def install_plugins(self, plugins: Iterable[PluginHook]) -> 'Context':
         self.hook_ctx.plugins.extend(plugins)
 
-    @CallDebug(module_name='Context.CountParams')
-    def count_params(self, format: str = None, decimal: int = 2, log: bool = True):
+    @CallDebug(module_name='Context.count_params')
+    @MethodChaining
+    def count_params(self, format: str = None, decimal: int = 2, log: bool = True) -> 'Context':
         result = count_params(self.model, format, decimal)
         if log is True:
             logger.info('Model parameters: {0}'.format(result))
         return result
 
-    @CallDebug(module_name='Context.Compile')
+    @CallDebug(module_name='Context.compile')
     @MethodChaining
     def compile(
         self,
@@ -187,51 +182,60 @@ class Context(BaseContext):
         self.compile_lr_decay(lr_decay, lr_decay_options)
 
     @CallDebug(module_name='Context.compile_loss_func')
-    def compile_loss_func(self, loss_func_list):
+    @MethodChaining
+    def compile_loss_func(self, loss_func_list) -> 'Context':
         if loss_func_list is not None:
             self.run_ctx.loss_func = LossFuncContainer(loss_func_list)
 
     @CallDebug(module_name='Context.compile_loss_reduction')
-    def compile_loss_reduction(self, loss_reduction):
+    @MethodChaining
+    def compile_loss_reduction(self, loss_reduction) -> 'Context':
         if loss_reduction is not None:
             self.run_ctx.loss_reduction = LossReductionFactory.get(loss_reduction)
 
     @CallDebug(module_name='Context.compile_metrics')
-    def compile_metrics(self, metrics):
+    @MethodChaining
+    def compile_metrics(self, metrics) -> 'Context':
         if metrics is not None:
             self.run_ctx.metrics = MetricContainer(metrics)
 
     @CallDebug(module_name='Context.compile_data_parser')
-    def compile_data_parser(self, data_parser):
+    @MethodChaining
+    def compile_data_parser(self, data_parser) -> 'Context':
         if data_parser is not None:
             self.run_ctx.data_parser = data_parser if is_nothing(data_parser) is False else IndexParser()
 
     @CallDebug(module_name='Context.compile_optimizer')
-    def compile_optimizer(self, optimizer, lr, optimizer_options):
+    @MethodChaining
+    def compile_optimizer(self, optimizer, lr, optimizer_options) -> 'Context':
         if optimizer is not None:
             if isinstance(optimizer, Optimizer):
                 self.run_ctx.optimizer = optimizer
 
     @CallDebug(module_name='Context.compile_lr_decay')
-    def compile_lr_decay(self, lr_decay, lr_decay_options):
+    @MethodChaining
+    def compile_lr_decay(self, lr_decay, lr_decay_options) -> 'Context':
         if lr_decay is not None:
             if isinstance(lr_decay, str) is False:
                 self.run_ctx.lr_decay = lr_decay
 
     @CallDebug(module_name='Context.compile_train_end')
-    def compile_train_end(self, train_end: int):
+    @MethodChaining
+    def compile_train_end(self, train_end: int) -> 'Context':
         if not isinstance(train_end, int):
             logger.warn('``train_end`` should be ``int``, but ``{}`` found.'.format(type(train_end).__name__))
         self.iteration_ctx.total = train_end
 
     @CallDebug(module_name='Context.compile_train_start')
-    def compile_train_start(self, train_start: int):
+    @MethodChaining
+    def compile_train_start(self, train_start: int) -> 'Context':
         if not isinstance(train_start, int):
             logger.warn('``train_start`` should be ``int``, but ``{}`` found.'.format(type(train_start).__name__))
         self.iteration_ctx.start = train_start
 
     @CallDebug(module_name='Context.compile_dataset')
-    def compile_dataset(self, dataset, mode: str):
+    @MethodChaining
+    def compile_dataset(self, dataset, mode: str) -> 'Context':
         if dataset is not None:
             if is_nothing(dataset):
                 dataset = NOTHING
@@ -244,15 +248,17 @@ class Context(BaseContext):
             setattr(self.run_ctx, '{}_provider'.format(mode), dataset)
 
     @CallDebug(module_name='Context.compile_grad_acc')
-    def compile_grad_acc(self, grad_acc: int):
+    @MethodChaining
+    def compile_grad_acc(self, grad_acc: int) -> 'Context':
         if grad_acc is not None:
             self.run_ctx.grad_acc = grad_acc
 
-    def is_distributed(self):
+    def is_distributed(self) -> bool:
         return self.hook_ctx.launch.is_distributed()
 
     @CallDebug(module_name='Context.compile_build_hook')
-    def compile_build_hook(self, build_hook: Union[str, BuildHook]):
+    @MethodChaining
+    def compile_build_hook(self, build_hook: Union[str, BuildHook]) -> 'Context':
         if isinstance(build_hook, str):
             self.hook_ctx.build = build_registry.get(build_hook)()
         elif isinstance(build_hook, BuildHook):
@@ -261,7 +267,8 @@ class Context(BaseContext):
             logger.warn('Build hook type unsupported.')
     
     @CallDebug(module_name='Context.compile_launch_hook')
-    def compile_launch_hook(self, launch_hook: Union[str, LaunchHook]):
+    @MethodChaining
+    def compile_launch_hook(self, launch_hook: Union[str, LaunchHook]) -> 'Context':
         if isinstance(launch_hook, str):
             self.hook_ctx.launch = launch_registry.get(launch_hook)()
         elif isinstance(launch_hook, LaunchHook):
@@ -270,5 +277,23 @@ class Context(BaseContext):
             logger.warn('Launch hook type unsupported.')
 
     @CallDebug(module_name='Context.compile_valid_freq')
-    def compile_valid_freq(self, valid_freq: Union[int, Callable[[BaseContext], bool]]):
+    @MethodChaining
+    def compile_valid_freq(self, valid_freq: Union[int, Callable[[BaseContext], bool]]) -> 'Context':
         self.run_ctx.valid_freq = valid_freq
+
+#
+# Try with handler exceptions
+#
+
+from torchslime.core.handlers import Handler
+from torchslime.components.exception import HandlerException, HandlerTerminate
+
+def _handler_call(handler: Handler, ctx: Context):
+    try:
+        handler(ctx)
+    except HandlerTerminate as ht:
+        handler.display_traceback(target_handlers=ht.raise_handler, wrap_func='terminate', level='info')
+        logger.info('Handler terminated with message: {msg}'.format(msg=ht.msg))
+    except HandlerException as he:
+        handler.display_traceback(target_handlers=he.exception_handler)
+        raise he.exception

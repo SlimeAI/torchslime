@@ -22,7 +22,7 @@ from torchslime.utils.bases import (
 )
 from torchslime.utils.tstype import INT_SEQ_N
 from torchslime.components.registry import Registry
-from torchslime.components.exception import HandlerException, HandlerTerminate
+from torchslime.components.exception import HandlerException, HandlerTerminate, HandlerBreak, HandlerContinue
 
 
 OPTIONAL_HANDLER = Union['Handler', Sequence['Handler'], None, Nothing]
@@ -43,7 +43,7 @@ class Handler:
     ):
         super().__init__()
         # TODO: thread-safe and process-safe
-        self.__id = _id if _id is not None else 'handler_{}'.format(self._handler_id_gen)
+        self.__id = _id if not is_none_or_nothing(_id) else 'handler_{}'.format(self._handler_id_gen)
         self.__parent: Union[HandlerContainer, Nothing] = NOTHING
         self.set_exec_ranks(exec_ranks)
 
@@ -54,11 +54,13 @@ class Handler:
             ctx.hook_ctx.launch.handler_call(self, ctx)
         except HandlerTerminate as ht:
             # set ``raise_handler`` to the nearest handler
-            if is_none_or_nothing(ht.raise_handler) is True:
+            if is_none_or_nothing(ht.raise_handler):
                 ht.raise_handler = self
             raise ht
         except HandlerException as he:
             raise he
+        except (HandlerBreak, HandlerContinue) as hi:
+            raise hi
         except Exception as e:
             raise HandlerException(exception_handler=self, exception=e)
     
@@ -121,7 +123,7 @@ class Handler:
         # initialize
         result = [] if is_none_or_nothing(result) else result
         
-        if __function(self) is True:
+        if __function(self):
             self._append_search_result(self, result)
         return result
     
@@ -285,8 +287,19 @@ class HandlerContainer(Handler, BaseList[Handler]):
             handler.set_parent(self)
     
     def handle(self, ctx: BaseContext):
-        for handler in self:
-            handler(ctx)
+        try:
+            for handler in self:
+                handler(ctx)
+        except HandlerContinue:
+            # continue in the container
+            pass
+    
+    def __call__(self, ctx: BaseContext):
+        try:
+            super().__call__(ctx)
+        except HandlerBreak:
+            # break out of the container
+            pass
     
     def get_by_id(self, _id: str, result: Union[list, None, Nothing] = NOTHING) -> 'Handler':
         # initialize
