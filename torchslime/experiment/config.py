@@ -5,7 +5,8 @@ from typing import (
     Callable,
     List,
     Dict,
-    Type
+    Type,
+    Tuple
 )
 from torchslime.utils.bases import Base, Nothing, NOTHING, is_none_or_nothing, BaseList, is_nothing, is_pass, PASS
 from torchslime.utils.decorators import ItemAttrBinding, ObjectAttrBinding, Singleton
@@ -33,7 +34,7 @@ class Config(Base):
         pass
 
 #
-# Config Container
+# Config Container / Container List
 #
 
 class _ConfigBase:
@@ -74,7 +75,7 @@ class ConfigContainer(_ConfigBase):
                 if self.config_items__.hasattr__(key):
                     continue
 
-                if isinstance(value, ConfigField):
+                if isinstance(value, Field):
                     # set config items cache
                     self.config_items__[key] = value
                     # set default config values
@@ -95,13 +96,13 @@ class ConfigContainer(_ConfigBase):
     def __setattr__(self, __name: str, __value: Any) -> None:
         config_item = self.config_items__[__name]
 
-        if isinstance(config_item, ConfigField):
+        if isinstance(config_item, Field):
             __value = config_item(__value)
         setattr(self.config__, __name, __value)
 
     def __getattribute__(self, __name: str) -> Any:
-        # magic naming or slime naming
-        if is_slime_naming(__name) is True:
+        # slime naming
+        if is_slime_naming(__name):
             return super().__getattribute__(__name)
         # else get from config objects
         return getattr(self.config__, __name)
@@ -111,39 +112,12 @@ class ConfigContainer(_ConfigBase):
 
     def __delattr__(self, __name: str) -> None:
         delattr(self.config__, __name)
-
-class ConfigContainerList(_ConfigBase, BaseList[_ConfigBase]):
     
-    def __init__(
-        self,
-        container_class: Type[_ConfigBase],
-        container_list: Union[Iterable[_ConfigBase], None, Nothing] = NOTHING
-    ):
-        # set ``container_class`` before all list operations
-        self.container_class = container_class
-        super().__init__()
-        # extend ``container_list`` here to enable type checking
-        self.extend(container_list)
+    def from_dict__(self, __dict: Dict) -> None:
+        pass
     
-    def __setitem__(self, __key, __value):
-        self.check__(__value)
-        return super().__setitem__(__key, __value)
-    
-    def insert(self, __index, __object):
-        self.check__(__object)
-        return super().insert(__index, __object)
-    
-    def check__(self, __item):
-        # check container class
-        if not isinstance(__item, self.container_class):
-            raise ValueError('Validation error: ``{classname}`` only accepts specified ``{expected}``, but ``{actual}`` received.'.format(
-                classname=str(self.__class__.__name__),
-                expected=str(self.container_class.__name__),
-                actual=str(__item.__class__.__name__)
-            ))
-    
-    def __call__(self, plain: bool = True) -> List[Union[List, Config, Dict]]:
-        return [item(plain) for item in self]
+    def from_kwargs__(self, **kwargs) -> None:
+        return self.from_dict__(kwargs)
 
 class ConfigFactory(ConfigContainer):
 
@@ -181,11 +155,46 @@ class ConfigFactory(ConfigContainer):
         
         return super().__call__(plain)
 
+
+class ConfigContainerList(_ConfigBase, BaseList[_ConfigBase]):
+    
+    def __init__(
+        self,
+        container_class: Union[Type[_ConfigBase], Tuple[Type[_ConfigBase]]] = _ConfigBase,
+        container_list: Union[Iterable[_ConfigBase], None, Nothing] = NOTHING
+    ):
+        # set ``container_class`` before all list operations
+        self.container_class = container_class
+        super().__init__(container_list)
+    
+    def __setitem__(self, __key, __value):
+        self.check__(__value)
+        return super().__setitem__(__key, __value)
+    
+    def insert(self, __index, __object):
+        self.check__(__object)
+        return super().insert(__index, __object)
+    
+    def check__(self, __item):
+        # check container class
+        if not isinstance(__item, self.container_class):
+            # if ``__item`` is a ``ConfigContainer`` object, use ``object_get__`` to get the real container class
+            item_class = __item.object_get__('__class__') if isinstance(__item, ConfigContainer) else __item.__class__
+            
+            raise ValueError('Validation error: ``{classname}`` only accepts specified ``{expected}`` objects, but ``{actual}`` received.'.format(
+                classname=str(self.__class__.__name__),
+                expected=str(self.container_class.__name__),
+                actual=str(item_class.__name__)
+            ))
+    
+    def __call__(self, plain: bool = True) -> List[Union[List, Config, Dict]]:
+        return [item(plain) for item in self]
+
 #
 # Config Field
 #
 
-class ConfigField:
+class Field:
 
     def __init__(
         self,
@@ -223,7 +232,7 @@ class ConfigField:
             pass
         self.fieldname = name
 
-class ContainerField(ConfigField):
+class ContainerField(Field):
 
     def __init__(self, container_class: Type[ConfigContainer]) -> None:
         super().__init__(
@@ -242,12 +251,12 @@ class ContainerField(ConfigField):
         # always return True here
         return True
 
-class ContainerListField(ConfigField):
+class ContainerListField(Field):
     
     def __init__(
         self,
-        container_class: Union[Type[ConfigContainer], Type[ConfigContainerList]],
-        default_factory: Union[Callable[[], Iterable[Union[ConfigContainer, ConfigContainerList]]], None, Nothing] = NOTHING
+        container_class: Union[Type[_ConfigBase], Tuple[Type[_ConfigBase]]] = _ConfigBase,
+        default_factory: Union[Callable[[], Iterable[_ConfigBase]], None, Nothing] = NOTHING
     ) -> None:
         super().__init__(
             default_factory=self._default_factory(container_class, default_factory),
@@ -256,8 +265,8 @@ class ContainerListField(ConfigField):
     
     def _default_factory(
         self,
-        container_class: Union[Type[ConfigContainer], Type[ConfigContainerList]],
-        default_factory: Union[Callable[[], Iterable[Union[ConfigContainer, ConfigContainerList]]], None, Nothing]
+        container_class: Union[Type[_ConfigBase], Tuple[Type[_ConfigBase]]],
+        default_factory: Union[Callable[[], Iterable[_ConfigBase]], None, Nothing]
     ):
         def partial():
             if is_none_or_nothing(default_factory):
@@ -287,9 +296,17 @@ class ConfigLoader:
     def load(self, factory: ConfigFactory) -> None: pass
 
 class JSONLoader(ConfigLoader):
-    pass
+    
+    def __init__(self, path) -> None:
+        super().__init__()
+        self.path = path
+    
+    def load(self, factory: ConfigFactory) -> None:
+        # TODO
+        return super().load(factory)
 
 class YAMLLoader(ConfigLoader):
+    # TODO
     pass
 
 @Singleton
