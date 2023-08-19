@@ -135,10 +135,13 @@ class BaseList(MutableSequence[_T], Generic[_T]):
         self,
         __list_like: Union[Iterable[_T], None, 'Nothing'] = None
     ):
-        if is_none_or_nothing(__list_like):
-            self.__list: List[_T] = []
-        else:
-            self.__list: List[_T] = list(__list_like)
+        self.__list: List[_T] = []
+        if not is_none_or_nothing(__list_like):
+            """
+            Use ``self.extend`` here to make the initialization process controllable.
+            Otherwise, if ``self.__list = list(__list_like)`` is used here, the initialization process won't be restricted by the user-defined operations.
+            """
+            self.extend(__list_like)
 
     @classmethod
     def create__(
@@ -220,9 +223,14 @@ class BaseDict(MutableMapping[_KT, _VT], Generic[_KT, _VT]):
         __dict_like: Union[Dict[_KT, _VT], Iterable[Tuple[_KT, _VT]], None, 'Nothing'] = None,
         **kwargs
     ):
+        self.__dict: Dict[_KT, _VT] = {}
         if is_none_or_nothing(__dict_like):
-            __dict_like = {}    
-        self.__dict: Dict[_KT, _VT] = dict(__dict_like, **kwargs)
+            __dict_like = {}
+        """
+        Use ``self.update`` here to make the initialization process controllable.
+        Otherwise, if ``self.__dict = dict(__dict_like, **kwargs)`` is used here, the initialization process won't be restricted by the user-defined operations.
+        """
+        self.update(__dict_like, **kwargs)
 
     def set_dict__(self, __dict: Dict[_KT, _VT]) -> None:
         self.__dict = __dict
