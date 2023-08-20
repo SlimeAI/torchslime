@@ -1,14 +1,23 @@
 from functools import wraps
 import multiprocessing
 import threading
-from typing import Any, Union
-from types import FunctionType, MethodType
+from typing import (
+    Any,
+    Union,
+    Callable
+)
+from types import (
+    FunctionType,
+    MethodType
+)
 from .bases import NOTHING, is_none_or_nothing, is_nothing
 from . import get_exec_info, is_function_or_method
 
 #
 # ClassWraps decorator
 #
+
+from functools import WRAPPER_ASSIGNMENTS, WRAPPER_UPDATES
 FUNC_CREATED = ('__module__', '__name__', '__qualname__')
 
 def _create_func(
@@ -33,64 +42,80 @@ def _create_func(
         setattr(func, '__qualname__', '{}.{}'.format(getattr(cls, '__qualname__'), name))
     return func
 
-def ClassWraps(cls):
-    if isinstance(cls, type) is False:
-        from torchslime.components.exception import APIMisused
-        raise APIMisused('ClassWraps can only be used for class, not {cls_item}.'.format(
-            cls_item=str(cls)
-        ))
+class _ClassFuncWrapper:
 
-    from functools import WRAPPER_ASSIGNMENTS, WRAPPER_UPDATES
-
-    class Decorator:
-
-        def __getattribute__(self, __name: str) -> Any:
-            __func = _get_function_or_method(cls, __name)
-            cls_func = get_cls_func(cls, __name)
-            super_func = get_super_func(cls, __name)
-
-            def FuncWrapper(
-                _func=NOTHING,
-                *,
-                assigned=WRAPPER_ASSIGNMENTS,
-                updated=WRAPPER_UPDATES,
-                created=FUNC_CREATED
-            ):
-                def wrapper(func):
-                    if is_none_or_nothing(__func) is False:
-                        func = wraps(__func, assigned=assigned, updated=updated)(func)
-                    else:
-                        func = _create_func(func=func, cls=cls, name=__name, created=created)
-                    # set wrapper__ attribute to denote it is a func wrapper
-                    func.wrapper__ = True
-                    # set cls_func and super_func to func wrapper
-                    func.cls_func__ = cls_func
-                    func.super_func__ = super_func
-                    # set func wrapper to cls
-                    setattr(cls, __name, func)
-                    return func
-                
-                if is_none_or_nothing(_func) is True:
-                    return wrapper
-                
-                return wrapper(func=_func)
-            
-            # set cls_func__ and super_func__
-            FuncWrapper.cls_func__ = cls_func
-            FuncWrapper.super_func__ = super_func
-            return FuncWrapper
+    def __init__(
+        self,
+        cls: type,
+        name: str
+    ) -> None:
+        self.cls = cls
+        self.name = name
+        # get functions
+        self.cls_func__ = get_cls_func(cls, name)
+        self.super_func__ = get_super_func(cls, name)
+        self.this_func__ = _get_function_or_method(cls, name)
     
-    return Decorator()
+    def __call__(
+        self,
+        _func=NOTHING,
+        *,
+        assigned=WRAPPER_ASSIGNMENTS,
+        updated=WRAPPER_UPDATES,
+        created=FUNC_CREATED
+    ) -> Callable:
+        this_func = self.this_func__
+        
+        def wrapper(func: Callable):
+            if not is_none_or_nothing(this_func):
+                func = wraps(this_func, assigned=assigned, updated=updated)(func)
+            else:
+                func = _create_func(func=func, cls=self.cls, name=self.name, created=created)
+            # set wrapper__ attribute to denote it is a func wrapper
+            func.wrapper__ = True
+            # set cls_func and super_func to func wrapper
+            func.cls_func__ = self.cls_func__
+            func.super_func__ = self.super_func__
+            # set func wrapper to cls
+            setattr(self.cls, self.name, func)
+            return func
+        
+        if is_none_or_nothing(_func):
+            return wrapper
+        
+        return wrapper(func=_func)
+
+class ClassWraps:
+    
+    def __init__(self, cls: type) -> None:
+        if not isinstance(cls, type):
+            from torchslime.components.exception import APIMisused
+            raise APIMisused('ClassWraps can only be used for class, not {cls_item}.'.format(
+                cls_item=str(cls)
+            ))
+        
+        self.cls = cls
+    
+    def __getattribute__(self, __name: str) -> '_ClassFuncWrapper':
+        # use ``super`` object to get ``cls``
+        cls = super().__getattribute__('cls')
+        return _ClassFuncWrapper(cls, __name)
 
 def _get_function_or_method(cls: type, name: str):
     __item = cls.__dict__.get(name, NOTHING)
     return __item if is_function_or_method(__item) else NOTHING
 
 def _get_func_from_mro(cls: type, name: str, start: int=0):
-    # get attr from the super class
-    for class__ in cls.__mro__[start:]:
-        return getattr(class__, name, NOTHING)
-    return NOTHING
+    # get attr from the mro tuple
+    mro_tuple = cls.__mro__
+    try:
+        func = getattr(mro_tuple[start], name, NOTHING)
+        if isinstance(func, MethodType):
+            # get the original function body of the classmethod
+            func = func.__func__
+        return func
+    except IndexError:
+        return NOTHING
 
 def get_cls_func(cls: type, name: str):
     return _get_func_from_mro(cls, name, start=0)
@@ -136,7 +161,7 @@ def Singleton(cls):
     _instance = NOTHING
 
     cls_wraps = ClassWraps(cls)
-    new_wraps = cls_wraps.__new__
+    new_wraps: _ClassFuncWrapper = cls_wraps.__new__
     new_cls_func = new_wraps.cls_func__
 
     @new_wraps
@@ -220,7 +245,7 @@ def ReadonlyAttr(attrs: list, *, _cls=NOTHING, nothing_allowed: bool = True, emp
     """
     def decorator(cls):
         cls_wraps = ClassWraps(cls)
-        setattr_wraps = cls_wraps.__setattr__
+        setattr_wraps: _ClassFuncWrapper = cls_wraps.__setattr__
         setattr_cls_func = setattr_wraps.cls_func__
 
         @setattr_wraps
