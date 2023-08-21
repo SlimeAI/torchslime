@@ -47,7 +47,7 @@ def _create_func(
         setattr(func, '__qualname__', '{}.{}'.format(getattr(cls, '__qualname__'), name))
     return func
 
-class _ClassFuncWrapper:
+class ClassFuncWrapper:
 
     def __init__(
         self,
@@ -101,10 +101,10 @@ class ClassWraps:
         
         self.cls = cls
     
-    def __getattribute__(self, __name: str) -> '_ClassFuncWrapper':
+    def __getattribute__(self, __name: str) -> 'ClassFuncWrapper':
         # use ``super`` object to get ``cls``
         cls = super().__getattribute__('cls')
-        return _ClassFuncWrapper(cls, __name)
+        return ClassFuncWrapper(cls, __name)
 
 def _get_function_or_method(cls: type, name: str):
     __item = cls.__dict__.get(name, NOTHING)
@@ -164,20 +164,38 @@ def Singleton(cls: T) -> T:
     t_lock = threading.Lock()
     p_lock = multiprocessing.Lock()
     _instance = NOTHING
+    _init = False
 
     cls_wraps = ClassWraps(cls)
-    new_wraps: _ClassFuncWrapper = cls_wraps.__new__
+    
+    # NOTE: this constraint doesn't work for subclasses
+    # ``__new__`` methods in subclasses will run multiple times
+    new_wraps: ClassFuncWrapper = cls_wraps.__new__
     new_cls_func = new_wraps.cls_func__
-
     @new_wraps
-    def _wrapper(*args, **kwargs):
+    def new(cls, *args, **kwargs):
         nonlocal _instance
         if is_none_or_nothing(_instance) is True:
             with t_lock, p_lock:
                 if is_none_or_nothing(_instance) is True:
-                    _instance = new_cls_func(*args, **kwargs)
+                    if new_cls_func is object.__new__:
+                        # FIX: object.__new__ accept only one cls argument
+                        _instance = new_cls_func(cls)
+                    else:
+                        _instance = new_cls_func(cls, *args, **kwargs)
         return _instance
     
+    # FIX: Singleton init only once
+    # NOTE: this constraint doesn't work for subclasses
+    init_wraps: ClassFuncWrapper = cls_wraps.__init__
+    init_cls_func = init_wraps.cls_func__
+    @init_wraps
+    def init(*args, **kwargs):
+        nonlocal _init
+        if not _init:
+            init_cls_func(*args, **kwargs)
+            _init = True
+
     return cls
 
 
@@ -262,7 +280,7 @@ def ReadonlyAttr(attrs: list, *, _cls=NOTHING, nothing_allowed: bool = True, emp
     """
     def decorator(cls: Type[T]) -> Type[T]:
         cls_wraps = ClassWraps(cls)
-        setattr_wraps: _ClassFuncWrapper = cls_wraps.__setattr__
+        setattr_wraps: ClassFuncWrapper = cls_wraps.__setattr__
         setattr_cls_func = setattr_wraps.cls_func__
 
         @setattr_wraps
