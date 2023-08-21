@@ -4,14 +4,19 @@ import threading
 from typing import (
     Any,
     Union,
-    Callable
+    Callable,
+    TypeVar,
+    Type,
+    overload
 )
 from types import (
     FunctionType,
     MethodType
 )
-from .bases import NOTHING, is_none_or_nothing, is_nothing
+from .bases import NOTHING, is_none_or_nothing, is_nothing, Nothing
 from . import get_exec_info, is_function_or_method
+
+T = TypeVar('T')
 
 #
 # ClassWraps decorator
@@ -124,7 +129,7 @@ def get_super_func(cls: type, name: str):
     return _get_func_from_mro(cls, name, start=1)
 
 def get_original_cls_func(func):
-    while getattr(func, 'wrapper__', False) is True and hasattr(func, 'cls_func__'):
+    while getattr(func, 'wrapper__', False) and hasattr(func, 'cls_func__'):
         func = getattr(func, 'cls_func__')
     return func
 
@@ -133,24 +138,24 @@ def DecoratorCall(*, index=NOTHING, keyword=NOTHING):
     """
     [func-decorator]
     """
-    def decorator(func):
+    def decorator(func: T) -> T:
         @wraps(func)
         def wrapper(*args, **kwargs):
             arg_match = NOTHING
 
-            if is_none_or_nothing(keyword) is False:
+            if not is_none_or_nothing(keyword):
                 arg_match = kwargs.get(str(keyword), NOTHING)
             
-            if is_none_or_nothing(index) is False and is_none_or_nothing(arg_match) is True:
+            if not is_none_or_nothing(index) and is_none_or_nothing(arg_match):
                 arg_match = NOTHING if index >= len(args) else args[index]
 
             _decorator = func(*args, **kwargs)
-            return _decorator if is_none_or_nothing(arg_match) is True else _decorator(arg_match)
+            return _decorator if is_none_or_nothing(arg_match) else _decorator(arg_match)
         return wrapper
     return decorator
 
 
-def Singleton(cls):
+def Singleton(cls: T) -> T:
     """
     [class, level-1]
     Decorator that makes decorated classes singleton.
@@ -176,15 +181,21 @@ def Singleton(cls):
     return cls
 
 
+# type hint
+@overload
+def CallDebug(_func: Union[None, Nothing] = NOTHING, *, module_name=NOTHING) -> Callable[[T], T]: pass
+@overload
+def CallDebug(_func: T, *, module_name=NOTHING) -> T: pass
+
 @DecoratorCall(index=0, keyword='_func')
-def CallDebug(_func=NOTHING, *, module_name=NOTHING):
+def CallDebug(_func: T = NOTHING, *, module_name=NOTHING):
     """
     [func, level-2]
     A decorator that output debug information before and after a method is called.
     Args:
         func (_type_): _description_
     """
-    def decorator(func):
+    def decorator(func: T) -> T:
         from torchslime.log import logger
         from torchslime.components.store import store
         from time import time
@@ -238,12 +249,18 @@ def Deprecated():
     pass
 
 
+# type hint
+@overload
+def ReadonlyAttr(attrs: list, *, _cls: Union[None, Nothing] = NOTHING, nothing_allowed: bool = True, empty_allowed: bool = True) -> Callable[[Type[T]], Type[T]]: pass
+@overload
+def ReadonlyAttr(attrs: list, *, _cls: Type[T], nothing_allowed: bool = True, empty_allowed: bool = True) -> Type[T]: pass
+
 @DecoratorCall(keyword='_cls')
 def ReadonlyAttr(attrs: list, *, _cls=NOTHING, nothing_allowed: bool = True, empty_allowed: bool = True):
     """
     [class, level-2]
     """
-    def decorator(cls):
+    def decorator(cls: Type[T]) -> Type[T]:
         cls_wraps = ClassWraps(cls)
         setattr_wraps: _ClassFuncWrapper = cls_wraps.__setattr__
         setattr_cls_func = setattr_wraps.cls_func__
@@ -267,12 +284,18 @@ def ReadonlyAttr(attrs: list, *, _cls=NOTHING, nothing_allowed: bool = True, emp
     return decorator
 
 
+# type hint
+@overload
+def ItemAttrBinding(_cls: Union[None, Nothing] = NOTHING, *, set_binding: bool = True, get_binding: bool = True, del_binding: bool = True) -> Callable[[Type[T]], Type[T]]: pass
+@overload
+def ItemAttrBinding(_cls: Type[T], *, set_binding: bool = True, get_binding: bool = True, del_binding: bool = True) -> Type[T]: pass
+
 @DecoratorCall(index=0, keyword='_cls')
 def ItemAttrBinding(_cls=NOTHING, *, set_binding: bool = True, get_binding: bool = True, del_binding: bool = True):
     """
     [class]
     """
-    def decorator(cls):
+    def decorator(cls: Type[T]) -> Type[T]:
         cls_wraps = ClassWraps(cls)
 
         if set_binding is True:
@@ -301,12 +324,18 @@ def ItemAttrBinding(_cls=NOTHING, *, set_binding: bool = True, get_binding: bool
     return decorator
 
 
+# type hint
+@overload
+def ObjectAttrBinding(_cls: Union[None, Nothing] = NOTHING, *, set_binding: bool = True, get_binding: bool = True, del_binding: bool = True) -> Callable[[Type[T]], Type[T]]: pass
+@overload
+def ObjectAttrBinding(_cls: Type[T], *, set_binding: bool = True, get_binding: bool = True, del_binding: bool = True) -> Type[T]: pass
+
 @DecoratorCall(index=0, keyword='_cls')
 def ObjectAttrBinding(_cls=NOTHING, *, set_binding: bool = True, get_binding: bool = True, del_binding: bool = True):
     """
     [class]
     """
-    def decorator(cls):
+    def decorator(cls: Type[T]) -> Type[T]:
         cls_wraps = ClassWraps(cls)
 
         if set_binding is True:
