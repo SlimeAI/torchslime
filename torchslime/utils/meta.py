@@ -8,34 +8,38 @@ from .typing import (
     overload
 )
 from .bases import NOTHING, Nothing, is_none_or_nothing, BaseDict
-from .decorators import ClassWraps, DecoratorCall
+from .decorators import ClassWraps, DecoratorCall, ClassFuncWrapper
 
 T = TypeVar('T')
 
 
-class MetaData(BaseDict):
+class Metadata(BaseDict):
     
     def __init__(self, __name: Union[str, None, Nothing] = NOTHING, __value: Any = NOTHING):
         super().__init__()
         if not is_none_or_nothing(__name):
             self[__name] = __value
     
-    def __or__(self, __value: 'MetaData') -> 'MetaData':
-        if not isinstance(__value, MetaData):
+    def __or__(self, __value: 'Metadata') -> 'Metadata':
+        if not isinstance(__value, Metadata):
             raise ValueError('``MetaData`` can only be compatible with objects of its own class, but ``{actual_class}`` found.'.format(
                 actual_class=str(__value.__class__.__name__)
             ))
-        # update from other MetaData(s)
+        # update from other Metadata(s)
         self.update(__value)
         return self
     
-    def __ror__(self, __value: 'MetaData') -> 'MetaData':
+    def __ror__(self, __value: 'Metadata') -> 'Metadata':
         return self | __value
 
 
-class _MetaWrapper:
-    def __init__(self, cls: Type, metadata: MetaData) -> None:
+class MetaWrapper:
+    def __init__(self, cls: Type, metadata: Metadata) -> None:
         self.cls__ = cls
+        if not isinstance(metadata, Metadata):
+            raise ValueError('``Meta`` only accepts ``Metadata`` object, but ``{actual_class}`` found.'.format(
+                actual_class=str(metadata.__class__.__name__)
+            ))
         self.metadata__ = metadata
         
         # set meta info
@@ -50,11 +54,19 @@ class _MetaWrapper:
             metadata=meta_str
         )
     
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+    def __call__(self, *args: Any, **kwargs: Any):
         # create a new object
-        obj = self.cls__(*args, **kwargs)
+        cls = self.cls__
+        new = cls.__new__
+        # FIX: object.__new__ only accept one cls argument
+        if new is object.__new__:
+            obj = new(cls)
+        else:
+            obj = new(cls, *args, **kwargs)
         # set ``metadata__`` attribute
-        obj.metadata__: MetaData = self.metadata__ if not is_none_or_nothing(self.metadata__) else MetaData()
+        obj.metadata__ = self.metadata__
+        # ``__init__`` method call
+        cls.__init__(obj, *args, **kwargs)
         return obj
     
     def __str__(self) -> str: return self.__name__
@@ -74,15 +86,27 @@ def Meta(_cls: Type[T] = NOTHING):
         class_getitem_wraps = class_wraps.__class_getitem__
         @class_getitem_wraps
         @classmethod
-        def class_getitem(cls: Type[T], metadata: Union[MetaData, Tuple[MetaData]]) -> Type[T]:
+        def class_getitem(cls: Type[T], metadata: Union[Metadata, Tuple[Metadata]]) -> Type[T]:
             if isinstance(metadata, Tuple):
-                result = MetaData()
+                result = Metadata()
                 for item in metadata:
                     result |= item
             else:
                 result = metadata
-            
-            return _MetaWrapper(cls, result)
+            return MetaWrapper(cls, result)
+        
+        class_new_wraps: ClassFuncWrapper = class_wraps.__new__
+        new_cls_func = class_new_wraps.cls_func__
+        @class_new_wraps
+        def new(cls, *args, **kwargs):
+            # FIX: object.__new__ only accept one cls argument
+            if new_cls_func is object.__new__:
+                obj = new_cls_func(cls)
+            else:
+                obj = new_cls_func(cls, *args, **kwargs)
+            # set default metadata
+            obj.metadata__ = Metadata()
+            return obj
         
         return cls
     return decorator
@@ -91,5 +115,5 @@ def Meta(_cls: Type[T] = NOTHING):
 @Meta
 class Metaclass:
     # just for type hint
-    metadata__: MetaData
-    def __class_getitem__(cls, metadata: Union[MetaData, Tuple[MetaData]]): return cls
+    metadata__: Metadata
+    def __class_getitem__(cls, metadata: Union[Metadata, Tuple[Metadata]]): return cls
