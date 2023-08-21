@@ -1,7 +1,7 @@
 from torchslime.utils import dict_merge
 import traceback
 import sys
-from typing import (
+from .typing import (
     Any,
     Dict,
     List,
@@ -13,15 +13,12 @@ from typing import (
     Iterator,
     TypeVar,
     Generic,
-    overload
+    overload,
+    SupportsIndex
 )
 import threading
 import multiprocessing
 
-if sys.version_info >= (3, 8):
-    from typing import SupportsIndex
-else:
-    from typing_extensions import SupportsIndex
 
 # TypeVars
 _T = TypeVar('_T')

@@ -1,5 +1,5 @@
 # TODO: refactor the util package
-from typing import (
+from .typing import (
     Dict,
     Union,
     Tuple,
@@ -96,7 +96,7 @@ def inf_enumerate(__iterable: Iterable, start: int = 0):
         yield item
 
 
-from torchslime.utils.tstype import T_M_SEQ, T_M
+from .typing import T_M_SEQ, T_M
 
 
 def get_device(obj: T_M):

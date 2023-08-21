@@ -1,10 +1,9 @@
-from typing import (
+from torchslime.utils.typing import (
     Any,
     Dict,
     List,
     Optional,
     Union,
-    TypeVar,
     Callable,
     Iterable
 )
@@ -15,7 +14,7 @@ from torchslime.utils import get_device, type_cast, count_params
 from torchslime.log import logger
 from torchslime.utils.bases import NOTHING, is_nothing, is_none_or_nothing
 from torchslime.utils.decorators import CallDebug, MethodChaining
-from torchslime.utils.tstype import NUMBER
+from torchslime.utils.typing import NUMBER
 from torchslime.core.context.base import BaseContext
 from torchslime.core.hooks.build import BuildHook, build_registry
 from torchslime.core.hooks.launch import LaunchHook, launch_registry

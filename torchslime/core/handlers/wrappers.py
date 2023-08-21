@@ -1,7 +1,7 @@
 from . import HandlerContainer, Handler
 from torchslime.core.context import BaseContext
 from torchslime.utils.bases import BaseList, Nothing
-from typing import (
+from torchslime.utils.typing import (
     Union,
     Sequence,
     Iterable

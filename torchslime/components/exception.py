@@ -63,3 +63,7 @@ class HandlerException(Exception):
         return 'HandlerException -> exception_handler: {exception_handler}'.format(
             exception_handler=str(self.exception_handler)
         )
+
+
+class WrapperException(Exception):
+    pass

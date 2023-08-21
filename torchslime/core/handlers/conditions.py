@@ -1,5 +1,5 @@
 from . import HandlerContainer, Handler
-from typing import (
+from torchslime.utils.typing import (
     Callable,
     Sequence,
     Union,

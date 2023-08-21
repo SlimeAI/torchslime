@@ -1,4 +1,4 @@
-from typing import (
+from torchslime.utils.typing import (
     Any,
     Union,
     Iterable,

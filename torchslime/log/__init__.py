@@ -2,9 +2,9 @@ from torchslime.utils import bound_clip
 from torchslime.log.common import TerminalLoggerItem, LoggerItem
 from torchslime.utils.bases import NOTHING, BaseList, is_none_or_nothing, is_pass
 from torchslime.utils.decorators import Singleton
-from torchslime.utils.tstype import INT_SEQ_N
+from torchslime.utils.typing import INT_SEQ_N
 from datetime import datetime
-from typing import Type, Any, Union
+from torchslime.utils.typing import Type, Any, Union
 import inspect
 from inspect import FrameInfo
 import os

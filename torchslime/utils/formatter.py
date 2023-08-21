@@ -1,6 +1,6 @@
 """defines some format functions for log output.
 """
-from typing import Tuple, Union
+from .typing import Tuple, Union
 import time
 from torchslime.utils import terminal as Cursor
 

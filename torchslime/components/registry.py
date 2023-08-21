@@ -2,7 +2,7 @@
 A convenient module register util that helps you dynamically build modules.
 """
 from torchslime.utils.bases import BaseDict, NOTHING, Nothing, is_none_or_nothing
-from typing import Union, Sequence
+from torchslime.utils.typing import Union, Sequence
 
 
 class Registry(BaseDict):

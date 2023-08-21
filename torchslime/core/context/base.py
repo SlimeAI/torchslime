@@ -2,8 +2,8 @@ from torch.nn import Module
 from torch import device, Tensor
 from torch.optim.optimizer import Optimizer
 from torchslime.utils.bases import NOTHING, Base, Nothing
-from torchslime.utils.tstype import NUMBER
-from typing import Any, Sequence, Union, Dict, Tuple, Callable, List
+from torchslime.utils.typing import NUMBER
+from torchslime.utils.typing import Any, Sequence, Union, Dict, Tuple, Callable, List
 from torchslime.log import logger
 
 

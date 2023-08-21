@@ -5,7 +5,7 @@ from torchslime.utils.bases import is_nothing, NOTHING
 from torchslime.components.registry import Registry
 from torchslime.components.metric import MeterDict
 from torchslime.core.context.base import BaseContext
-from typing import Tuple, Mapping
+from torchslime.utils.typing import Tuple, Mapping
 
 from torch.utils.data import DataLoader
 

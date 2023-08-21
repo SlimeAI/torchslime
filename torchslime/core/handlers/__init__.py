@@ -1,10 +1,11 @@
-from typing import (
+from torchslime.utils.typing import (
     Sequence,
     Union,
     List,
     Callable,
     Iterable,
-    Tuple
+    Tuple,
+    SupportsIndex
 )
 from torchslime.utils import Count, terminal as Cursor
 from torchslime.core.context.base import BaseContext
@@ -15,12 +16,10 @@ from torchslime.utils.bases import (
     BaseList,
     Nothing,
     is_none_or_nothing,
-    is_nothing,
-    # must import ``SupportsIndex`` from ``torchslime.utils.bases`` 
-    # to be compatible with different Python versions
-    SupportsIndex
+    is_nothing
 )
-from torchslime.utils.tstype import INT_SEQ_N
+from torchslime.utils.meta import Meta
+from torchslime.utils.typing import INT_SEQ_N
 from torchslime.components.registry import Registry
 from torchslime.components.exception import HandlerException, HandlerTerminate, HandlerBreak, HandlerContinue
 
@@ -28,6 +27,7 @@ from torchslime.components.exception import HandlerException, HandlerTerminate, 
 OPTIONAL_HANDLER = Union['Handler', Sequence['Handler'], None, Nothing]
 
 
+@Meta
 class Handler:
     """Base class for all handlers.
     """
@@ -379,6 +379,20 @@ class HandlerContainer(Handler, BaseList[Handler]):
         # suffix
         display_list.append(indent_str + '], ' + self._get_attr_str() + ')')
         return display_list
+
+
+class HandlerWrapper(Handler):
+    
+    __handler: Handler
+    
+    def set_handler(self, handler: Handler) -> None:
+        self.__handler = handler
+        
+    def get_handler(self) -> Handler:
+        return self.__handler
+    
+    def handle(self, ctx: BaseContext):
+        self.__handler(ctx)
 
 
 from .common import *

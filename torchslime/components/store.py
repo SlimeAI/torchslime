@@ -1,5 +1,5 @@
 from functools import wraps
-from typing import Any, Union, TypeVar, Callable
+from torchslime.utils.typing import Any, Union, TypeVar, Callable
 import threading
 import os
 from torchslime.utils.bases import Base, NOTHING, is_none_or_nothing

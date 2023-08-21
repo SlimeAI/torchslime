@@ -1,7 +1,7 @@
 from functools import wraps
 import multiprocessing
 import threading
-from typing import (
+from .typing import (
     Any,
     Union,
     Callable,

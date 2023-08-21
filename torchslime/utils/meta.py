@@ -1,4 +1,4 @@
-from typing import (
+from .typing import (
     Any,
     Union,
     Tuple,
@@ -7,16 +7,30 @@ from typing import (
     Type,
     overload
 )
-from .bases import NOTHING, Nothing, is_none_or_nothing
+from .bases import NOTHING, Nothing, is_none_or_nothing, BaseDict
 from .decorators import ClassWraps, DecoratorCall
 
 T = TypeVar('T')
 
 
-class MetaData:
+class MetaData(BaseDict):
+    
+    def __init__(self, __name: Union[str, None, Nothing] = NOTHING, __value: Any = NOTHING):
+        super().__init__()
+        if not is_none_or_nothing(__name):
+            self[__name] = __value
     
     def __or__(self, __value: 'MetaData') -> 'MetaData':
-        pass
+        if not isinstance(__value, MetaData):
+            raise ValueError('``MetaData`` can only be compatible with objects of its own class, but ``{actual_class}`` found.'.format(
+                actual_class=str(__value.__class__.__name__)
+            ))
+        # update from other MetaData(s)
+        self.update(__value)
+        return self
+    
+    def __ror__(self, __value: 'MetaData') -> 'MetaData':
+        return self | __value
 
 
 class _MetaWrapper:
@@ -61,8 +75,14 @@ def Meta(_cls: Type[T] = NOTHING):
         @class_getitem_wraps
         @classmethod
         def class_getitem(cls: Type[T], metadata: Union[MetaData, Tuple[MetaData]]) -> Type[T]:
-            # TODO: process tuple of metadata
-            return _MetaWrapper(cls, metadata)
+            if isinstance(metadata, Tuple):
+                result = MetaData()
+                for item in metadata:
+                    result |= item
+            else:
+                result = metadata
+            
+            return _MetaWrapper(cls, result)
         
         return cls
     return decorator

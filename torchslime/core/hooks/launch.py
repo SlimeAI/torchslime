@@ -5,7 +5,7 @@ import torch
 from torch import Tensor
 import io
 import pickle
-from typing import List, Union
+from torchslime.utils.typing import List, Union
 from torchslime.core.context import BaseContext
 from torchslime.core.handlers import Handler
 from torchslime.core.hooks.build import _BuildInterface
