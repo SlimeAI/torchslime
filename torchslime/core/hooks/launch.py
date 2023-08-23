@@ -31,7 +31,7 @@ class LaunchHook(_BuildInterface):
     def get_device_info(self, ctx: BaseContext): pass
 
 
-@launch_registry.register(name='vanilla')
+@launch_registry(name='vanilla')
 class VanillaLaunch(LaunchHook):
     
     def handler_handle(self, handler: Handler, ctx: BaseContext):
@@ -56,7 +56,7 @@ class VanillaLaunch(LaunchHook):
         return super().get_device_info(ctx)
 
 
-@launch_registry.register(name='distributed')
+@launch_registry(name='distributed')
 class DistributedLaunch(LaunchHook):
     
     def __init__(self) -> None:

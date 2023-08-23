@@ -25,7 +25,7 @@ class StateHook:
         return 'BASE STATUS'
 
 
-@state_registry.register(name='train')
+@state_registry(name='train')
 class TrainState(StateHook):
 
     def __init__(self) -> None:
@@ -54,7 +54,7 @@ class TrainState(StateHook):
         return 'TRAIN'
 
 
-@state_registry.register(name='eval')
+@state_registry(name='eval')
 class EvalState(StateHook):
 
     def __init__(self) -> None:
@@ -83,7 +83,7 @@ class EvalState(StateHook):
         return 'EVAL'
 
 
-@state_registry.register(name='val')
+@state_registry(name='val')
 class ValState(EvalState):
 
     def __init__(self) -> None:
@@ -98,7 +98,7 @@ class ValState(EvalState):
         return 'VAL'
 
 
-@state_registry.register(name='predict')
+@state_registry(name='predict')
 class PredictState(EvalState):
 
     def __init__(self) -> None:

@@ -120,8 +120,8 @@ class Base:
     
     def __str__(self) -> str:
         from .formatter import dict_to_key_value_str
-        classname=str(self.__class__.__name__),
-        _id=str(hex(id(self))),
+        classname=str(self.__class__.__name__)
+        _id=str(hex(id(self)))
         _dict=dict_to_key_value_str(self.__dict__)
         return f'{classname}<{_id}>({_dict})'
 
@@ -205,8 +205,8 @@ class BaseList(MutableSequence[_T], Generic[_T]):
         return self.__list.insert(__index, __object)
     
     def __str__(self) -> str:
-        classname=str(self.__class__.__name__),
-        _id=str(hex(id(self))),
+        classname=str(self.__class__.__name__)
+        _id=str(hex(id(self)))
         _list=str(self.__list)
         return f'{classname}<{_id}>({_list})'
 
@@ -258,8 +258,8 @@ class BaseDict(MutableMapping[_KT, _VT], Generic[_KT, _VT]):
         return len(self.__dict)
     
     def __str__(self) -> str:
-        classname=str(self.__class__.__name__),
-        _id=str(hex(id(self))),
+        classname=str(self.__class__.__name__)
+        _id=str(hex(id(self)))
         _dict=str(self.__dict)
         return f'{classname}<{_id}>({_dict})'
 

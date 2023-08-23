@@ -132,7 +132,11 @@ def get_original_cls_func(func):
     return func
 
 
-def DecoratorCall(*, index=NOTHING, keyword=NOTHING):
+def DecoratorCall(
+    *,
+    index: Union[int, Nothing] = NOTHING,
+    keyword: Union[str, Nothing] = NOTHING
+):
     """
     [func-decorator]
     """

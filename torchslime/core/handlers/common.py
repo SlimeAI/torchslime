@@ -267,7 +267,7 @@ class DisplayHandler(Handler):
         loss_values, metrics = ctx.hook_ctx.state.get_meter(ctx)
         data = {**loss_values.get__('mean'), **metrics.get__('mean')}
         data = ' - '.join(
-            list(map(lambda key, value: f'{key}: {value:.5f}', data.items()))
+            list(map(lambda item: f'{item[0]}: {item[1]:.5f}', data.items()))
         )
 
         with Cursor.cursor_invisible():

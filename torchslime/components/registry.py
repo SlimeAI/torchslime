@@ -2,7 +2,8 @@
 A convenient module register util that helps you dynamically build modules.
 """
 from torchslime.utils.bases import BaseDict, NOTHING, Nothing, is_none_or_nothing
-from torchslime.utils.typing import Union, Sequence
+from torchslime.utils.decorators import DecoratorCall
+from torchslime.utils.typing import Union, Sequence, Any
 
 
 class Registry(BaseDict):
@@ -17,9 +18,10 @@ class Registry(BaseDict):
         self.__namespace = namespace
         self.strict = strict
     
-    def register(
+    @DecoratorCall(index=1, keyword='_cls')
+    def __call__(
         self,
-        _cls=NOTHING,
+        _cls: Any = NOTHING,
         *,
         name: Union[str, Nothing, None] = NOTHING,
         strict: Union[bool, Nothing, None] = NOTHING
@@ -36,10 +38,7 @@ class Registry(BaseDict):
             self[name] = cls
             return cls
         
-        if is_none_or_nothing(_cls):
-            return decorator
-        
-        return decorator(cls=_cls)
+        return decorator
 
     def register_multi(
         self,
@@ -52,7 +51,7 @@ class Registry(BaseDict):
 
         def decorator(cls):
             for name in names:
-                self.register(_cls=cls, name=name, strict=strict)
+                self(_cls=cls, name=name, strict=strict)
             return cls
         
         if is_none_or_nothing(_cls):

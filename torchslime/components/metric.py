@@ -105,7 +105,7 @@ class LossReductionFactory:
 loss_reduction_registry = Registry('loss_reduction_registry')
 
 
-@loss_reduction_registry.register(name='mean')
+@loss_reduction_registry(name='mean')
 def _mean_loss_reduction(ctx: BaseContext):
     loss_tensors = ctx.step_ctx.loss.values()
     tensor_len = len(loss_tensors)
@@ -117,7 +117,7 @@ def _mean_loss_reduction(ctx: BaseContext):
     return result
 
 
-@loss_reduction_registry.register(name='sum')
+@loss_reduction_registry(name='sum')
 def _sum_loss_reduction(ctx: BaseContext):
     loss_tensors = ctx.step_ctx.loss.values()
     result = sum(loss_tensors) if len(loss_tensors) > 0 else NOTHING

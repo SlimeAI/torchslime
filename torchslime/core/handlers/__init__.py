@@ -262,7 +262,7 @@ class Handler(HandlerMetaclass):
 display_wrap_func = Registry('display_wrap_func')
 
 
-@display_wrap_func.register(name='exception')
+@display_wrap_func(name='exception')
 def _exception_wrap(item) -> str:
     _separator_len = 10
     # ×  <---------- EXCEPTION Here ----------
@@ -270,7 +270,7 @@ def _exception_wrap(item) -> str:
     return Cursor.single_color('r') + item + '  ' + _exception_indicator + Cursor.single_color('w')
 
 
-@display_wrap_func.register(name='terminate')
+@display_wrap_func(name='terminate')
 def _terminate_wrap(item) -> str:
     _separator_len = 10
     # ||---------- Handler TERMINATE ----------||

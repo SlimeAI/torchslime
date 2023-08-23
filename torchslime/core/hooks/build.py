@@ -62,7 +62,7 @@ class _BuildInterface:
     def after_build_predict(self, ctx: BaseContext) -> None: pass
 
 
-@build_registry.register(name='vanilla')
+@build_registry(name='vanilla')
 class VanillaBuild(BuildHook):
     
     def build_train(self, ctx: BaseContext):
@@ -185,7 +185,7 @@ class VanillaBuild(BuildHook):
         ])
 
 
-@build_registry.register(name='step')
+@build_registry(name='step')
 class StepBuild(VanillaBuild):
 
     def build_train(self, ctx: BaseContext):
