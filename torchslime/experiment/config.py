@@ -24,7 +24,7 @@ class Config(Base):
         return self.__str__()
     
     def __str__(self) -> str:
-        classname = str(self.__class__.__name__),
+        classname = str(self.__class__.__name__)
         _dict = str(self.__dict__)
         return f'{classname}({_dict})'
     
@@ -180,9 +180,9 @@ class ConfigContainerList(_ConfigBase, BaseList[_ConfigBase]):
             # if ``__item`` is a ``ConfigContainer`` object, use ``object_get__`` to get the real container class
             item_class = __item.object_get__('__class__') if isinstance(__item, ConfigContainer) else __item.__class__
             
-            classname=str(self.__class__.__name__),
-            expected=str(self.container_class.__name__),
-            actual=str(item_class.__name__)
+            classname = str(self.__class__.__name__)
+            expected = str(self.container_class.__name__)
+            actual = str(item_class.__name__)
             raise ValueError(f'Validation error: ``{classname}`` only accepts specified ``{expected}`` objects, but ``{actual}`` received.')
     
     def __call__(self, plain: bool = True) -> List[Union[List, Config, Dict]]:
