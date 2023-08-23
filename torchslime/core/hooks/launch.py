@@ -300,7 +300,7 @@ class TorchComm(DistComm):
         dtype,
         device
     ):
-        assert isinstance(size, (list, tuple, int)), 'size must be list, tuple or int, but not {}'.format(type(size).__qualname__)
+        assert isinstance(size, (list, tuple, int)), f'size must be list, tuple or int, but not {type(size).__qualname__}'
         tensor_size = (group_size,) + (
             tuple(size) if isinstance(size, (list, tuple)) else (size,)
         )

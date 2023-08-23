@@ -31,10 +31,8 @@ class Registry(BaseDict):
             if is_none_or_nothing(name):
                 name = getattr(cls, '__name__', NOTHING)
             if name in self and strict:
-                raise ValueError('Name "{name}" already in registry "{namespace}".'.format(
-                    name=name,
-                    namespace=self.get_namespace()
-                ))
+                namespace=self.get_namespace()
+                raise ValueError(f'Name "{name}" already in registry "{namespace}".')
             self[name] = cls
             return cls
         

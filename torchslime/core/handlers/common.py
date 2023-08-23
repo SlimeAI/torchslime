@@ -81,7 +81,7 @@ class EpochIterationHandler(HandlerContainer):
             # set current epoch to the context
             ctx.iteration_ctx.current = current
             # output epoch info. TODO: change logger operation to a handler?
-            logger.log('Epoch {}\n'.format(ctx.iteration_ctx.current + 1))
+            logger.log(f'Epoch {ctx.iteration_ctx.current + 1}\n')
             super().handle(ctx)
 
 
@@ -267,20 +267,20 @@ class DisplayHandler(Handler):
         loss_values, metrics = ctx.hook_ctx.state.get_meter(ctx)
         data = {**loss_values.get__('mean'), **metrics.get__('mean')}
         data = ' - '.join(
-            list(map(lambda item: '{0}: {1:.5f}'.format(*item), data.items()))
+            list(map(lambda key, value: f'{key}: {value:.5f}', data.items()))
         )
 
         with Cursor.cursor_invisible():
+            eta_color = Cursor.single_color('b')
+            eta_content = eta_format(ctx.step_ctx.time, total - current - 1)
+            reset_color = Cursor.reset_style()
+            
             Cursor.refresh_print(
                 str(ctx.hook_ctx.state),
                 # progress bar
                 progress_format(ctx.step_ctx.progress, newline=False),
                 # eta with color blue
-                '{0}ETA: {1}{2}'.format(
-                    Cursor.single_color('b'),
-                    eta_format(ctx.step_ctx.time, total - current - 1),
-                    Cursor.reset_style()
-                ),
+                f'{eta_color}ETA: {eta_content}{reset_color}',
                 # loss and metrics output
                 data,
                 # print new line if progress end

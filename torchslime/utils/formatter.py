@@ -55,7 +55,7 @@ def progress_format(
     p_style = progress_style[style] if isinstance(style, str) else style
     output = ''
     if percentage is True:
-        output += '{0:>3}%'.format(int(current * 100 / total))
+        output += f'{int(current * 100 / total):>3}%'
     
     finished_length = int(current * length / total)
     reset = Cursor.reset_style()
@@ -72,7 +72,7 @@ def progress_format(
     output += p_style.right_sep
 
     if proportion is True:
-        output += ' {0}/{1}'.format(int(current), int(total))
+        output += f' {int(current)}/{int(total)}'
     
     if current >= total and newline:
         output += '\n'
@@ -89,11 +89,11 @@ def period_time_format(_time: float) -> str:
     h, m = divmod(m, 60)
 
     if h > 0:
-        return '{0}:{1:0>2}:{2:0>2}'.format(h, m, s)
+        return f'{h}:{m:0>2}:{s:0>2}'
     elif m > 0:
-        return '{0:0>2}:{1:0>2}'.format(m, s)
+        return f'{m:0>2}:{s:0>2}'
     else:
-        return '{0}s'.format(s)
+        return f'{s}s'
 
 
 def eta_format(from_time, remain_steps, to_time: Union[str, float] = 'now'):

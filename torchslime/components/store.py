@@ -58,10 +58,9 @@ class Store:
     
     @staticmethod
     def get_current_key__() -> str:
-        return 'p{pid}-t{tid}'.format(
-            pid=os.getpid(),
-            tid=threading.get_ident()
-        )
+        pid = os.getpid(),
+        tid = threading.get_ident()
+        return f'p{pid}-t{tid}'
 
 
 StoreSetSelf = TypeVar('StoreSetSelf', bound='StoreSet')

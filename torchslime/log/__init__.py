@@ -127,8 +127,8 @@ class Logger(BaseList):
 
     def _format_exec_info(self, exec_name, full_exec_name, lineno):
         return {
-            'ts_exec': '"{}:{}"'.format(exec_name, lineno),
-            'ts_exec_full': '"{}:{}"'.format(full_exec_name, lineno)
+            'ts_exec': f'"{exec_name}:{lineno}"',
+            'ts_exec_full': f'"{full_exec_name}:{lineno}"'
         }
 
     def _get_short_exec_name(self, frame_info: FrameInfo):
@@ -143,9 +143,9 @@ class Logger(BaseList):
         # workspace module
         if common_path == cwd:
             try:
-                exec_name = '{}'.format(os.path.relpath(filename, cwd))
+                exec_name = f'{os.path.relpath(filename, cwd)}'
             except Exception:
-                exec_name = '{}'.format(os.path.basename(filename))
+                exec_name = f'{os.path.basename(filename)}'
         # external module
         else:
             module = inspect.getmodule(frame_info.frame)
@@ -196,7 +196,7 @@ class DistributedLogger(Logger):
     def _get_rank_info(self):
         import torch.distributed as dist
         rank = dist.get_rank()
-        return 'RANK {}'.format(rank)
+        return f'RANK {rank}'
     
     def _get_exec_info(self, _frame_offset: int = 0):
         # set total frame offset
@@ -207,7 +207,7 @@ class DistributedLogger(Logger):
         rank_info = self._get_rank_info()
         exec_info_dict = {}
         for key, value in super()._get_exec_info(_total_frame_offset).items():
-            exec_info_dict[key] = '{} - {}'.format(value, rank_info)
+            exec_info_dict[key] = f'{value} - {rank_info}'
         return exec_info_dict
     
     def is_distributed(self) -> bool:

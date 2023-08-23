@@ -9,9 +9,7 @@ class APIMisused(Exception):
         self.msg = msg
     
     def __str__(self) -> str:
-        return 'APIMisused: {msg}'.format(
-            msg=self.msg
-        )
+        return f'APIMisused: {self.msg}'
 
 
 from torchslime.utils.bases import NOTHING
@@ -43,10 +41,7 @@ class HandlerTerminate(HandlerInterrupt):
         self.raise_handler = raise_handler
     
     def __str__(self) -> str:
-        return 'HandlerTerminate -> raise_handler: {raise_handler}, msg: {msg}'.format(
-            raise_handler=str(self.raise_handler),
-            msg=str(self.msg)
-        )
+        return f'HandlerTerminate -> raise_handler: {str(self.raise_handler)}, msg: {self.msg}'
 
 #
 # Handler Exception
@@ -60,9 +55,7 @@ class HandlerException(Exception):
         self.exception = exception
     
     def __str__(self) -> str:
-        return 'HandlerException -> exception_handler: {exception_handler}'.format(
-            exception_handler=str(self.exception_handler)
-        )
+        return f'HandlerException -> exception_handler: {str(self.exception_handler)}'
 
 
 class WrapperException(Exception):

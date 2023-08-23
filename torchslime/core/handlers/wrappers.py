@@ -179,13 +179,12 @@ class Or(_ConditionOperator):
 
 class Not(_ConditionOperator):
     
-    def __init__(self, *conditions: Callable[[BaseContext], bool]) -> None:
-        super().__init__(*conditions)
-        if len(conditions) != 1:
-            raise ValueError('``Not`` operation only accept 1 argument, but {} found'.format(len(conditions)))
+    def __init__(self, condition: Callable[[BaseContext], bool]) -> None:
+        super().__init__(condition)
+        self.condition = self.conditions[0]
     
     def __call__(self, ctx: BaseContext) -> bool:
-        return not self.conditions[0](ctx)
+        return not self.condition(ctx)
 
 #
 # Condition Functions

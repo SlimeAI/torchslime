@@ -90,8 +90,8 @@ class ValState(EvalState):
         super().__init__()
 
     def update_meter(self, ctx: BaseContext, loss_value: Mapping, metrics: Mapping) -> None:
-        loss_value = {'val_{}'.format(str(k)):v for k, v in loss_value.items()}
-        metrics = {'val_{}'.format(str(k)):v for k, v in metrics.items()}
+        loss_value = {f'val_{str(k)}':v for k, v in loss_value.items()}
+        metrics = {f'val_{str(k)}':v for k, v in metrics.items()}
         super().update_meter(ctx, loss_value, metrics)
 
     def __str__(self) -> str:

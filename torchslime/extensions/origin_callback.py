@@ -56,7 +56,7 @@ class SaveCheckpoint(Callback):
             elif callable(self.checkpoint_name):
                 checkpoint_name = self.checkpoint_name(ctx)
             else:
-                checkpoint_name = 'checkpoint_{0}.pth'.format(ctx.iteration_ctx.current_epoch + 1)
+                checkpoint_name = f'checkpoint_{ctx.iteration_ctx.current_epoch + 1}.pth'
             torch.save(item, join_path(self.checkpoint_path, checkpoint_name))
 
     def save_dict(self, ctx: BaseContext, save_options):

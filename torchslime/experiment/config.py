@@ -24,10 +24,9 @@ class Config(Base):
         return self.__str__()
     
     def __str__(self) -> str:
-        return '{classname}({_dict})'.format(
-            classname=str(self.__class__.__name__),
-            _dict=str(self.__dict__)
-        )
+        classname = str(self.__class__.__name__),
+        _dict = str(self.__dict__)
+        return f'{classname}({_dict})'
     
     def to_dict__(self) -> Dict:
         # TODO: to be implemented
@@ -181,11 +180,10 @@ class ConfigContainerList(_ConfigBase, BaseList[_ConfigBase]):
             # if ``__item`` is a ``ConfigContainer`` object, use ``object_get__`` to get the real container class
             item_class = __item.object_get__('__class__') if isinstance(__item, ConfigContainer) else __item.__class__
             
-            raise ValueError('Validation error: ``{classname}`` only accepts specified ``{expected}`` objects, but ``{actual}`` received.'.format(
-                classname=str(self.__class__.__name__),
-                expected=str(self.container_class.__name__),
-                actual=str(item_class.__name__)
-            ))
+            classname=str(self.__class__.__name__),
+            expected=str(self.container_class.__name__),
+            actual=str(item_class.__name__)
+            raise ValueError(f'Validation error: ``{classname}`` only accepts specified ``{expected}`` objects, but ``{actual}`` received.')
     
     def __call__(self, plain: bool = True) -> List[Union[List, Config, Dict]]:
         return [item(plain) for item in self]
@@ -220,7 +218,7 @@ class Field:
             __value = self.default if self.default is not PASS else self.default_factory()
         # validate
         if not is_none_or_nothing(self.validator) and not self.validator(__value):
-            raise ValueError('Validation error: {fieldname}'.format(fieldname=self.fieldname))
+            raise ValueError(f'Validation error: {self.fieldname}')
         # parse
         if not is_none_or_nothing(self.parser):
             __value = self.parser(__value)
@@ -246,7 +244,7 @@ class ContainerField(Field):
             logger.warn(
                 'You are setting a ``ConfigContainer`` item to a plain object item, '
                 'and pre-defined validators and parsers in the item will not work. '
-                'Fieldname being set: {fieldname}'.format(fieldname=self.fieldname)
+                f'Fieldname being set: {self.fieldname}'
             )
         # always return True here
         return True
@@ -282,7 +280,7 @@ class ContainerListField(Field):
             logger.warn(
                 'You are setting a ``ConfigContainerList`` item to a plain object item, '
                 'and pre-defined type checker in the item will not work. '
-                'Fieldname being set: {fieldname}'.format(fieldname=self.fieldname)
+                f'Fieldname being set: {self.fieldname}'
             )
         # always return True here
         return True

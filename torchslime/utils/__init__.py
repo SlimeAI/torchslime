@@ -267,7 +267,7 @@ def count_params(model: Module, format: str = None, decimal: int = 2):
     for param in model.parameters():
         num += param.numel()
     result = num / divisor
-    return result if format is None else ('{0:.' + str(decimal) + 'f}{1}').format(result, format)
+    return result if format is None else f'{result:.{decimal}f}{format}'
 
 
 def is_torch_distributed_ready():

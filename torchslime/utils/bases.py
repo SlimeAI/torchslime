@@ -120,12 +120,10 @@ class Base:
     
     def __str__(self) -> str:
         from .formatter import dict_to_key_value_str
-        
-        return '{classname}<{_id}>({_dict})'.format(
-            classname=str(self.__class__.__name__),
-            _id=str(hex(id(self))),
-            _dict=dict_to_key_value_str(self.__dict__)
-        )
+        classname=str(self.__class__.__name__),
+        _id=str(hex(id(self))),
+        _dict=dict_to_key_value_str(self.__dict__)
+        return f'{classname}<{_id}>({_dict})'
 
 
 class BaseList(MutableSequence[_T], Generic[_T]):
@@ -167,7 +165,8 @@ class BaseList(MutableSequence[_T], Generic[_T]):
             return cls(__list_like)
         
         if strict:
-            raise TypeError('BaseList - ``strict`` is True and ``{}`` object is not iterable'.format(type(__list_like)))
+            classname = type(__list_like).__name__
+            raise TypeError(f'BaseList - ``strict`` is True and ``{classname}`` object is not iterable')
         else:
             return cls([__list_like])
 
@@ -206,11 +205,10 @@ class BaseList(MutableSequence[_T], Generic[_T]):
         return self.__list.insert(__index, __object)
     
     def __str__(self) -> str:
-        return '{classname}<{_id}>({_list})'.format(
-            classname=str(self.__class__.__name__),
-            _id=str(hex(id(self))),
-            _list=str(self.__list)
-        )
+        classname=str(self.__class__.__name__),
+        _id=str(hex(id(self))),
+        _list=str(self.__list)
+        return f'{classname}<{_id}>({_list})'
 
 
 class BaseDict(MutableMapping[_KT, _VT], Generic[_KT, _VT]):
@@ -260,11 +258,10 @@ class BaseDict(MutableMapping[_KT, _VT], Generic[_KT, _VT]):
         return len(self.__dict)
     
     def __str__(self) -> str:
-        return '{classname}<{_id}>({_dict})'.format(
-            classname=str(self.__class__.__name__),
-            _id=str(hex(id(self))),
-            _dict=str(self.__dict)
-        )
+        classname=str(self.__class__.__name__),
+        _id=str(hex(id(self))),
+        _dict=str(self.__dict)
+        return f'{classname}<{_id}>({_dict})'
 
 #
 # Nothing class, NOTHING instance and related operations.
@@ -325,7 +322,7 @@ class Nothing(metaclass=_NothingSingleton):
         return 'NOTHING'
 
     def __repr__(self) -> str:
-        return 'NOTHING<{_id}>'.format(_id=str(hex(id(self))))
+        return f'NOTHING<{str(hex(id(self)))}>'
 
     def __format__(self, __format_spec: str) -> str:
         return 'NOTHING'
@@ -396,7 +393,7 @@ def create_singleton(__name: str) -> Tuple[Type[object], object]:
     
     @class_wraps.__repr__
     def repr_func(self) -> str:
-        return '{name}<{_id}>'.format(name=__name, _id=str(hex(id(self))))
+        return f'{__name}<{str(hex(id(self)))}>'
     
     new_class = Singleton(new_class)
     singleton_object = new_class()

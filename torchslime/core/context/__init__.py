@@ -156,7 +156,7 @@ class Context(BaseContext):
     def count_params(self, format: str = None, decimal: int = 2, log: bool = True) -> 'Context':
         result = count_params(self.model, format, decimal)
         if log is True:
-            logger.info('Model parameters: {0}'.format(result))
+            logger.info(f'Model parameters: {result}')
         return result
 
     @CallDebug(module_name='Context.compile')
@@ -222,14 +222,16 @@ class Context(BaseContext):
     @MethodChaining
     def compile_train_end(self, train_end: int) -> 'Context':
         if not isinstance(train_end, int):
-            logger.warn('``train_end`` should be ``int``, but ``{}`` found.'.format(type(train_end).__name__))
+            classname = type(train_end).__name__
+            logger.warn(f'``train_end`` should be ``int``, but ``{classname}`` found.')
         self.iteration_ctx.total = train_end
 
     @CallDebug(module_name='Context.compile_train_start')
     @MethodChaining
     def compile_train_start(self, train_start: int) -> 'Context':
         if not isinstance(train_start, int):
-            logger.warn('``train_start`` should be ``int``, but ``{}`` found.'.format(type(train_start).__name__))
+            classname = type(train_start).__name__
+            logger.warn(f'``train_start`` should be ``int``, but ``{classname}`` found.')
         self.iteration_ctx.start = train_start
 
     @CallDebug(module_name='Context.compile_dataset')
@@ -242,7 +244,7 @@ class Context(BaseContext):
             mode_supported = ['train', 'eval']
             if mode not in mode_supported:
                 logger.warn('compile_dataset mode not supported.')
-            setattr(self.run_ctx, '{}_provider'.format(mode), dataset)
+            setattr(self.run_ctx, f'{mode}_provider', dataset)
 
     @CallDebug(module_name='Context.compile_grad_acc')
     @MethodChaining
@@ -290,7 +292,7 @@ def _handler_call(handler: Handler, ctx: Context):
         handler(ctx)
     except HandlerTerminate as ht:
         handler.display_traceback(target_handlers=ht.raise_handler, wrap_func='terminate', level='info')
-        logger.info('Handler terminated with message: {msg}'.format(msg=ht.msg))
+        logger.info(f'Handler terminated with message: {ht.msg}')
     except HandlerException as he:
         handler.display_traceback(target_handlers=he.exception_handler)
         raise he.exception

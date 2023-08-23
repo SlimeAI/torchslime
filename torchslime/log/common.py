@@ -31,24 +31,16 @@ class LoggerItem:
 class TerminalLoggerItem(LoggerItem):
     
     def debug(self, item):
-        print('{}{}{}'.format(
-            single_color('g'), item, single_color('w')
-        ))
+        print(f'{single_color("g")}{item}{single_color("w")}')
     
     def info(self, item):
-        print('{}{}{}'.format(
-            single_color('b'), item, single_color('w')
-        ))
+        print(f'{single_color("b")}{item}{single_color("w")}')
     
     def warn(self, item):
-        print('{}{}{}'.format(
-            single_color('y'), item, single_color('w')
-        ))
+        print(f'{single_color("y")}{item}{single_color("w")}')
     
     def error(self, item):
-        print('{}{}{}'.format(
-            single_color('r'), item, single_color('w')
-        ))
+        print(f'{single_color("r")}{item}{single_color("w")}')
 
     def log(self, item):
         file = sys.stdout

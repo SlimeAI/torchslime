@@ -30,11 +30,10 @@ class Metric:
             return result
         # metric value
         if is_none_or_nothing(self.name):
+            classname = str(self.__class__.__name__)
             raise APIMisused(
-                'When ``{classname}`` returns non-dict value, '
-                'param ``name`` should be specified and cannot be ``None`` or ``NOTHING``.'.format(
-                    classname=str(self.__class__.__name__)
-                )
+                f'When ``{classname}`` returns non-dict value, '
+                'param ``name`` should be specified and cannot be ``None`` or ``NOTHING``.'
             )
         return { self.name: result }
 

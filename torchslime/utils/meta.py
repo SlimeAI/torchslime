@@ -22,9 +22,8 @@ class Metadata(BaseDict):
     
     def __or__(self, __value: 'Metadata') -> 'Metadata':
         if not isinstance(__value, Metadata):
-            raise ValueError('``MetaData`` can only be compatible with objects of its own class, but ``{actual_class}`` found.'.format(
-                actual_class=str(__value.__class__.__name__)
-            ))
+            actual_class = str(__value.__class__.__name__)
+            raise ValueError(f'``MetaData`` can only be compatible with objects of its own class, but ``{actual_class}`` found.')
         # create new metadata
         new_metadata = Metadata()
         new_metadata.update(self)
@@ -48,22 +47,15 @@ class MetaWrapper:
     def __init__(self, cls: Type, metadata: Metadata) -> None:
         self.cls__ = cls
         if not isinstance(metadata, Metadata):
-            raise ValueError('``Meta`` only accepts ``Metadata`` object, but ``{actual_class}`` found.'.format(
-                actual_class=str(metadata.__class__.__name__)
-            ))
+            actual_class = str(metadata.__class__.__name__)
+            raise ValueError(f'``Meta`` only accepts ``Metadata`` object, but ``{actual_class}`` found.')
         self.metadata__ = metadata
         
         # set meta info
         meta_str = str(metadata)
         self.__module__ = cls.__module__
-        self.__name__ = '{name}[{metadata}]'.format(
-            name=cls.__name__,
-            metadata=meta_str
-        )
-        self.__qualname__ = '{name}[{metadata}]'.format(
-            name=cls.__qualname__,
-            metadata=meta_str
-        )
+        self.__name__ = f'{cls.__name__}[{meta_str}]'
+        self.__qualname__ = f'{cls.__qualname__}[{meta_str}]'
     
     def __call__(self, *args: Any, **kwargs: Any):
         # create a new object

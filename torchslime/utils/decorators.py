@@ -44,7 +44,7 @@ def _create_func(
 
     # __qualname__ should be 'cls_qualname.name'
     if '__qualname__' in created and hasattr(cls, '__qualname__'):
-        setattr(func, '__qualname__', '{}.{}'.format(getattr(cls, '__qualname__'), name))
+        setattr(func, '__qualname__', f'{getattr(cls, "__qualname__")}.{name}')
     return func
 
 class ClassFuncWrapper:
@@ -95,9 +95,7 @@ class ClassWraps:
     def __init__(self, cls: type) -> None:
         if not isinstance(cls, type):
             from torchslime.components.exception import APIMisused
-            raise APIMisused('ClassWraps can only be used for class, not {cls_item}.'.format(
-                cls_item=str(cls)
-            ))
+            raise APIMisused(f'ClassWraps can only be used for class, not {str(cls)}.')
         
         self.cls = cls
     
@@ -218,10 +216,7 @@ def CallDebug(_func: _T = NOTHING, *, module_name=NOTHING):
         from torchslime.components.store import store
         from time import time
 
-        func_id = '{_id}_{_time}'.format(
-            _id=str(id(func)),
-            _time=str(time())
-        )
+        func_id = f'{str(id(func))}_{str(time())}'
 
         nonlocal module_name
 
@@ -241,9 +236,9 @@ def CallDebug(_func: _T = NOTHING, *, module_name=NOTHING):
                 _exec_info = get_exec_info(func)
                 call_debug_cache[func_id] = _exec_info
 
-            logger.debug('{} begins.'.format(module_name), _exec_info=_exec_info)
+            logger.debug(f'{module_name} begins.', _exec_info=_exec_info)
             result = func(*args, **kwargs)
-            logger.debug('{} ends.'.format(module_name), _exec_info=_exec_info)
+            logger.debug(f'{module_name} ends.', _exec_info=_exec_info)
             return result
         return wrapper
     return decorator
@@ -296,7 +291,7 @@ def ReadonlyAttr(attrs: list, *, _cls=NOTHING, nothing_allowed: bool = True, emp
                     (attr__ is NOTHING and nothing_allowed):
                 return setattr_cls_func(self, __name, __value)
             else:
-                raise AttributeError('{name} is readonly attribute'.format(name=__name))
+                raise AttributeError(f'{__name} is readonly attribute')
         
         return cls
     return decorator

@@ -47,7 +47,7 @@ class HandlerMetaclass:
         # set default id if id is not specified
         # TODO: thread-safe and process-safe
         if is_none_or_nothing(self.get_id()):
-            self.set_id('handler_{}'.format(self._handler_id_gen))
+            self.set_id(f'handler_{self._handler_id_gen}')
         # bind self to wrappers after initialization
         wrappers = self.get_wrappers()
         if not is_none_or_nothing(wrappers):
@@ -212,9 +212,7 @@ class Handler(HandlerMetaclass):
         self.__parent = NOTHING
     
     def display(self):
-        logger.info('Handler Structure:\n{content}'.format(
-            content=self.get_display_str()
-        ))
+        logger.info(f'Handler Structure:\n{self.get_display_str()}')
     
     def get_display_str(self) -> str:
         return '\n'.join(self._get_display_list(indent=0))
@@ -222,9 +220,8 @@ class Handler(HandlerMetaclass):
     def display_traceback(self, target_handlers: OPTIONAL_HANDLER, wrap_func: Union[str, Callable] = 'exception', level: str = 'error'):
         wrap_func = wrap_func if callable(wrap_func) is True else display_wrap_func.get(wrap_func)
 
-        getattr(logger, level, logger.error)('Handler Traceback:\n{content}'.format(
-            content=self.get_display_traceback_str(target_handlers=target_handlers, wrap_func=wrap_func)
-        ))
+        content = self.get_display_traceback_str(target_handlers=target_handlers, wrap_func=wrap_func)
+        getattr(logger, level, logger.error)(f'Handler Traceback:\n{content}')
     
     def get_display_traceback_str(self, target_handlers: OPTIONAL_HANDLER, wrap_func: Callable) -> str:
         return Cursor.single_color('w') + \
@@ -238,12 +235,7 @@ class Handler(HandlerMetaclass):
             self._is_target_handler(target_handlers=target_handlers):
             content = wrap_func(content)
 
-        display_list = [
-            '{indent_str}{content}'.format(
-                indent_str=indent_str,
-                content=content
-            )
-        ]
+        display_list = [f'{indent_str}{content}']
         return display_list
 
     def _is_target_handler(self, target_handlers: OPTIONAL_HANDLER = NOTHING):
