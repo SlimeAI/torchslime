@@ -180,27 +180,34 @@ class RunContext(TempContext):
 class HandlerContext(TempContext):
 
     def initialize(self):
+        # base handlers
         from torchslime.core import handlers
-        # handler class
         self.Handler = handlers.Handler
         self.Container = handlers.HandlerContainer
-        self.Wrapper = handlers.HandlerWrapper
-        self.Condition = handlers.HandlerCondition
-        self.EpochIteration = handlers.EpochIterationHandler
-        self.Iteration = handlers.IterationHandler
-        self.StepIteration = handlers.StepIterationHandler
-        self.Forward = handlers.ForwardHandler
-        self.Loss = handlers.LossHandler
-        self.Backward = handlers.BackwardHandler
-        self.Optimizer = handlers.OptimizerHandler
-        self.Metrics = handlers.MetricsHandler
-        self.MeterInit = handlers.MeterInitHandler
-        self.Meter = handlers.MeterHandler
-        self.GatherAverage = handlers.GatherAverageHandler
-        self.Display = handlers.DisplayHandler
-        self.State = handlers.StateHandler
-        self.LRDecay = handlers.LRDecayHandler
-        self.Lambda = handlers.LambdaHandler
+        
+        # common handlers
+        from torchslime.core.handlers import common
+        self.EpochIteration = common.EpochIterationHandler
+        self.Iteration = common.IterationHandler
+        self.StepIteration = common.StepIterationHandler
+        self.Forward = common.ForwardHandler
+        self.Loss = common.LossHandler
+        self.Backward = common.BackwardHandler
+        self.Optimizer = common.OptimizerHandler
+        self.Metrics = common.MetricsHandler
+        self.MeterInit = common.MeterInitHandler
+        self.Meter = common.MeterHandler
+        self.GatherAverage = common.GatherAverageHandler
+        self.Display = common.DisplayHandler
+        self.LRDecay = common.LRDecayHandler
+        self.Lambda = common.LambdaHandler
+        
+        # handler wrappers
+        from torchslime.core.handlers import wrappers
+        self.Wrapper = wrappers.HandlerWrapper
+        self.WrapperContainer = wrappers.HandlerWrapperContainer
+        self.State = wrappers.StateHandler
+        self.Condition = wrappers.ConditionHandler
 
 
 class CustomContext(TempContext):

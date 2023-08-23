@@ -1,6 +1,5 @@
 from torchslime.utils import dict_merge
 import traceback
-import sys
 from .typing import (
     Any,
     Dict,
@@ -14,7 +13,8 @@ from .typing import (
     TypeVar,
     Generic,
     overload,
-    SupportsIndex
+    SupportsIndex,
+    Type
 )
 import threading
 import multiprocessing
@@ -55,7 +55,7 @@ class Base:
             try:
                 temp = temp[attr]
                 # if the value is NOTHING, then return False directly.
-                if is_nothing(temp):
+                if temp is NOTHING:
                     return False
             except Exception:
                 # output error information
@@ -119,10 +119,12 @@ class Base:
             return
     
     def __str__(self) -> str:
+        from .formatter import dict_to_key_value_str
+        
         return '{classname}<{_id}>({_dict})'.format(
             classname=str(self.__class__.__name__),
             _id=str(hex(id(self))),
-            _dict=str(self.__dict__)
+            _dict=dict_to_key_value_str(self.__dict__)
         )
 
 
@@ -155,9 +157,9 @@ class BaseList(MutableSequence[_T], Generic[_T]):
         WARNING: This changes the default behavior of ``BaseList``, which creates an empty list when the list_like object is 
         ``None`` or ``NOTHING`` and creates ``[...]`` when the list_like object is ``...``.
         """
-        if (is_nothing(__list_like) and return_nothing is True) or \
+        if (__list_like is NOTHING and return_nothing is True) or \
                 (__list_like is None and return_none is True) or \
-                (is_pass(__list_like) and return_pass is True):
+                (__list_like is PASS and return_pass is True):
             # return the item itself
             __list_like: Union[None, Nothing, Pass]
             return __list_like
@@ -323,7 +325,7 @@ class Nothing(metaclass=_NothingSingleton):
         return 'NOTHING'
 
     def __repr__(self) -> str:
-        return 'NOTHING'
+        return 'NOTHING<{_id}>'.format(_id=str(hex(id(self))))
 
     def __format__(self, __format_spec: str) -> str:
         return 'NOTHING'
@@ -332,7 +334,7 @@ class Nothing(metaclass=_NothingSingleton):
         return False
 
     def __eq__(self, obj) -> bool:
-        if is_nothing(obj):
+        if obj is NOTHING:
             return True
         return False
 
@@ -368,15 +370,6 @@ class Nothing(metaclass=_NothingSingleton):
 
 NOTHING = Nothing()
 
-def is_nothing(obj) -> bool:
-    """Check whether an object is an instance of 'Nothing'
-    Args:
-        obj (Any): object
-    Returns:
-        bool: whether the object is instance of 'Nothing'
-    """
-    return NOTHING is obj
-
 def is_none_or_nothing(obj) -> bool:
     """Check whether an object is None, Nothing or neither.
     Args:
@@ -384,17 +377,31 @@ def is_none_or_nothing(obj) -> bool:
     Returns:
         bool: check result.
     """
-    return obj is None or is_nothing(obj)
+    return obj is None or obj is NOTHING
 
 
-from .decorators import Singleton
+def create_singleton(__name: str) -> Tuple[Type[object], object]:
+    """
+    Create a new singleton class with its singleton object. Mostly used in flag vars.
+    """
+    from .decorators import Singleton, ClassWraps
+    
+    new_class = type(__name, (object,), {})
+    
+    # set str and repr func
+    class_wraps = ClassWraps(new_class)
+    @class_wraps.__str__
+    def str_func(self) -> str:
+        return __name
+    
+    @class_wraps.__repr__
+    def repr_func(self) -> str:
+        return '{name}<{_id}>'.format(name=__name, _id=str(hex(id(self))))
+    
+    new_class = Singleton(new_class)
+    singleton_object = new_class()
+    return new_class, singleton_object
 
-@Singleton
-class Pass:
-    def __str__(self) -> str:
-        return 'PASS'
 
-PASS = Pass()
-
-def is_pass(obj) -> bool:
-    return obj is PASS
+# ``Pass`` singleton constant
+Pass, PASS = create_singleton('PASS')

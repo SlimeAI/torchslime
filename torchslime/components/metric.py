@@ -6,7 +6,7 @@ from torchslime.utils.typing import (
     Callable,
     Any
 )
-from torchslime.utils.bases import NOTHING, BaseDict, BaseList, Nothing, is_nothing, is_none_or_nothing
+from torchslime.utils.bases import NOTHING, BaseDict, BaseList, Nothing, is_none_or_nothing
 from torchslime.utils import dict_merge, safe_divide, LessThanAnything, GreaterThanAnything
 from .registry import Registry
 from .exception import APIMisused
@@ -111,7 +111,7 @@ def _mean_loss_reduction(ctx: BaseContext):
     loss_tensors = ctx.step_ctx.loss.values()
     tensor_len = len(loss_tensors)
     result = sum(map(lambda loss_tensor: safe_divide(loss_tensor, tensor_len, NOTHING), loss_tensors))
-    if is_nothing(result):
+    if result is NOTHING:
         logger.warn('Mean loss reduction got NOTHING. This may be caused by one of the following reasons:\n'
             '1. Values returned by the loss func contain NOTHING.\n'
             '2. Length of loss values is 0.')
@@ -122,7 +122,7 @@ def _mean_loss_reduction(ctx: BaseContext):
 def _sum_loss_reduction(ctx: BaseContext):
     loss_tensors = ctx.step_ctx.loss.values()
     result = sum(loss_tensors) if len(loss_tensors) > 0 else NOTHING
-    if is_nothing(result):
+    if result is NOTHING:
         logger.warn('Sum loss reduction got NOTHING. This may be caused by one of the following reasons:\n'
             '1. Values returned by the loss func contain NOTHING.\n'
             '2. Length of loss values is 0.')
@@ -142,7 +142,7 @@ def _weighted_loss_reduction(weight: dict):
         for key in list(common_keys):
             if key in loss_dict:
                 result += _weight[key] * loss_dict[key]
-        if is_nothing(result):
+        if result is NOTHING:
             logger.warn('Weighted loss reduction got NOTHING. This may be caused by one of the following reasons:\n'
                 '1. Values returned by the loss func contain NOTHING.\n'
                 '2. Weight values contain NOTHING.\n'

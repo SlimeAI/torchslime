@@ -1,6 +1,6 @@
 from torchslime.utils import bound_clip
 from torchslime.log.common import TerminalLoggerItem, LoggerItem
-from torchslime.utils.bases import NOTHING, BaseList, is_none_or_nothing, is_pass
+from torchslime.utils.bases import NOTHING, BaseList, is_none_or_nothing, PASS
 from torchslime.utils.decorators import Singleton
 from torchslime.utils.typing import INT_SEQ_N
 from datetime import datetime
@@ -191,7 +191,7 @@ class DistributedLogger(Logger):
         import torch.distributed as dist
         rank = dist.get_rank()
         return not is_none_or_nothing(self.exec_ranks) and \
-            (is_pass(self.exec_ranks) or rank in self.exec_ranks)
+            (self.exec_ranks is PASS or rank in self.exec_ranks)
     
     def _get_rank_info(self):
         import torch.distributed as dist

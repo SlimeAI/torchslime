@@ -12,7 +12,7 @@ from torchslime.components.metric import MetricContainer, LossReductionFactory, 
 from torchslime.components.exception import APIMisused
 from torchslime.utils import get_device, type_cast, count_params
 from torchslime.log import logger
-from torchslime.utils.bases import NOTHING, is_nothing, is_none_or_nothing
+from torchslime.utils.bases import NOTHING, is_none_or_nothing
 from torchslime.utils.decorators import CallDebug, MethodChaining
 from torchslime.utils.typing import NUMBER
 from torchslime.core.context.base import BaseContext
@@ -202,7 +202,7 @@ class Context(BaseContext):
     @MethodChaining
     def compile_data_parser(self, data_parser) -> 'Context':
         if data_parser is not None:
-            self.run_ctx.data_parser = data_parser if is_nothing(data_parser) is False else IndexParser()
+            self.run_ctx.data_parser = data_parser if data_parser is not NOTHING else IndexParser()
 
     @CallDebug(module_name='Context.compile_optimizer')
     @MethodChaining
@@ -236,9 +236,7 @@ class Context(BaseContext):
     @MethodChaining
     def compile_dataset(self, dataset, mode: str) -> 'Context':
         if dataset is not None:
-            if is_nothing(dataset):
-                dataset = NOTHING
-            else:
+            if dataset is not NOTHING:
                 dataset = dataset if isinstance(dataset, DataProvider) else ConstantProvider(dataset)
 
             mode_supported = ['train', 'eval']

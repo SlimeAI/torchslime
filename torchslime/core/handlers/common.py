@@ -8,9 +8,13 @@ from torchslime.utils.typing import (
     Any,
     Mapping
 )
-from torchslime.utils import IterTool, safe_divide, type_cast, \
-    terminal as Cursor, inf_enumerate
-from torchslime.utils.bases import BaseList, is_none_or_nothing, Nothing, NOTHING, is_nothing
+from torchslime.utils import (
+    IterTool,
+    type_cast,
+    terminal as Cursor,
+    inf_enumerate
+)
+from torchslime.utils.bases import BaseList, is_none_or_nothing, Nothing, NOTHING
 from torchslime.components.metric import MeterDict
 from torchslime.utils.decorators import CallDebug
 from torchslime.utils.formatter import progress_format, eta_format
@@ -19,6 +23,11 @@ from torchslime.core.handlers import Handler, HandlerContainer
 from torchslime.log import logger
 from torch import set_grad_enabled
 from functools import wraps
+
+# TODO: all
+# __all__ = [
+#     'TorchGrad'
+# ]
 
 
 def TorchGrad(func):
@@ -39,9 +48,6 @@ class EmptyHandler(Handler):
     Args:
         Handler (torchslime.core.handler.Handler): _description_
     """
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
     
     @CallDebug(module_name='EmptyHandler')
     def handle(self, _: BaseContext):
@@ -49,14 +55,10 @@ class EmptyHandler(Handler):
         pass
 
 
-# lambda or sequence of lambdas
-L_SEQ = Union[Callable[[BaseContext], Any], Sequence[Callable[[BaseContext], Any]]]
-
-
 class LambdaHandler(Handler, BaseList[Callable[[BaseContext], None]]):
     
-    def __init__(self, _lambda: L_SEQ, *args, **kwargs):
-        Handler.__init__(self, *args, **kwargs)
+    def __init__(self, _lambda: Iterable[Callable[[BaseContext], None]]):
+        Handler.__init__(self)
         BaseList.__init__(self, _lambda)
     
     def handle(self, ctx: BaseContext):
@@ -69,9 +71,6 @@ class EpochIterationHandler(HandlerContainer):
     """
     Train Only
     """
-
-    def __init__(self, handlers: Union[Iterable[Handler], None, Nothing] = None, *args, **kwargs):
-        super().__init__(handlers, *args, **kwargs)
 
     @CallDebug(module_name='EpochIterationHandler')
     def handle(self, ctx: BaseContext):
@@ -87,9 +86,6 @@ class EpochIterationHandler(HandlerContainer):
 
 
 class IterationHandler(HandlerContainer):
-
-    def __init__(self, handlers: Union[Iterable[Handler], None, Nothing] = None, *args, **kwargs):
-        super().__init__(handlers, *args, **kwargs)
 
     @CallDebug(module_name='IterationHandler')
     @TorchGrad
@@ -146,9 +142,6 @@ class StepIterationHandler(HandlerContainer):
 
 
 class ForwardHandler(Handler):
-    
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
 
     @CallDebug(module_name='ForwardHandler')
     def handle(self, ctx: BaseContext):
@@ -174,9 +167,6 @@ class ForwardHandler(Handler):
 
 
 class LossHandler(Handler):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
     
     @CallDebug(module_name='LossHandler')
     def handle(self, ctx: BaseContext):
@@ -195,9 +185,6 @@ class LossHandler(Handler):
 
 class BackwardHandler(Handler):
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
     @CallDebug(module_name='BackwardHandler')
     def handle(self, ctx: BaseContext):
         # context check
@@ -209,9 +196,6 @@ class BackwardHandler(Handler):
 
 
 class OptimizerHandler(HandlerContainer):
-
-    def __init__(self, handlers: Union[Iterable[Handler], None, Nothing] = None, *args, **kwargs):
-        super().__init__(handlers, *args, **kwargs)
     
     @CallDebug(module_name='OptimizerHandler')
     def handle(self, ctx: BaseContext):
@@ -224,9 +208,6 @@ class OptimizerHandler(HandlerContainer):
 
 
 class MetricsHandler(Handler):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
     
     @CallDebug(module_name='MetricsHandler')
     def handle(self, ctx: BaseContext):
@@ -237,9 +218,6 @@ class MetricsHandler(Handler):
 
 
 class GatherAverageHandler(Handler):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
     
     @CallDebug(module_name='GatherAverageHandler')
     def handle(self, ctx: BaseContext):
@@ -261,18 +239,12 @@ class GatherAverageHandler(Handler):
 
 class MeterInitHandler(Handler):
     
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-    
     @CallDebug(module_name='MeterInitHandler')
     def handle(self, ctx: BaseContext):
         ctx.hook_ctx.state.init_meter(ctx)
 
 
 class MeterHandler(Handler):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
     
     @CallDebug(module_name='MeterHandler')
     def handle(self, ctx: BaseContext):
@@ -281,9 +253,11 @@ class MeterHandler(Handler):
 
 class DisplayHandler(Handler):
 
-    def __init__(self, *args, exec_ranks=NOTHING, **kwargs):
-        exec_ranks = [0] if is_nothing(exec_ranks) else exec_ranks
-        super().__init__(*args, exec_ranks=exec_ranks, **kwargs)
+    def __init__(self):
+        # set default exec ranks to [0]
+        from . import ExecRanks
+        self.metadata__ = ExecRanks([0]) | self.metadata__
+        super().__init__()
     
     @CallDebug(module_name='DisplayHandler')
     def handle(self, ctx: BaseContext):
@@ -315,9 +289,6 @@ class DisplayHandler(Handler):
 
 
 class LRDecayHandler(Handler):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
     
     @CallDebug(module_name='LRDecayHandler')
     def handle(self, ctx: BaseContext):

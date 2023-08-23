@@ -16,42 +16,96 @@ from torchslime.utils.bases import (
     BaseList,
     Nothing,
     is_none_or_nothing,
-    is_nothing
+    Pass
 )
-from torchslime.utils.meta import Meta
+from torchslime.utils.meta import Meta, Metadata
 from torchslime.utils.typing import INT_SEQ_N
 from torchslime.components.registry import Registry
 from torchslime.components.exception import HandlerException, HandlerTerminate, HandlerBreak, HandlerContinue
+from torchslime.utils.formatter import dict_to_key_value_str
 
 
 OPTIONAL_HANDLER = Union['Handler', Sequence['Handler'], None, Nothing]
 
 
 @Meta
-class Handler:
-    """Base class for all handlers.
+class HandlerMetaclass:
+    """
+    Metadata initialization and operations
     """
     
+    metadata__: Metadata
+    default_metadata__: 'HandlerMetadata'
+    # for generating unique id
     _handler_id_gen = Count()
-    id_attrs = ['name', 'phase']
-    tab = ' ' * 4  # tab is equal to 4 spaces
-    def __init__(
-        self,
-        *,
-        _id: Union[str, None, Nothing] = None,
-        exec_ranks: INT_SEQ_N = PASS
-    ):
+    
+    def __init__(self) -> None:
         super().__init__()
+        # set default metadata and apply default value
+        self.default_metadata__ = HandlerMetadata()
+        self.metadata__ = self.default_metadata__ | self.metadata__
+        # set default id if id is not specified
         # TODO: thread-safe and process-safe
-        self.__id = _id if not is_none_or_nothing(_id) else 'handler_{}'.format(self._handler_id_gen)
+        if is_none_or_nothing(self.get_id()):
+            self.set_id('handler_{}'.format(self._handler_id_gen))
+        # bind self to wrappers after initialization
+        wrappers = self.get_wrappers()
+        if not is_none_or_nothing(wrappers):
+            wrappers.bind(self)
+    
+    def get_id(self) -> Union[str, Nothing]:
+        return self.metadata__.get('id', NOTHING)
+
+    def set_id(self, _id: str) -> None:
+        self.metadata__ |= ID(_id)
+    
+    def get_exec_ranks(self) -> Union[Iterable[int], None, Nothing, Pass]:
+        return self.metadata__.get('exec_ranks', NOTHING)
+    
+    def set_exec_ranks(self, exec_ranks: Union[Iterable[int], None, Nothing, Pass]) -> None:
+        self.metadata__ |= ExecRanks(exec_ranks)
+
+    def reset_exec_ranks(self) -> None:
+        self.metadata__['exec_ranks'] = self.default_metadata__['exec_ranks']
+
+    def get_wrappers(self) -> Union['HandlerWrapperContainer', Nothing]:
+        return self.metadata__.get('wrappers', NOTHING)
+    
+    def set_wrappers(self, *wrappers) -> None:
+        # set metadata
+        self.metadata__ |= Wrappers(*wrappers)
+        # bind self to wrappers
+        self.get_wrappers().bind(self)
+    
+    def reset_wrappers(self) -> None:
+        self.metadata__['wrappers'] = self.default_metadata__['wrappers']
+    
+    def get_lifecycle(self):
+        pass
+    
+    def set_lifecycle(self):
+        pass
+
+
+class Handler(HandlerMetaclass):
+    """Base class for all handlers.
+    """
+
+    tab = ' ' * 4  # tab is equal to 4 spaces
+    
+    def __init__(self):
+        super().__init__()
+        # parent initialized to NOTHING
         self.__parent: Union[HandlerContainer, Nothing] = NOTHING
-        self.set_exec_ranks(exec_ranks)
 
     def handle(self, ctx: BaseContext): pass
 
     def __call__(self, ctx: BaseContext):
         try:
-            ctx.hook_ctx.launch.handler_call(self, ctx)
+            wrappers = self.get_wrappers()
+            # call wrapper if wrapper is not empty
+            handler = self if is_none_or_nothing(wrappers) else wrappers
+            ctx.hook_ctx.launch.handler_handle(handler, ctx)
         except HandlerTerminate as ht:
             # set ``raise_handler`` to the nearest handler
             if is_none_or_nothing(ht.raise_handler):
@@ -96,7 +150,7 @@ class Handler:
         return True
     
     def _verify_parent(self) -> bool:
-        if is_nothing(self.get_parent()) or self not in self.get_parent():
+        if self.get_parent() is NOTHING or self not in self.get_parent():
             # root node, wild pointer or unmatched parent
             logger.warn('')
             self.del_parent()
@@ -145,32 +199,17 @@ class Handler:
             # multiple matched nodes
             logger.warn('')
     
-    def get_id(self) -> Union[str, Nothing]:
-        return self.__id
-
-    def set_id(self, _id: Union[str, Nothing]):
-        self.__id = _id
-    
     def get_parent(self):
         return self.__parent
 
     def set_parent(self, _parent):
-        if is_nothing(self.__parent) is False:
+        if not is_none_or_nothing(self.__parent):
             # duplicate parent
             logger.warn('')
         self.__parent = _parent
     
     def del_parent(self):
         self.__parent = NOTHING
-    
-    def set_exec_ranks(self, exec_ranks: INT_SEQ_N):
-        self.__exec_ranks = BaseList.create__(exec_ranks)
-
-    def get_exec_ranks(self):
-        return self.__exec_ranks
-
-    def is_distributed(self) -> bool:
-        return False
     
     def display(self):
         logger.info('Handler Structure:\n{content}'.format(
@@ -216,33 +255,16 @@ class Handler:
         )
 
     def __str__(self) -> str:
-        class_name = self._get_class_str()
-        attrs = self._get_attr_str()
-        return '{class_name}({attrs})'.format(class_name=class_name, attrs=attrs)
+        class_name = self._get_class_name()
+        attrs = dict_to_key_value_str(self._get_attr_dict())
+        metadata = dict_to_key_value_str(self.metadata__)
+        return f'{class_name}[{metadata}]({attrs})'
     
-    def _get_attr_str(self) -> str:
-        attr_dict = self._get_attr_dict()
-        return ', '.join([
-            '{key}={value}'.format(key=str(key), value=str(value)) \
-            for key, value in attr_dict.items()
-        ])
-    
-    def _get_class_str(self) -> str:
+    def _get_class_name(self) -> str:
         return type(self).__name__
-    
-    def _get_display_attrs(self) -> dict:
-        return {
-            '_Handler__id': 'id',
-            '_Handler__exec_ranks': 'exec_ranks'
-        }
 
     def _get_attr_dict(self) -> dict:
-        display_attrs = self._get_display_attrs()
-        return {
-            display_attrs[key]:value \
-            for key, value in vars(self).items() \
-            if key in display_attrs
-        }
+        return {}
 
 
 display_wrap_func = Registry('display_wrap_func')
@@ -269,10 +291,8 @@ class HandlerContainer(Handler, BaseList[Handler]):
     def __init__(
         self,
         handlers: Union[Iterable[Handler], None, Nothing] = None,
-        *args,
-        **kwargs
     ):
-        Handler.__init__(self, *args, **kwargs)
+        Handler.__init__(self)
         # remove ``None`` and ``NOTHING`` in ``handlers``
         handlers: List[Handler] = list(filter(
             lambda item: not is_none_or_nothing(item),
@@ -282,9 +302,6 @@ class HandlerContainer(Handler, BaseList[Handler]):
             self,
             handlers
         )
-        # set parent
-        for handler in self:
-            handler.set_parent(self)
     
     def handle(self, ctx: BaseContext):
         try:
@@ -366,7 +383,7 @@ class HandlerContainer(Handler, BaseList[Handler]):
     def _get_display_list(self, indent=0, *, target_handlers: OPTIONAL_HANDLER = NOTHING, wrap_func: Callable = NOTHING) -> list:
         display_list = []
         indent_str = indent * self.tab
-        prefix_content = self._get_class_str() + '(['
+        prefix_content = self._get_class_name() + '(['
         # error wrap
         if is_none_or_nothing(target_handlers) is False and \
             self._is_target_handler(target_handlers=target_handlers):
@@ -377,24 +394,50 @@ class HandlerContainer(Handler, BaseList[Handler]):
         for handler in self:
             display_list.extend(handler._get_display_list(indent + 1, target_handlers=target_handlers, wrap_func=wrap_func))
         # suffix
-        display_list.append(indent_str + '], ' + self._get_attr_str() + ')')
+        display_list.append(indent_str + '], ' + dict_to_key_value_str(self._get_attr_dict()) + ')')
         return display_list
-
-
-class HandlerWrapper(Handler):
-    
-    __handler: Handler
-    
-    def set_handler(self, handler: Handler) -> None:
-        self.__handler = handler
-        
-    def get_handler(self) -> Handler:
-        return self.__handler
-    
-    def handle(self, ctx: BaseContext):
-        self.__handler(ctx)
 
 
 from .common import *
 from .wrappers import *
-from .conditions import *
+
+#
+# Metadata
+#
+
+class HandlerMetadata(Metadata):
+    
+    def __init__(self):
+        super().__init__()
+        self.update(
+            id=NOTHING,
+            exec_ranks=PASS,
+            wrappers=NOTHING,
+            lifecycle=NOTHING
+        )
+
+
+class ID(Metadata):
+    
+    def __init__(self, _id: str):
+        super().__init__('id', _id)
+
+
+class ExecRanks(Metadata):
+    
+    def __init__(
+        self,
+        exec_ranks: Union[Iterable[int], None, Nothing, Pass] = PASS
+    ):
+        super().__init__('exec_ranks', BaseList.create__(exec_ranks))
+
+
+class Wrappers(Metadata):
+    
+    def __init__(self, *wrappers):
+        super().__init__('wrappers', HandlerWrapperContainer(list(wrappers)))
+
+
+class Lifecycle(Metadata):
+    
+    pass

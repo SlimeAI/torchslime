@@ -7,7 +7,8 @@ from .typing import (
     Iterator,
     Iterable,
     Any,
-    List
+    List,
+    TypeVar
 )
 from torch import Tensor
 from torch.nn import Module
@@ -16,6 +17,8 @@ import inspect
 import os
 from types import MethodType, FunctionType
 import re
+
+_T = TypeVar('_T')
 
 
 def get_exec_info(obj):
@@ -338,6 +341,17 @@ class GreaterThanAnything:
     def __eq__(self, __value: Any) -> bool: return False
     def __gt__(self, __value: Any) -> bool: return True
     def __ge__(self, __value: Any) -> bool: return True
+
+
+def window_iter(__sequence: Sequence[_T], window_size: int = 1, step: int = 1) -> Iterator[Tuple[_T]]:
+    if window_size < 1 or step < 1:
+        raise ValueError('``window_size`` and ``step`` should be integers not less than 1.')
+    
+    import math
+    max_index = math.floor((len(__sequence) - window_size) / step)
+    # index start from 0, so it should be ``max_index + 1``
+    for i in range(max_index + 1):
+        yield tuple(__sequence[i * step : i * step + window_size])
 
 
 from torchslime.utils.bases import NOTHING

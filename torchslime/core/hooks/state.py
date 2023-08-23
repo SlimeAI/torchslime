@@ -1,7 +1,6 @@
 """
 State Pattern for model state management.
 """
-from torchslime.utils.bases import is_nothing, NOTHING
 from torchslime.components.registry import Registry
 from torchslime.components.metric import MeterDict
 from torchslime.core.context.base import BaseContext

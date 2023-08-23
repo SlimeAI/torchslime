@@ -8,7 +8,7 @@ from torchslime.utils.typing import (
     Type,
     Tuple
 )
-from torchslime.utils.bases import Base, Nothing, NOTHING, is_none_or_nothing, BaseList, is_nothing, is_pass, PASS
+from torchslime.utils.bases import Base, Nothing, NOTHING, is_none_or_nothing, BaseList, PASS
 from torchslime.utils.decorators import ItemAttrBinding, ObjectAttrBinding, Singleton
 from torchslime.utils import is_slime_naming, xor__
 from torchslime.log import logger
@@ -203,7 +203,7 @@ class Field:
         validator: Callable[[Any], bool] = NOTHING,
         parser: Callable[[Any], Any] = NOTHING
     ) -> None:
-        if not xor__(is_pass(default), is_pass(default_factory)):
+        if not xor__(default is PASS, default_factory is PASS):
             raise APIMisused('One and only one of the ``default`` and ``default_factory`` params must be specified.')
         
         self.default = default
@@ -216,8 +216,8 @@ class Field:
 
     def __call__(self, __value: Any = PASS) -> Any:
         # get default value
-        if is_pass(__value):
-            __value = self.default if not is_pass(self.default) else self.default_factory()
+        if __value is PASS:
+            __value = self.default if self.default is not PASS else self.default_factory()
         # validate
         if not is_none_or_nothing(self.validator) and not self.validator(__value):
             raise ValueError('Validation error: {fieldname}'.format(fieldname=self.fieldname))
@@ -227,7 +227,7 @@ class Field:
         return __value
     
     def __set_name__(self, _, name):
-        if not is_nothing(getattr(self, 'fieldname', NOTHING)):
+        if getattr(self, 'fieldname', NOTHING) is not NOTHING:
             # TODO: warn
             pass
         self.fieldname = name

@@ -1,6 +1,6 @@
 """defines some format functions for log output.
 """
-from .typing import Tuple, Union
+from .typing import Tuple, Union, Mapping
 import time
 from torchslime.utils import terminal as Cursor
 
@@ -104,3 +104,9 @@ def eta_format(from_time, remain_steps, to_time: Union[str, float] = 'now'):
         to_time = time.time()
     return period_time_format((to_time - from_time) * remain_steps)
 
+
+def dict_to_key_value_str(__dict: Mapping) -> str:
+    items = []
+    for key, value in __dict.items():
+        items.append(f'{key}={value}')
+    return ', '.join(items)

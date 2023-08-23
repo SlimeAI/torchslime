@@ -7,10 +7,10 @@ from .typing import (
     Type,
     overload
 )
-from .bases import NOTHING, Nothing, is_none_or_nothing, BaseDict
+from .bases import NOTHING, Nothing, is_none_or_nothing, BaseDict, create_singleton
 from .decorators import ClassWraps, DecoratorCall, ClassFuncWrapper
 
-T = TypeVar('T')
+_T = TypeVar('_T')
 
 
 class Metadata(BaseDict):
@@ -25,12 +25,23 @@ class Metadata(BaseDict):
             raise ValueError('``MetaData`` can only be compatible with objects of its own class, but ``{actual_class}`` found.'.format(
                 actual_class=str(__value.__class__.__name__)
             ))
-        # update from other Metadata(s)
-        self.update(__value)
-        return self
+        # create new metadata
+        new_metadata = Metadata()
+        new_metadata.update(self)
+        # new ``__value`` will override the value of the duplicate keys in ``self``
+        new_metadata.update(__value)
+        return new_metadata
     
     def __ror__(self, __value: 'Metadata') -> 'Metadata':
         return self | __value
+    
+    def check(self):
+        required = []
+        for key, value in self.items():
+            if value is REQUIRED:
+                required.append(key)
+        if len(required) > 0:
+            raise ValueError(f'Metadata missing required value(s): {", ".join(required)}')
 
 
 class MetaWrapper:
@@ -74,19 +85,19 @@ class MetaWrapper:
 
 # type hint
 @overload
-def Meta(_cls: Union[None, Nothing] = NOTHING) -> Callable[[Type[T]], Type[T]]: pass
+def Meta(_cls: Union[None, Nothing] = NOTHING) -> Callable[[Type[_T]], Type[_T]]: pass
 @overload
-def Meta(_cls: Type[T]) -> Type[T]: pass
+def Meta(_cls: Type[_T]) -> Type[_T]: pass
 
 @DecoratorCall(index=0, keyword='_cls')
-def Meta(_cls: Type[T] = NOTHING):
-    def decorator(cls: Type[T]) -> Type[T]:
+def Meta(_cls: Type[_T] = NOTHING):
+    def decorator(cls: Type[_T]) -> Type[_T]:
         class_wraps = ClassWraps(cls)
         
         class_getitem_wraps = class_wraps.__class_getitem__
         @class_getitem_wraps
         @classmethod
-        def class_getitem(cls: Type[T], metadata: Union[Metadata, Tuple[Metadata]]) -> Type[T]:
+        def class_getitem(cls: Type[_T], metadata: Union[Metadata, Tuple[Metadata]]) -> Type[_T]:
             if isinstance(metadata, Tuple):
                 result = Metadata()
                 for item in metadata:
@@ -117,3 +128,8 @@ class Metaclass:
     # just for type hint
     metadata__: Metadata
     def __class_getitem__(cls, metadata: Union[Metadata, Tuple[Metadata]]): return cls
+    # WARNING: default metadata is optional and should be set manually
+    default_metadata__: Metadata
+
+
+Required, REQUIRED = create_singleton('Required')
