@@ -28,6 +28,9 @@ class Store:
     def current__(self) -> StoreScope:
         return self.scope__(self.get_current_key__())
 
+    def builtin__(self) -> StoreScope:
+        return self.scope__('builtin__')
+
     def destroy__(self, __key=NOTHING):
         if is_none_or_nothing(__key):
             __key = self.get_current_key__()
@@ -110,12 +113,12 @@ _store_dict = {}
 
 store = Store()
 
-"""set ``inner__`` store config"""
+"""set ``builtin__`` store config"""
 # whether to save log metadata (e.g., exec_name, lineno, etc.) to cache.
-store.scope__('inner__').use_log_cache = True
-store.scope__('inner__').log_cache = Base()
+store.builtin__().use_log_cache = True
+store.builtin__().log_cache = Base()
 # flag to log only once. For example, some warnings may appear only once.
-store.scope__('inner__').log_once = Base()
+store.builtin__().log_once = Base()
 # whether to use call debug
-store.scope__('inner__').use_call_debug = False
-store.scope__('inner__').call_debug_cache = Base()
+store.builtin__().use_call_debug = False
+store.builtin__().call_debug_cache = Base()

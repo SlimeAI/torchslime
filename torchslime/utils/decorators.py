@@ -230,11 +230,11 @@ def CallDebug(_func: _T = NOTHING, *, module_name=NOTHING):
         @wraps(func)
         def wrapper(*args, **kwargs):
             # do not use debug
-            if store.scope__('inner__').use_call_debug is not True:
+            if store.builtin__().use_call_debug is not True:
                 return func(*args, **kwargs)
 
             # cache debug info
-            call_debug_cache = store.scope__('inner__').call_debug_cache
+            call_debug_cache = store.builtin__().call_debug_cache
             _exec_info = call_debug_cache[func_id]
             if is_none_or_nothing(_exec_info) is True:
                 _exec_info = get_exec_info(func)

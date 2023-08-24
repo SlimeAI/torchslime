@@ -161,7 +161,7 @@ class Handler(HandlerMetaclass):
         # initialize
         result = [] if is_none_or_nothing(result) else result
         
-        if self.__id == _id:
+        if self.get_id() == _id:
             self._append_search_result(self, result, allow_multiple=False)
         return NOTHING if len(result) < 1 else result[0]
     
