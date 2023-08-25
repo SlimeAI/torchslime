@@ -1,9 +1,6 @@
 from torchslime.core.context.base import BaseContext
-from torchslime.core.handlers.common import BaseContext
-from torchslime.core.handlers.wrappers import BaseContext
 from . import Handler
-from torchslime.core.context import BaseContext
-from torchslime.core.hooks.state import StateHook, state_registry
+from torchslime.core.hooks.state import state_registry
 from torchslime.utils.bases import BaseList, Nothing, NOTHING, is_none_or_nothing
 from torchslime.utils.typing import (
     Union,
@@ -14,7 +11,11 @@ from torchslime.utils.typing import (
 )
 from torchslime.utils.decorators import CallDebug
 from torchslime.utils import window_iter
-from torchslime.components.exception import APIMisused
+from torchslime.components.exception import (
+    APIMisused,
+    HandlerBaseException,
+    HandlerWrapperException
+)
 from torchslime.log import logger
 
 
@@ -31,8 +32,7 @@ class HandlerWrapper(Handler):
     def handle(self, ctx: BaseContext):
         # NOTE: use ``handle`` rather than ``__call__`` here
         # NOTE: use launch hook to process ``exec_ranks``
-        ctx.hook_ctx.launch.handler_handle(self.__handler, ctx)
-
+        _handler_handle(self.__handler, ctx)
 
 class HandlerWrapperContainer(Handler, BaseList[HandlerWrapper]):
     
@@ -48,7 +48,7 @@ class HandlerWrapperContainer(Handler, BaseList[HandlerWrapper]):
         # NOTE: use ``handle`` rather than ``__call__`` here
         # NOTE: use launch hook to process ``exec_ranks``
         # call the first handler here
-        ctx.hook_ctx.launch.handler_handle(self[0], ctx)
+        _handler_handle(self[0], ctx)
     
     def bind(self, handler: Handler):
         if len(self) < 1:
@@ -87,6 +87,16 @@ class HandlerWrapperContainer(Handler, BaseList[HandlerWrapper]):
     def link_list(self):
         for _prev, _next in window_iter(self, 2):
             _prev.set_handler(_next)
+
+def _handler_handle(handler: Handler, ctx: BaseContext):
+    try:
+        ctx.hook_ctx.launch.handler_handle(handler, ctx)
+    # directly raise Handler Base Exception
+    except HandlerBaseException as hbe:
+        raise hbe
+    # wrap other Exception with Handler Wrapper Exception
+    except Exception as e:
+        raise HandlerWrapperException(exception_handler=handler, exception=e)
 
 #
 # StateHandler

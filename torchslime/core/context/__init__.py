@@ -291,8 +291,8 @@ def _handler_call(handler: Handler, ctx: Context):
     try:
         handler(ctx)
     except HandlerTerminate as ht:
-        handler.display_traceback(target_handlers=ht.raise_handler, wrap_func='terminate', level='info')
+        handler.display_traceback(target_handlers=[ht.raise_handler], wrap_func='terminate', level='info')
         logger.info(f'Handler terminated with message: {ht.msg}')
     except HandlerException as he:
-        handler.display_traceback(target_handlers=he.exception_handler)
+        handler.display_traceback(target_handlers=[he.exception_handler])
         raise he.exception

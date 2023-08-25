@@ -15,10 +15,16 @@ class APIMisused(Exception):
 from torchslime.utils.bases import NOTHING
 
 #
+# Base Exception class for all Handler Exceptions and Interrupts
+#
+
+class HandlerBaseException(Exception): pass
+
+#
 # Handler Interrupt
 #
 
-class HandlerInterrupt(Exception):
+class HandlerInterrupt(HandlerBaseException):
 
     def __init__(self, *args: object) -> None:
         super().__init__(*args)
@@ -47,7 +53,7 @@ class HandlerTerminate(HandlerInterrupt):
 # Handler Exception
 #
 
-class HandlerException(Exception):
+class HandlerException(HandlerBaseException):
 
     def __init__(self, exception_handler, exception: Exception) -> None:
         super().__init__()
@@ -58,5 +64,7 @@ class HandlerException(Exception):
         return f'HandlerException -> exception_handler: {str(self.exception_handler)}'
 
 
-class WrapperException(Exception):
-    pass
+class HandlerWrapperException(HandlerException):
+    
+    def __str__(self) -> str:
+        return f'HandlerWrapperException -> exception_handler: {str(self.exception_handler)}'

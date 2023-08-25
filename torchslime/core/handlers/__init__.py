@@ -21,11 +21,14 @@ from torchslime.utils.bases import (
 from torchslime.utils.meta import Meta, Metadata
 from torchslime.utils.typing import INT_SEQ_N
 from torchslime.components.registry import Registry
-from torchslime.components.exception import HandlerException, HandlerTerminate, HandlerBreak, HandlerContinue
+from torchslime.components.exception import (
+    HandlerException,
+    HandlerTerminate,
+    HandlerBreak,
+    HandlerContinue,
+    HandlerWrapperException
+)
 from torchslime.utils.formatter import dict_to_key_value_str
-
-
-OPTIONAL_HANDLER = Union['Handler', Sequence['Handler'], None, Nothing]
 
 
 @Meta
@@ -106,15 +109,31 @@ class Handler(HandlerMetaclass):
             # call wrapper if wrapper is not empty
             handler = self if is_none_or_nothing(wrappers) else wrappers
             ctx.hook_ctx.launch.handler_handle(handler, ctx)
+        #
+        # Handler Interrupt
+        #
         except HandlerTerminate as ht:
             # set ``raise_handler`` to the nearest handler
             if is_none_or_nothing(ht.raise_handler):
                 ht.raise_handler = self
             raise ht
-        except HandlerException as he:
-            raise he
         except (HandlerBreak, HandlerContinue) as hi:
             raise hi
+        #
+        # Handler Wrapper Exception (should be in front of ``HandlerException``)
+        #
+        except HandlerWrapperException as hwe:
+            # output the original exception handler, and raise it as a normal handler exception
+            logger.error(str(hwe))
+            raise HandlerException(exception_handler=self, exception=hwe.exception)
+        #
+        # Handler Exception
+        #
+        except HandlerException as he:
+            raise he
+        #
+        # other Exception(s)
+        #
         except Exception as e:
             raise HandlerException(exception_handler=self, exception=e)
     
@@ -217,17 +236,32 @@ class Handler(HandlerMetaclass):
     def get_display_str(self) -> str:
         return '\n'.join(self._get_display_list(indent=0))
 
-    def display_traceback(self, target_handlers: OPTIONAL_HANDLER, wrap_func: Union[str, Callable] = 'exception', level: str = 'error'):
+    def display_traceback(
+        self,
+        target_handlers: Union[List['Handler'], None, Nothing],
+        wrap_func: Union[str, Callable] = 'exception',
+        level: str = 'error'
+    ):
         wrap_func = wrap_func if callable(wrap_func) is True else display_wrap_func.get(wrap_func)
 
         content = self.get_display_traceback_str(target_handlers=target_handlers, wrap_func=wrap_func)
         getattr(logger, level, logger.error)(f'Handler Traceback:\n{content}')
     
-    def get_display_traceback_str(self, target_handlers: OPTIONAL_HANDLER, wrap_func: Callable) -> str:
+    def get_display_traceback_str(
+        self,
+        target_handlers: Union[List['Handler'], None, Nothing],
+        wrap_func: Callable
+    ) -> str:
         return Cursor.single_color('w') + \
             '\n'.join(self._get_display_list(indent=0, target_handlers=target_handlers, wrap_func=wrap_func))
 
-    def _get_display_list(self, indent=0, *, target_handlers: OPTIONAL_HANDLER = NOTHING, wrap_func: Callable = NOTHING) -> list:
+    def _get_display_list(
+        self,
+        indent=0,
+        *,
+        target_handlers: Union[List['Handler'], None, Nothing] = NOTHING, 
+        wrap_func: Callable = NOTHING
+    ) -> list:
         indent_str = indent * self.tab
         content = self.__str__()
         # error wrap
@@ -238,7 +272,10 @@ class Handler(HandlerMetaclass):
         display_list = [f'{indent_str}{content}']
         return display_list
 
-    def _is_target_handler(self, target_handlers: OPTIONAL_HANDLER = NOTHING):
+    def _is_target_handler(
+        self,
+        target_handlers: Union[List['Handler'], None, Nothing] = NOTHING
+    ):
         return self in BaseList.create__(
             target_handlers,
             return_none=False,
@@ -372,7 +409,13 @@ class HandlerContainer(Handler, BaseList[Handler]):
         __handler.set_parent(self)
         return super().insert(__index, __handler)
     
-    def _get_display_list(self, indent=0, *, target_handlers: OPTIONAL_HANDLER = NOTHING, wrap_func: Callable = NOTHING) -> list:
+    def _get_display_list(
+        self,
+        indent=0,
+        *,
+        target_handlers: Union[List['Handler'], None, Nothing] = NOTHING,
+        wrap_func: Callable = NOTHING
+    ) -> list:
         display_list = []
         indent_str = indent * self.tab
         prefix_content = self._get_class_name() + '(['
