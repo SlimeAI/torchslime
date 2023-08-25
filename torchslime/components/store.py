@@ -1,5 +1,5 @@
 from functools import wraps
-from torchslime.utils.typing import Any, Union, TypeVar, Callable
+from torchslime.utils.typing import Any, Callable
 import threading
 import os
 from torchslime.utils.bases import Base, NOTHING, is_none_or_nothing
@@ -7,28 +7,36 @@ from torchslime.utils.decorators import Singleton, ItemAttrBinding, ObjectAttrBi
 from torchslime.utils import is_slime_naming
 
 
-class StoreScope(Base):
+class ScopedStore(Base):
 
     def __init__(self, key__) -> None:
         super().__init__()
         self.key__ = key__
 
+# 
+# Store, builtin ScopedStore and store_dict
+#
+
+_builtin_scoped_store = ScopedStore('builtin__')
+_store_dict = {
+    'builtin__': _builtin_scoped_store
+}
 
 @ObjectAttrBinding
 @ItemAttrBinding
 @Singleton
 class Store:
     
-    def scope__(self, __key) -> StoreScope:
+    def scope__(self, __key) -> ScopedStore:
         if __key in _store_dict:
             return _store_dict[__key]
         else:
-            return _store_dict.setdefault(__key, StoreScope(key__=__key))
+            return _store_dict.setdefault(__key, ScopedStore(key__=__key))
 
-    def current__(self) -> StoreScope:
+    def current__(self) -> ScopedStore:
         return self.scope__(self.get_current_key__())
 
-    def builtin__(self) -> StoreScope:
+    def builtin__(self) -> ScopedStore:
         return self.scope__('builtin__')
 
     def destroy__(self, __key=NOTHING):
@@ -47,10 +55,10 @@ class Store:
         return getattr(self.current__(), __name)
 
     def __getattribute__(self, __name: str) -> Any:
-        # magic naming or slime naming
+        # slime naming
         if is_slime_naming(__name) is True:
             return super().__getattribute__(__name)
-        # else get from StoreScope object
+        # else get from ScopedStore object
         return getattr(self.current__(), __name)
 
     def __setattr__(self, __name: str, __value: Any) -> None:
@@ -64,9 +72,6 @@ class Store:
         pid = os.getpid(),
         tid = threading.get_ident()
         return f'p{pid}-t{tid}'
-
-
-StoreSetSelf = TypeVar('StoreSetSelf', bound='StoreSet')
 
 
 class StoreSet:
@@ -87,7 +92,7 @@ class StoreSet:
             return result
         return wrapper
 
-    def __enter__(self) -> Union['StoreSet', StoreSetSelf]:
+    def __enter__(self) -> 'StoreSet':
         self._set_value()
         return self
 
@@ -107,9 +112,6 @@ class StoreSet:
             del self._store[self.name]
         del self.restore_value
 
-
-# outer storage
-_store_dict = {}
 
 store = Store()
 

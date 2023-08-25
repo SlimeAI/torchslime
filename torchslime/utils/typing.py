@@ -8,7 +8,8 @@ from typing import *
 if sys.version_info < (3, 8):
     from typing_extensions import (
         SupportsIndex,
-        TypedDict
+        TypedDict,
+        Literal
     )
 
 if sys.version_info >= (3, 9):
