@@ -24,10 +24,24 @@ from torchslime.log import logger
 from torch import set_grad_enabled
 from functools import wraps
 
-# TODO: all
-# __all__ = [
-#     'TorchGrad'
-# ]
+__all__ = [
+    'TorchGrad',
+    'EmptyHandler',
+    'LambdaHandler',
+    'EpochIterationHandler',
+    'IterationHandler',
+    'StepIterationHandler',
+    'ForwardHandler',
+    'LossHandler',
+    'BackwardHandler',
+    'OptimizerHandler',
+    'MetricsHandler',
+    'GatherAverageHandler',
+    'MeterInitHandler',
+    'MeterHandler',
+    'DisplayHandler',
+    'LRDecayHandler'
+]
 
 
 def TorchGrad(func):
@@ -57,9 +71,9 @@ class EmptyHandler(Handler):
 
 class LambdaHandler(Handler, BaseList[Callable[[BaseContext], None]]):
     
-    def __init__(self, _lambda: Iterable[Callable[[BaseContext], None]]):
+    def __init__(self, __lambdas: Iterable[Callable[[BaseContext], None]]):
         Handler.__init__(self)
-        BaseList.__init__(self, _lambda)
+        BaseList.__init__(self, __lambdas)
     
     def handle(self, ctx: BaseContext):
         # execute lambda functions
