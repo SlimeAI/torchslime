@@ -35,8 +35,8 @@ if sys.version_info >= (3, 9):
     AbstractSet = abc.Set
     
     # deprecated type: ByteString
-    import typing_extensions
     try:
+        import typing_extensions
         ByteString = typing_extensions.Buffer
     except Exception:
         ByteString = Union[bytes, bytearray, memoryview]
