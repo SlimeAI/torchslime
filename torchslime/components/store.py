@@ -124,3 +124,5 @@ store.builtin__().log_once = Base()
 # whether to use call debug
 store.builtin__().use_call_debug = False
 store.builtin__().call_debug_cache = Base()
+# indent str for CLI display
+store.builtin__().indent_str = ' ' * 4  # default is 4 spaces

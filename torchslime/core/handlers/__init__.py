@@ -28,7 +28,7 @@ from torchslime.components.exception import (
     HandlerContinue,
     HandlerWrapperException
 )
-from torchslime.utils.formatter import dict_to_key_value_str
+from torchslime.utils.formatter import dict_to_key_value_str_list, concat_format
 
 
 @Meta
@@ -93,8 +93,6 @@ class HandlerMetaclass:
 class Handler(HandlerMetaclass):
     """Base class for all handlers.
     """
-
-    tab = ' ' * 4  # tab is equal to 4 spaces
     
     def __init__(self):
         super().__init__()
@@ -231,10 +229,7 @@ class Handler(HandlerMetaclass):
         self.__parent = NOTHING
     
     def display(self):
-        logger.info(f'Handler Structure:\n{self.get_display_str()}')
-    
-    def get_display_str(self) -> str:
-        return '\n'.join(self._get_display_list(indent=0))
+        logger.info(f'Handler Structure:\n{str(self)}')
 
     def display_traceback(
         self,
@@ -252,25 +247,15 @@ class Handler(HandlerMetaclass):
         target_handlers: Union[List['Handler'], None, Nothing],
         wrap_func: Callable
     ) -> str:
+        display_list = str(self).split('\n')
+        if self._is_target_handler(target_handlers):
+            display_list[0] = wrap_func(display_list[0])
+            print(display_list[0], '114514')
+        
         return Cursor.single_color('w') + \
-            '\n'.join(self._get_display_list(indent=0, target_handlers=target_handlers, wrap_func=wrap_func))
-
-    def _get_display_list(
-        self,
-        indent=0,
-        *,
-        target_handlers: Union[List['Handler'], None, Nothing] = NOTHING, 
-        wrap_func: Callable = NOTHING
-    ) -> list:
-        indent_str = indent * self.tab
-        content = self.__str__()
-        # error wrap
-        if is_none_or_nothing(target_handlers) is False and \
-            self._is_target_handler(target_handlers=target_handlers):
-            content = wrap_func(content)
-
-        display_list = [f'{indent_str}{content}']
-        return display_list
+            '\n'.join(
+                display_list
+            )
 
     def _is_target_handler(
         self,
@@ -285,15 +270,28 @@ class Handler(HandlerMetaclass):
 
     def __str__(self) -> str:
         class_name = self._get_class_name()
-        attrs = dict_to_key_value_str(self._get_attr_dict())
-        metadata = dict_to_key_value_str(self.metadata__)
-        return f'{class_name}[{metadata}]({attrs})'
+        
+        metadata_display_list = dict_to_key_value_str_list(self._get_metadata_dict())
+        metadata = concat_format('[', metadata_display_list, ']', break_line=False, item_sep=', ')
+        
+        attr_display_list = dict_to_key_value_str_list(self._get_attr_dict())
+        attr = concat_format('(', attr_display_list, ')', break_line=False, item_sep=', ')
+        
+        return f'{class_name}{metadata}{attr}'
     
     def _get_class_name(self) -> str:
         return type(self).__name__
 
     def _get_attr_dict(self) -> dict:
         return {}
+    
+    def _get_metadata_dict(self) -> dict:
+        return {
+            'id': self.get_id(),
+            'exec_ranks': self.get_exec_ranks(),
+            'wrappers': self.get_wrappers(),
+            'lifecycle': self.get_lifecycle()
+        }
 
 
 display_wrap_func = Registry('display_wrap_func')
@@ -409,28 +407,17 @@ class HandlerContainer(Handler, BaseList[Handler]):
         __handler.set_parent(self)
         return super().insert(__index, __handler)
     
-    def _get_display_list(
-        self,
-        indent=0,
-        *,
-        target_handlers: Union[List['Handler'], None, Nothing] = NOTHING,
-        wrap_func: Callable = NOTHING
-    ) -> list:
-        display_list = []
-        indent_str = indent * self.tab
-        prefix_content = self._get_class_name() + '(['
-        # error wrap
-        if is_none_or_nothing(target_handlers) is False and \
-            self._is_target_handler(target_handlers=target_handlers):
-            prefix_content = wrap_func(prefix_content)
-        # prefix
-        display_list.append(indent_str + prefix_content)
-        # handler
-        for handler in self:
-            display_list.extend(handler._get_display_list(indent + 1, target_handlers=target_handlers, wrap_func=wrap_func))
-        # suffix
-        display_list.append(indent_str + '], ' + dict_to_key_value_str(self._get_attr_dict()) + ')')
-        return display_list
+    def __str__(self) -> str:
+        class_name = self._get_class_name()
+        
+        metadata_display_list = dict_to_key_value_str_list(self._get_metadata_dict())
+        metadata = concat_format('[', metadata_display_list, ']', break_line=False, item_sep=', ')
+        
+        handlers = concat_format('([', [str(handler) for handler in self], '])')
+        attr_display_list = dict_to_key_value_str_list(self._get_attr_dict())
+        attr = concat_format('(', attr_display_list, ')', break_line=False, item_sep=', ')
+        
+        return f'{class_name}{metadata}{handlers}{attr}'
 
 
 from .common import *

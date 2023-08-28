@@ -1,8 +1,11 @@
 """defines some format functions for log output.
 """
-from .typing import Tuple, Union, Mapping
+from .typing import Tuple, Union, Mapping, Sequence
 import time
-from torchslime.utils import terminal as Cursor
+from . import terminal as Cursor
+from .bases import NOTHING, Nothing, is_none_or_nothing
+from torchslime.components.store import store
+from textwrap import indent
 
 
 class ProgressStyle:
@@ -104,9 +107,46 @@ def eta_format(from_time, remain_steps, to_time: Union[str, float] = 'now'):
         to_time = time.time()
     return period_time_format((to_time - from_time) * remain_steps)
 
+#
+# dict and list formatter
+#
 
-def dict_to_key_value_str(__dict: Mapping) -> str:
-    items = []
-    for key, value in __dict.items():
-        items.append(f'{key}={value}')
-    return ', '.join(items)
+def dict_to_key_value_str(
+    __dict: Mapping,
+    key_value_sep: str = '=',
+    str_sep: str = ', '
+) -> str:
+    return str_sep.join(dict_to_key_value_str_list(__dict, key_value_sep=key_value_sep))
+
+
+def dict_to_key_value_str_list(
+    __dict: Mapping,
+    key_value_sep: str = '='
+) -> list:
+    return [f'{key}{key_value_sep}{value}' for key, value in __dict.items()]
+
+
+def concat_format(
+    __left: str,
+    __content: Sequence[str],
+    __right: str,
+    *,
+    item_sep: str = ',',
+    indent_prefix: Union[str, None, Nothing] = NOTHING,
+    break_line: bool = True
+) -> str:
+    if len(__content) < 1:
+        # empty content: simply concat ``__left`` and ``__right``
+        return __left + __right
+    
+    break_line_sep = '\n'
+    if not break_line:
+        indent_prefix = ''
+    elif is_none_or_nothing(indent_prefix):
+        indent_prefix: str = store.builtin__().indent_str
+    # format content
+    content_sep = item_sep + (break_line_sep if break_line else '')
+    __content = indent(content_sep.join(__content), prefix=indent_prefix)
+    # format concat
+    concat_sep = break_line_sep if break_line else ''
+    return concat_sep.join([__left, __content, __right])
