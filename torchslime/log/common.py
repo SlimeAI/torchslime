@@ -1,5 +1,5 @@
 from torchslime.utils.bases import NOTHING, Nothing
-from torchslime.utils.terminal import single_color
+from torchslime.utils.cli import single_color
 from torchslime.experiment.directory import get_log_path
 from torchslime.utils.bases import is_none_or_nothing
 from torchslime.utils.typing import Union

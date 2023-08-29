@@ -3,7 +3,7 @@ from torchslime.utils.typing import Any, Callable
 import threading
 import os
 from torchslime.utils.bases import Base, NOTHING, is_none_or_nothing
-from torchslime.utils.decorators import Singleton, ItemAttrBinding, ObjectAttrBinding
+from torchslime.utils.decorators import Singleton, ItemAttrBinding, ObjectAttrBinding, ContextDecoratorBinding
 from torchslime.utils import is_slime_naming
 
 
@@ -74,6 +74,7 @@ class Store:
         return f'p{pid}-t{tid}'
 
 
+@ContextDecoratorBinding
 class StoreSet:
 
     def __init__(self, __name: str, __value: Any, *, restore: bool = True, key=NOTHING) -> None:
@@ -83,14 +84,8 @@ class StoreSet:
         self.key = store.get_current_key__() if is_none_or_nothing(key) is True else key
         self._store = store.scope__(self.key)
     
-    def __call__(self, func: Callable) -> Any:
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            self._set_value()
-            result = func(*args, **kwargs)
-            self._restore_value()
-            return result
-        return wrapper
+    # for type hint
+    def __call__(self, func: Callable) -> Callable: pass
 
     def __enter__(self) -> 'StoreSet':
         self._set_value()
@@ -126,3 +121,4 @@ store.builtin__().use_call_debug = False
 store.builtin__().call_debug_cache = Base()
 # indent str for CLI display
 store.builtin__().indent_str = ' ' * 4  # default is 4 spaces
+# TODO: cli flag

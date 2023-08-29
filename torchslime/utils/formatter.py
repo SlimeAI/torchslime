@@ -2,7 +2,7 @@
 """
 from .typing import Tuple, Union, Mapping, Sequence
 import time
-from . import terminal as Cursor
+from . import cli as Cursor
 from .bases import NOTHING, Nothing, is_none_or_nothing
 from torchslime.components.store import store
 from textwrap import indent

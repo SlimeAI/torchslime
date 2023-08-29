@@ -2,6 +2,13 @@
 import sys
 
 
+class set_cli_interceptor:
+    pass
+
+
+
+
+
 ESC = '\x1b'  # the ANSI escape code.
 CSI = ESC + '['  # control Sequence Introducer.
 CURSOR_UP = CSI + '{}A'

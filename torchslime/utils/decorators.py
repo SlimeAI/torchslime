@@ -230,13 +230,13 @@ def CallDebug(_func: _T = NOTHING, *, module_name=NOTHING):
         @wraps(func)
         def wrapper(*args, **kwargs):
             # do not use debug
-            if store.builtin__().use_call_debug is not True:
+            if not store.builtin__().use_call_debug:
                 return func(*args, **kwargs)
 
             # cache debug info
             call_debug_cache = store.builtin__().call_debug_cache
             _exec_info = call_debug_cache[func_id]
-            if is_none_or_nothing(_exec_info) is True:
+            if is_none_or_nothing(_exec_info):
                 _exec_info = get_exec_info(func)
                 call_debug_cache[func_id] = _exec_info
 
@@ -378,4 +378,28 @@ def ObjectAttrBinding(_cls=NOTHING, *, set_binding: bool = True, get_binding: bo
         
         return cls
 
+    return decorator
+
+
+@overload
+def ContextDecoratorBinding(_cls: Union[None, Nothing] = NOTHING) -> Callable[[_T], _T]: pass
+@overload
+def ContextDecoratorBinding(_cls: Type[_T]) -> Type[_T]: pass
+
+@DecoratorCall(index=0, keyword='_cls')
+def ContextDecoratorBinding(_cls=NOTHING):
+    def decorator(cls):
+        cls_wraps = ClassWraps(cls)
+        
+        @cls_wraps.__call__
+        def call(self, func):
+            @wraps(func)
+            def wrapper(*args, **kwargs):
+                with self:
+                    result = func(*args, **kwargs)
+                    # with ``__exit__`` statement will be automatically executed before return statement
+                    return result
+            return wrapper
+        
+        return cls
     return decorator

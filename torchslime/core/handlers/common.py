@@ -10,8 +10,8 @@ from torchslime.utils.typing import (
 )
 from torchslime.utils import (
     IterTool,
+    cli as Cursor,
     type_cast,
-    terminal as Cursor,
     inf_enumerate
 )
 from torchslime.utils.bases import BaseList, is_none_or_nothing, Nothing, NOTHING

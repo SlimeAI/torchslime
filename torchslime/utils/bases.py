@@ -1,4 +1,4 @@
-from torchslime.utils import dict_merge
+from . import dict_merge
 import traceback
 from .typing import (
     Any,

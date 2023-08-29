@@ -7,7 +7,7 @@ from torchslime.utils.typing import (
     Tuple,
     SupportsIndex
 )
-from torchslime.utils import Count, terminal as Cursor
+from torchslime.utils import Count, cli as Cursor
 from torchslime.core.context.base import BaseContext
 from torchslime.log import logger
 from torchslime.utils.bases import (
