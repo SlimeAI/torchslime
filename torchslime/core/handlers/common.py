@@ -1,12 +1,14 @@
+from torchslime.core.handlers.wrappers import HandlerWrapper
 from torchslime.utils.typing import (
     Dict,
-    Sequence,
-    Union,
     List,
     Callable,
     Iterable,
-    Any,
-    Mapping
+    Mapping,
+    Type,
+    TypeVar,
+    Union,
+    overload
 )
 from torchslime.utils import (
     IterTool,
@@ -14,7 +16,7 @@ from torchslime.utils import (
     type_cast,
     inf_enumerate
 )
-from torchslime.utils.bases import BaseList, is_none_or_nothing, Nothing, NOTHING
+from torchslime.utils.bases import NOTHING, BaseList, Nothing, Pass, is_none_or_nothing
 from torchslime.components.metric import MeterDict
 from torchslime.utils.decorators import CallDebug
 from torchslime.utils.formatter import progress_format, eta_format
@@ -42,6 +44,8 @@ __all__ = [
     'DisplayHandler',
     'LRDecayHandler'
 ]
+
+_T = TypeVar('_T')
 
 
 def TorchGrad(func):
@@ -266,12 +270,27 @@ class MeterHandler(Handler):
 
 
 class DisplayHandler(Handler):
-
-    def __init__(self):
-        # set default exec ranks to [0]
-        from . import ExecRanks
-        self.metadata__ = ExecRanks([0]) | self.metadata__
-        super().__init__()
+    
+    def m_init__(
+        self,
+        id=NOTHING,
+        exec_ranks=NOTHING,
+        wrappers=NOTHING,
+        lifecycle=NOTHING
+    ):
+        if exec_ranks is NOTHING:
+            exec_ranks = [0]
+        return super().m_init__(id, exec_ranks, wrappers, lifecycle)
+    
+    @overload
+    @classmethod
+    def m__(
+        cls: type[_T],
+        id: Union[str, Nothing, None] = NOTHING,
+        exec_ranks: Union[Iterable[int], Nothing, None, Pass] = NOTHING,
+        wrappers: Union[Iterable[HandlerWrapper], Nothing, None] = NOTHING,
+        lifecycle=NOTHING
+    ) -> type[_T]: pass
     
     @CallDebug(module_name='DisplayHandler')
     def handle(self, ctx: BaseContext):

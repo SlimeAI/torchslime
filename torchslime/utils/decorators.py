@@ -67,12 +67,13 @@ class ClassFuncWrapper:
         *,
         assigned=WRAPPER_ASSIGNMENTS,
         updated=WRAPPER_UPDATES,
-        created=FUNC_CREATED
+        created=FUNC_CREATED,
+        use_wraps: bool = True
     ) -> Callable:
         this_func = self.this_func__
         
         def wrapper(func: Callable):
-            if not is_none_or_nothing(this_func):
+            if not is_none_or_nothing(this_func) and use_wraps:
                 func = wraps(this_func, assigned=assigned, updated=updated)(func)
             else:
                 func = _create_func(func=func, cls=self.cls, name=self.name, created=created)

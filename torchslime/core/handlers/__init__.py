@@ -1,11 +1,13 @@
 from torchslime.utils.typing import (
-    Sequence,
     Union,
     List,
     Callable,
     Iterable,
     Tuple,
-    SupportsIndex
+    SupportsIndex,
+    overload,
+    TypeVar,
+    Type
 )
 from torchslime.utils import Count, cli as Cursor
 from torchslime.core.context.base import BaseContext
@@ -18,8 +20,7 @@ from torchslime.utils.bases import (
     is_none_or_nothing,
     Pass
 )
-from torchslime.utils.meta import Meta, Metadata
-from torchslime.utils.typing import INT_SEQ_N
+from torchslime.utils.meta import Meta
 from torchslime.components.registry import Registry
 from torchslime.components.exception import (
     HandlerException,
@@ -30,58 +31,66 @@ from torchslime.components.exception import (
 )
 from torchslime.utils.formatter import dict_to_key_value_str_list, concat_format
 
+_T = TypeVar('_T')
 
-@Meta
-class HandlerMetaclass:
+
+class HandlerMeta(Meta):
     """
     Metadata initialization and operations
     """
-    
-    metadata__: Metadata
-    default_metadata__: 'HandlerMetadata'
     # for generating unique id
     _handler_id_gen = Count()
     
-    def __init__(self) -> None:
-        super().__init__()
-        # set default metadata and apply default value
-        self.default_metadata__ = HandlerMetadata()
-        self.metadata__ = self.default_metadata__ | self.metadata__
-        # set default id if id is not specified
-        # TODO: thread-safe and process-safe
-        if is_none_or_nothing(self.get_id()):
-            self.set_id(f'handler_{self._handler_id_gen}')
-        # bind self to wrappers after initialization
-        wrappers = self.get_wrappers()
-        if not is_none_or_nothing(wrappers):
-            wrappers.bind(self)
+    def m_init__(
+        self,
+        id=NOTHING,
+        exec_ranks=PASS,
+        wrappers=NOTHING,
+        lifecycle=NOTHING
+    ):
+        self.set_id(id)
+        self.set_exec_ranks(exec_ranks)
+        self.set_wrappers(wrappers)
+        # TODO: lifecycle
+        # self.set_lifecycle()
+    
+    # just for type hint
+    @overload
+    @classmethod
+    def m__(
+        cls: Type[_T],
+        id: Union[str, None, Nothing] = NOTHING,
+        exec_ranks: Union[Iterable[int], None, Nothing, Pass] = PASS,
+        wrappers: Union[Iterable['HandlerWrapper'], None, Nothing] = NOTHING,
+        lifecycle=NOTHING
+    ) -> Type[_T]: pass
     
     def get_id(self) -> Union[str, Nothing]:
-        return self.metadata__.get('id', NOTHING)
+        return self.__id
 
-    def set_id(self, _id: str) -> None:
-        self.metadata__ |= ID(_id)
+    def set_id(self, __id: Union[str, None, Nothing]) -> None:
+        if is_none_or_nothing(__id):
+            # TODO: thread-safe and process-safe
+            self.__id = f'handler_{self._handler_id_gen}'
+        else:
+            self.__id = __id
     
     def get_exec_ranks(self) -> Union[Iterable[int], None, Nothing, Pass]:
-        return self.metadata__.get('exec_ranks', NOTHING)
+        return self.__exec_ranks
     
     def set_exec_ranks(self, exec_ranks: Union[Iterable[int], None, Nothing, Pass]) -> None:
-        self.metadata__ |= ExecRanks(exec_ranks)
+        self.__exec_ranks = BaseList.create__(exec_ranks)
 
-    def reset_exec_ranks(self) -> None:
-        self.metadata__['exec_ranks'] = self.default_metadata__['exec_ranks']
-
-    def get_wrappers(self) -> Union['HandlerWrapperContainer', Nothing]:
-        return self.metadata__.get('wrappers', NOTHING)
+    def get_wrappers(self) -> Union['HandlerWrapperContainer', None, Nothing]:
+        return self.__wrappers
     
-    def set_wrappers(self, *wrappers) -> None:
-        # set metadata
-        self.metadata__ |= Wrappers(*wrappers)
-        # bind self to wrappers
-        self.get_wrappers().bind(self)
-    
-    def reset_wrappers(self) -> None:
-        self.metadata__['wrappers'] = self.default_metadata__['wrappers']
+    def set_wrappers(self, wrappers: Union[Iterable['HandlerWrapper'], None, Nothing]) -> None:
+        if is_none_or_nothing(wrappers):
+            self.__wrappers = NOTHING
+        else:
+            wrapper_container = HandlerWrapperContainer(wrappers)
+            wrapper_container.bind(self)
+            self.__wrappers = wrapper_container
     
     def get_lifecycle(self):
         pass
@@ -90,7 +99,7 @@ class HandlerMetaclass:
         pass
 
 
-class Handler(HandlerMetaclass):
+class Handler(HandlerMeta):
     """Base class for all handlers.
     """
     
@@ -422,44 +431,3 @@ class HandlerContainer(Handler, BaseList[Handler]):
 
 from .common import *
 from .wrappers import *
-
-#
-# Metadata
-#
-
-class HandlerMetadata(Metadata):
-    
-    def __init__(self):
-        super().__init__()
-        self.update(
-            id=NOTHING,
-            exec_ranks=PASS,
-            wrappers=NOTHING,
-            lifecycle=NOTHING
-        )
-
-
-class ID(Metadata):
-    
-    def __init__(self, _id: str):
-        super().__init__('id', _id)
-
-
-class ExecRanks(Metadata):
-    
-    def __init__(
-        self,
-        exec_ranks: Union[Iterable[int], None, Nothing, Pass] = PASS
-    ):
-        super().__init__('exec_ranks', BaseList.create__(exec_ranks))
-
-
-class Wrappers(Metadata):
-    
-    def __init__(self, *wrappers):
-        super().__init__('wrappers', HandlerWrapperContainer(list(wrappers)))
-
-
-class Lifecycle(Metadata):
-    
-    pass

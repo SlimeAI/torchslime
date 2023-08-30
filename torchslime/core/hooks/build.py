@@ -1,7 +1,6 @@
 from torchslime.core.context import BaseContext
 from torchslime.components.registry import Registry
 from torchslime.core.handlers.wrappers import validation_check
-from torchslime.core.handlers import ID, Wrappers
 from torchslime.log import logger
 
 build_registry = Registry('build_registry')
@@ -69,64 +68,67 @@ class VanillaBuild(BuildHook):
         # get handler classes from context
         handler = ctx.handler_ctx
         # build training process using handlers
-        ctx.run_ctx.train = handler.Container[ID('container')]([
+        ctx.run_ctx.train = handler.Container.m__(id='container')([
             # epoch iter
-            handler.EpochIteration[ID('epoch_iteration')]([
+            handler.EpochIteration.m__(id='epoch_iteration')([
                 # train part
-                handler.Container[
-                    ID('container_train'),
-                    Wrappers(
+                handler.Container.m__(
+                    id='container_train',
+                    wrappers=[
                         # set state to train
-                        handler.State[ID('state_train')](state='train')
-                    )
-                ]([
+                        handler.State.m__(id='state_train')(state='train')
+                    ]
+                )([
                     # init meter setting
-                    handler.MeterInit[ID('meter_init_train')](),
+                    handler.MeterInit.m__(id='meter_init_train')(),
                     # dataset iter
-                    handler.Iteration[ID('iteration_train')]([
+                    handler.Iteration.m__(id='iteration_train')([
                         # forward
-                        handler.Forward[ID('forward_train')](),
+                        handler.Forward.m__(id='forward_train')(),
                         # compute loss
-                        handler.Loss[ID('loss_train')](),
+                        handler.Loss.m__(id='loss_train')(),
                         # backward and optimizer step
-                        handler.Optimizer[ID('optimizer_train')]([
-                            handler.Backward[ID('backward_train')]()
+                        handler.Optimizer.m__(id='optimizer_train')([
+                            handler.Backward.m__(id='backward_train')()
                         ]),
                         # compute metrics
-                        handler.Metrics[ID('metrics_train')](),
+                        handler.Metrics.m__(id='metrics_train')(),
                         # compute meter loss value and metrics
-                        handler.Meter[ID('meter_train')](),
+                        handler.Meter.m__(id='meter_train')(),
                         # apply learning rate decay
-                        handler.LRDecay[ID('lr_decay')](),
+                        handler.LRDecay.m__(id='lr_decay')(),
                         # display in console or in log files
-                        handler.Display[ID('display_train')]()
+                        handler.Display.m__(id='display_train')()
                     ])
                 ]),
                 # validation part
-                handler.Container[
-                    ID('container_val'),
-                    Wrappers(
+                handler.Container.m__(
+                    id='container_val',
+                    wrappers=[
                         # validation according to valid_seq
-                        handler.Condition[ID('condition_val')](condition=validation_check),
+                        handler.Condition.m__(id='condition_val')(condition=validation_check),
                         # set state to val
-                        handler.State[ID('state_val')](state='val')
-                    )
-                ]([
-                    handler.Lambda[ID('print_val_start')]([lambda _: logger.info('Validation starts.')]),
+                        handler.State.m__(id='state_val')(state='val')
+                    ]
+                )([
+                    handler.Lambda.m__(
+                        id='print_val_start',
+                        exec_ranks=[0]
+                    )([lambda _: logger.info('Validation starts.')]),
                     # init meter setting
-                    handler.MeterInit[ID('meter_init_val')](),
+                    handler.MeterInit.m__(id='meter_init_val')(),
                     # dataset iter
-                    handler.Iteration[ID('iteration_val')]([
+                    handler.Iteration.m__(id='iteration_val')([
                         # forward
-                        handler.Forward[ID('forward_val')](),
+                        handler.Forward.m__(id='forward_val')(),
                         # compute loss
-                        handler.Loss[ID('loss_val')](),
+                        handler.Loss.m__(id='loss_val')(),
                         # metrics
-                        handler.Metrics[ID('metrics_val')](),
+                        handler.Metrics.m__(id='metrics_val')(),
                         # compute meter loss value and metrics
-                        handler.Meter[ID('meter_val')](),
+                        handler.Meter.m__(id='meter_val')(),
                         # display in console or in log files
-                        handler.Display[ID('display_val')]()
+                        handler.Display.m__(id='display_val')()
                     ])
                 ])
             ])
@@ -138,27 +140,27 @@ class VanillaBuild(BuildHook):
         # get handler classes from context
         handler = ctx.handler_ctx
         # build evaluating process using handlers
-        ctx.run_ctx.eval = handler.Container[ID('container')]([
-            handler.Container[
-                ID('container_eval'),
-                Wrappers(
-                    handler.State[ID('state_eval')](state='eval')
-                )
-            ]([
+        ctx.run_ctx.eval = handler.Container.m__(id='container')([
+            handler.Container.m__(
+                id='container_eval',
+                wrappers=[
+                    handler.State.m__(id='state_eval')(state='eval')
+                ]
+            )([
                 # clear meter metrics
-                handler.MeterInit[ID('meter_init_eval')](),
+                handler.MeterInit.m__(id='meter_init_eval')(),
                 # dataset iteration
-                handler.Iteration[ID('iteration_eval')]([
+                handler.Iteration.m__(id='iteration_eval')([
                     # forward
-                    handler.Forward[ID('forward_eval')](),
+                    handler.Forward.m__(id='forward_eval')(),
                     # compute loss
-                    handler.Loss[ID('loss_eval')](),
+                    handler.Loss.m__(id='loss_eval')(),
                     # compute metrics
-                    handler.Metrics[ID('metrics_eval')](),
+                    handler.Metrics.m__(id='metrics_eval')(),
                     # compute meter metrics
-                    handler.Meter[ID('meter_eval')](),
+                    handler.Meter.m__(id='meter_eval')(),
                     # display
-                    handler.Display[ID('display_eval')]()
+                    handler.Display.m__(id='display_eval')()
                 ])
             ])
         ])
@@ -167,19 +169,19 @@ class VanillaBuild(BuildHook):
         # get handler classes from context
         handler = ctx.handler_ctx
         # build predicting process using handlers
-        ctx.run_ctx.predict = handler.Container[ID('container')]([
-            handler.Container[
-                ID('container_predict'),
-                Wrappers(
-                    handler.State[ID('state_predict')](state='predict')
-                )
-            ]([
+        ctx.run_ctx.predict = handler.Container.m__(id='container')([
+            handler.Container.m__(
+                id='container_predict',
+                wrappers=[
+                    handler.State.m__(id='state_predict')(state='predict')
+                ]
+            )([
                 # dataset iteration
-                handler.Iteration[ID('iteration_predict')]([
+                handler.Iteration.m__(id='iteration_predict')([
                     # forward
-                    handler.Forward[ID('forward_predict')](),
+                    handler.Forward.m__(id='forward_predict')(),
                     # display
-                    handler.Display[ID('display_predict')]()
+                    handler.Display.m__(id='display_predict')()
                 ])
             ])
         ])
@@ -192,66 +194,69 @@ class StepBuild(VanillaBuild):
         # get handler classes from context
         handler = ctx.handler_ctx
         # build training process using handlers
-        ctx.run_ctx.train = handler.Container[ID('container')]([
+        ctx.run_ctx.train = handler.Container.m__(id='container')([
             # train
-            handler.Container[
-                ID('container_train'),
-                Wrappers(
-                    handler.State[ID('state_train')](state='train')
-                )
-            ]([
+            handler.Container.m__(
+                id='container_train',
+                wrappers=[
+                    handler.State.m__(id='state_train')(state='train')
+                ]
+            )([
                 # init meter setting
-                handler.MeterInit[ID('meter_init_train')](),
+                handler.MeterInit.m__(id='meter_init_train')(),
                 # dataset iter
-                handler.StepIteration[ID('step_iteration_train')]([
+                handler.StepIteration.m__(id='step_iteration_train')([
                     # forward
-                    handler.Forward[ID('forward_train')](),
+                    handler.Forward.m__(id='forward_train')(),
                     # compute loss
-                    handler.Loss[ID('loss_train')](),
+                    handler.Loss.m__(id='loss_train')(),
                     # backward and optimizer step
-                    handler.Optimizer[ID('optimizer_train')]([
-                        handler.Backward[ID('backward_train')]()
+                    handler.Optimizer.m__(id='optimizer_train')([
+                        handler.Backward.m__(id='backward_train')()
                     ]),
                     # compute metrics
-                    handler.Metrics[ID('metrics_train')](),
+                    handler.Metrics.m__(id='metrics_train')(),
                     # compute meter loss value and metrics
-                    handler.Meter[ID('meter_train')](),
+                    handler.Meter.m__(id='meter_train')(),
                     # apply learning rate decay
-                    handler.LRDecay[ID('lr_decay')](),
+                    handler.LRDecay.m__(id='lr_decay')(),
                     # display in console or in log files
-                    handler.Display[ID('display_train')](),
+                    handler.Display.m__(id='display_train')(),
                     # validation
-                    handler.Container[
-                        ID('container_val'),
-                        Wrappers(
-                            handler.Condition[ID('condition_val')](condition=validation_check),
-                            handler.State[ID('state_val')](state='val')
-                        )
-                    ]([
-                        handler.Lambda[ID('print_val_start')]([lambda _: logger.info('Validation starts.')]),
+                    handler.Container.m__(
+                        id='container_val',
+                        wrappers=[
+                            handler.Condition.m__(id='condition_val')(condition=validation_check),
+                            handler.State.m__(id='state_val')(state='val')
+                        ]
+                    )([
+                        handler.Lambda.m__(
+                            id='print_val_start',
+                            exec_ranks=[0]
+                        )([lambda _: logger.info('Validation starts.')]),
                         # init meter setting
-                        handler.MeterInit[ID('meter_init_val')](),
+                        handler.MeterInit.m__(id='meter_init_val')(),
                         # dataset iter
-                        handler.Iteration[ID('iteration_val')]([
+                        handler.Iteration.m__(id='iteration_val')([
                             # forward
-                            handler.Forward[ID('forward_val')](),
+                            handler.Forward.m__(id='forward_val')(),
                             # compute loss
-                            handler.Loss[ID('loss_val')](),
+                            handler.Loss.m__(id='loss_val')(),
                             # metrics
-                            handler.Metrics[ID('metrics_val')](),
+                            handler.Metrics.m__(id='metrics_val')(),
                             # compute meter loss value and metrics
-                            handler.Meter[ID('meter_val')](),
+                            handler.Meter.m__(id='meter_val')(),
                             # display in console or in log files
-                            handler.Display[ID('display_val')]()
+                            handler.Display.m__(id='display_val')()
                         ]),
                         # init train meter after validation
-                        handler.MeterInit[
-                            ID('meter_init_train_after_val'),
-                            Wrappers(
+                        handler.MeterInit.m__(
+                            id='meter_init_train_after_val',
+                            wrappers=[
                                 # set state to 'train' in order to init train metrics
-                                handler.State[ID('state_train_for_init')](state='train')
-                            )
-                        ]()
+                                handler.State.m__(id='state_train_for_init')(state='train')
+                            ]
+                        )()
                     ])
                 ])
             ])

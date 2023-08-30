@@ -1,73 +1,39 @@
 from .typing import (
     Any,
     Union,
-    Tuple,
     TypeVar,
     Callable,
     Type,
     overload
 )
-from .bases import NOTHING, Nothing, is_none_or_nothing, BaseDict, create_singleton
-from .decorators import ClassWraps, DecoratorCall, ClassFuncWrapper
+from .bases import NOTHING, Nothing
+from .decorators import ClassWraps, DecoratorCall, ClassFuncWrapper, get_cls_func
+from .formatter import dict_to_key_value_str_list, concat_format
 
 _T = TypeVar('_T')
 
 
-class Metadata(BaseDict):
-    
-    def __init__(self, __name: Union[str, None, Nothing] = NOTHING, __value: Any = NOTHING):
-        super().__init__()
-        if not is_none_or_nothing(__name):
-            self[__name] = __value
-    
-    def __or__(self, __value: 'Metadata') -> 'Metadata':
-        if not isinstance(__value, Metadata):
-            actual_class = str(__value.__class__.__name__)
-            raise ValueError(f'``MetaData`` can only be compatible with objects of its own class, but ``{actual_class}`` found.')
-        # create new metadata
-        new_metadata = Metadata()
-        new_metadata.update(self)
-        # new ``__value`` will override the value of the duplicate keys in ``self``
-        new_metadata.update(__value)
-        return new_metadata
-    
-    def __ror__(self, __value: 'Metadata') -> 'Metadata':
-        return self | __value
-    
-    def check(self):
-        required = []
-        for key, value in self.items():
-            if value is REQUIRED:
-                required.append(key)
-        if len(required) > 0:
-            raise ValueError(f'Metadata missing required value(s): {", ".join(required)}')
-
-
-class MetaWrapper:
-    def __init__(self, cls: Type, metadata: Metadata) -> None:
+class _MetaWrapper:
+    def __init__(self, cls: Type['Meta'], *args: Any, **kwargs: Any) -> None:
         self.cls__ = cls
-        if not isinstance(metadata, Metadata):
-            actual_class = str(metadata.__class__.__name__)
-            raise ValueError(f'``Meta`` only accepts ``Metadata`` object, but ``{actual_class}`` found.')
-        self.metadata__ = metadata
+        self.args = args
+        self.kwargs = kwargs
         
         # set meta info
-        meta_str = str(metadata)
+        args_str = concat_format('', [str(arg) for arg in args], '', item_sep=', ', break_line=False)
+        kwargs_str = concat_format('', dict_to_key_value_str_list(kwargs), '', item_sep=', ', break_line=False)
+        meta_str = concat_format('', [item for item in [args_str, kwargs_str] if len(item) > 0], '', item_sep=', ', break_line=False)
+        
         self.__module__ = cls.__module__
         self.__name__ = f'{cls.__name__}[{meta_str}]'
         self.__qualname__ = f'{cls.__qualname__}[{meta_str}]'
     
     def __call__(self, *args: Any, **kwargs: Any):
-        # create a new object
         cls = self.cls__
-        new = cls.__new__
-        # FIX: object.__new__ only accept one cls argument
-        if new is object.__new__:
-            obj = new(cls)
-        else:
-            obj = new(cls, *args, **kwargs)
-        # set ``metadata__`` attribute
-        obj.metadata__ = self.metadata__
+        # create a new object using ``m_new__``
+        obj = cls.m_new__(*args, **kwargs)
+        # call ``m_init__`` with args
+        obj.m_init__(*self.args, **self.kwargs)
         # ``__init__`` method call
         cls.__init__(obj, *args, **kwargs)
         return obj
@@ -77,51 +43,67 @@ class MetaWrapper:
 
 # type hint
 @overload
-def Meta(_cls: Union[None, Nothing] = NOTHING) -> Callable[[Type[_T]], Type[_T]]: pass
+def _Meta(_cls: Union[None, Nothing] = NOTHING) -> Callable[[Type[_T]], Type[_T]]: pass
 @overload
-def Meta(_cls: Type[_T]) -> Type[_T]: pass
+def _Meta(_cls: Type[_T]) -> Type[_T]: pass
 
 @DecoratorCall(index=0, keyword='_cls')
-def Meta(_cls: Type[_T] = NOTHING):
-    def decorator(cls: Type[_T]) -> Type[_T]:
-        class_wraps = ClassWraps(cls)
+def _Meta(_cls: Type[_T] = NOTHING):
+    def decorator(cls__: Type[_T]) -> Type[_T]:
+        if not hasattr(cls__, 'm_init__'):
+            raise TypeError(f'Class ``{cls__.__name__}`` with ``Meta`` should have a ``m_init__`` method, but not found.')
         
-        class_getitem_wraps = class_wraps.__class_getitem__
-        @class_getitem_wraps
+        class_wraps = ClassWraps(cls__)
+        
+        # ``m__``
+        m_wraps = class_wraps.m__
+        @m_wraps(use_wraps=False)
         @classmethod
-        def class_getitem(cls: Type[_T], metadata: Union[Metadata, Tuple[Metadata]]) -> Type[_T]:
-            if isinstance(metadata, Tuple):
-                result = Metadata()
-                for item in metadata:
-                    result |= item
-            else:
-                result = metadata
-            return MetaWrapper(cls, result)
+        def m__(cls: Type[_T], *args, **kwargs) -> Type[_T]:
+            return _MetaWrapper(cls, *args, **kwargs)
         
+        # ``__init_subclass__``
+        init_subclass_wraps: ClassFuncWrapper = class_wraps.__init_subclass__
+        init_subclass_cls_func = init_subclass_wraps.cls_func__
+        @init_subclass_wraps
+        @classmethod
+        def init_subclass(cls, **kwargs):
+            init_subclass_cls_func(**kwargs)
+            # set original ``m__`` method to override type hint method definition
+            original_m = get_cls_func(cls__, 'm__')
+            cls_m = get_cls_func(cls, 'm__')
+            if cls_m is not original_m:
+                cls.m__ = classmethod(original_m)
+        
+        # ``__new__`` wraps
         class_new_wraps: ClassFuncWrapper = class_wraps.__new__
         new_cls_func = class_new_wraps.cls_func__
+        
         @class_new_wraps
-        def new(cls, *args, **kwargs):
+        def new(cls: Type[_T], *args, **kwargs) -> _T:
+            # call ``m_new__`` to create a new object
+            obj = cls.m_new__(*args, **kwargs)
+            # call ``m_init__`` with no args
+            obj.m_init__()
+            return obj
+        
+        # ``m_new__`` wraps
+        class_m_new_wraps = class_wraps.m_new__
+        @class_m_new_wraps(use_wraps=False)
+        @classmethod
+        def m_new__(cls: Type[_T], *args, **kwargs) -> _T:
             # FIX: object.__new__ only accept one cls argument
             if new_cls_func is object.__new__:
                 obj = new_cls_func(cls)
             else:
                 obj = new_cls_func(cls, *args, **kwargs)
-            # set default metadata
-            obj.metadata__ = Metadata()
             return obj
         
-        return cls
+        return cls__
     return decorator
 
-
-@Meta
-class Metaclass:
-    # just for type hint
-    metadata__: Metadata
-    def __class_getitem__(cls, metadata: Union[Metadata, Tuple[Metadata]]): return cls
-    # WARNING: default metadata is optional and should be set manually
-    default_metadata__: Metadata
-
-
-Required, REQUIRED = create_singleton('Required')
+@_Meta
+class Meta:
+    def m_init__(self, *args, **kwargs): pass
+    @classmethod
+    def m__(cls: Type[_T], *args, **kwargs) -> Type[_T]: return cls

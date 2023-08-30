@@ -7,7 +7,7 @@ import io
 import pickle
 from torchslime.utils.typing import List, Union
 from torchslime.core.context import BaseContext
-from torchslime.core.handlers import Handler, ID
+from torchslime.core.handlers import Handler
 from torchslime.core.hooks.build import _BuildInterface
 from torchslime.utils import is_torch_distributed_ready
 from torchslime.log import logger
@@ -97,14 +97,14 @@ class DistributedLaunch(LaunchHook):
         average_handlers = ctx.run_ctx.train.get_by_class(handler.Meter)
         for a_handler in average_handlers:
             state = a_handler.get_id().split('_')[-1]
-            a_handler.insert_before_self(handler.GatherAverage[ID(f'gather_average_{state}')]())
+            a_handler.insert_before_self(handler.GatherAverage.m__(id=f'gather_average_{state}')())
 
     def after_build_eval(self, ctx: BaseContext) -> None:
         handler = ctx.handler_ctx
         average_handlers = ctx.run_ctx.eval.get_by_class(handler.Meter)
         for a_handler in average_handlers:
             state = a_handler.get_id().split('_')[-1]
-            a_handler.insert_before_self(handler.GatherAverage[ID(f'gather_average_{state}')]())
+            a_handler.insert_before_self(handler.GatherAverage.m__(id=f'gather_average_{state}')())
     
     def get_device_info(self, ctx: BaseContext):
         return super().get_device_info(ctx)
