@@ -16,7 +16,7 @@ _T = TypeVar('_T')
 
 
 class _MetaWrapper:
-    def __init__(self, cls: Type['Meta'], *args: Any, **kwargs: Any) -> None:
+    def __init__(self, cls, *args: Any, **kwargs: Any) -> None:
         self.cls__ = cls
         self.args = args
         self.kwargs = kwargs
@@ -37,7 +37,7 @@ class _MetaWrapper:
         # call ``m_init__`` with args
         obj.m_init__(*self.args, **self.kwargs)
         # ``__init__`` method call
-        cls.__init__(obj, *args, **kwargs)
+        obj.__init__(*args, **kwargs)
         return obj
     
     def __str__(self) -> str: return self.__name__
