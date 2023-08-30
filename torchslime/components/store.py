@@ -1,10 +1,15 @@
-from functools import wraps
-from torchslime.utils.typing import Any, Callable
+from torchslime.utils.typing import (
+    Any,
+    TypeVar,
+    overload
+)
 import threading
 import os
 from torchslime.utils.bases import Base, NOTHING, is_none_or_nothing
 from torchslime.utils.decorators import Singleton, ItemAttrBinding, ObjectAttrBinding, ContextDecoratorBinding
 from torchslime.utils import is_slime_naming
+
+_T = TypeVar('_T')
 
 
 class ScopedStore(Base):
@@ -46,9 +51,12 @@ class Store:
         if __key in _store_dict:
             del _store_dict[__key]
 
-    # original object operation
+    # original object operation, just for type hint
+    @overload
     def object_set__(self, __name: str, __value: Any) -> None: pass
+    @overload
     def object_get__(self, __name: str) -> Any: pass
+    @overload
     def object_del__(self, __name: str) -> None: pass
 
     def __getattr__(self, __name: str) -> Any:
@@ -84,8 +92,9 @@ class StoreSet:
         self.key = store.get_current_key__() if is_none_or_nothing(key) is True else key
         self._store = store.scope__(self.key)
     
-    # for type hint
-    def __call__(self, func: Callable) -> Callable: pass
+    # just for type hint
+    @overload
+    def __call__(self, func: _T) -> _T: pass
 
     def __enter__(self) -> 'StoreSet':
         self._set_value()

@@ -291,79 +291,37 @@ class Nothing(metaclass=_NothingSingleton):
     It will show Warnings in the console instead.
     """
 
-    def __init__(self):
-        super().__init__()
-
-    def __call__(self, *args, **kwargs):
-        return self
-
-    def __getattribute__(self, *_):
-        return self
-
-    def __getitem__(self, *_):
-        return self
-
-    def __setattr__(self, *_):
-        pass
-
-    def __setitem__(self, *_):
-        pass
-
-    def __len__(self):
-        return 0
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        raise StopIteration
-
-    def __str__(self) -> str:
-        return 'NOTHING'
-
-    def __repr__(self) -> str:
-        return f'NOTHING<{str(hex(id(self)))}>'
-
-    def __format__(self, __format_spec: str) -> str:
-        return 'NOTHING'
-
-    def __contains__(self) -> bool:
-        return False
+    def __init__(self): super().__init__()
+    def __call__(self, *args, **kwargs): return self
+    def __getattribute__(self, *_): return self
+    def __getitem__(self, *_): return self
+    def __setattr__(self, *_): pass
+    def __setitem__(self, *_): pass
+    def __len__(self): return 0
+    def __iter__(self): return self
+    def __next__(self): raise StopIteration
+    def __str__(self) -> str: return 'NOTHING'
+    def __repr__(self) -> str: return f'NOTHING<{str(hex(id(self)))}>'
+    def __format__(self, __format_spec: str) -> str: return 'NOTHING'
+    def __contains__(self) -> bool: return False
 
     def __eq__(self, obj) -> bool:
         if obj is NOTHING:
             return True
         return False
 
-    def __add__(self, _):
-        return self
-
-    def __sub__(self, _):
-        return self
-
-    def __mul__(self, _):
-        return self
-
-    def __truediv__(self, _):
-        return self
-
-    def __radd__(self, _):
-        return self
-
-    def __rsub__(self, _):
-        return self
-
-    def __rmul__(self, _):
-        return self
-
-    def __rtruediv__(self, _):
-        return self
-
-    def __float__(self):
-        return 0.0
-
-    def __bool__(self) -> bool:
-        return False
+    def __add__(self, _): return self
+    def __sub__(self, _): return self
+    def __mul__(self, _): return self
+    def __truediv__(self, _): return self
+    def __radd__(self, _): return self
+    def __rsub__(self, _): return self
+    def __rmul__(self, _): return self
+    def __rtruediv__(self, _): return self
+    def __int__(self) -> int: return 0
+    def __index__(self) -> int: return 0
+    def __float__(self): return 0.0
+    def __bool__(self) -> bool: return False
 
 NOTHING = Nothing()
 
@@ -402,3 +360,4 @@ def create_singleton(__name: str) -> Tuple[Type[object], object]:
 
 # ``Pass`` singleton constant
 Pass, PASS = create_singleton('PASS')
+Pass: Type[object]
