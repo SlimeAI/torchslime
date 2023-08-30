@@ -4,11 +4,13 @@ from .typing import (
     TypeVar,
     Callable,
     Type,
-    overload
+    overload,
+    NoReturn
 )
-from .bases import NOTHING, Nothing
+from .bases import NOTHING, Nothing, is_none_or_nothing
 from .decorators import ClassWraps, DecoratorCall, ClassFuncWrapper, get_cls_func
 from .formatter import dict_to_key_value_str_list, concat_format
+from torchslime.components.exception import APIMisused
 
 _T = TypeVar('_T')
 
@@ -43,12 +45,16 @@ class _MetaWrapper:
 
 # type hint
 @overload
-def _Meta(_cls: Union[None, Nothing] = NOTHING) -> Callable[[Type[_T]], Type[_T]]: pass
+def _Meta(_cls: Union[None, Nothing] = NOTHING, *, directly_new_allowed: bool = True) -> Callable[[Type[_T]], Type[_T]]: pass
 @overload
-def _Meta(_cls: Type[_T]) -> Type[_T]: pass
+def _Meta(_cls: Type[_T], *, directly_new_allowed: bool = True) -> Type[_T]: pass
 
 @DecoratorCall(index=0, keyword='_cls')
-def _Meta(_cls: Type[_T] = NOTHING):
+def _Meta(
+    _cls: Type[_T] = NOTHING,
+    *,
+    directly_new_allowed: bool = True
+):
     def decorator(cls__: Type[_T]) -> Type[_T]:
         if not hasattr(cls__, 'm_init__'):
             raise TypeError(f'Class ``{cls__.__name__}`` with ``Meta`` should have a ``m_init__`` method, but not found.')
@@ -67,25 +73,40 @@ def _Meta(_cls: Type[_T] = NOTHING):
         init_subclass_cls_func = init_subclass_wraps.cls_func__
         @init_subclass_wraps
         @classmethod
-        def init_subclass(cls, **kwargs):
+        def init_subclass(
+            cls,
+            directly_new_allowed: Union[bool, None, Nothing] = NOTHING,
+            **kwargs
+        ):
             init_subclass_cls_func(**kwargs)
             # set original ``m__`` method to override type hint method definition
             original_m = get_cls_func(cls__, 'm__')
             cls_m = get_cls_func(cls, 'm__')
             if cls_m is not original_m:
                 cls.m__ = classmethod(original_m)
+            # change ``__new__`` method if ``directly_new_allowed`` is set
+            if not is_none_or_nothing(directly_new_allowed):
+                cls.__new__ = new if directly_new_allowed else new_disallowed
         
         # ``__new__`` wraps
         class_new_wraps: ClassFuncWrapper = class_wraps.__new__
         new_cls_func = class_new_wraps.cls_func__
         
-        @class_new_wraps
         def new(cls: Type[_T], *args, **kwargs) -> _T:
             # call ``m_new__`` to create a new object
             obj = cls.m_new__(*args, **kwargs)
             # call ``m_init__`` with no args
             obj.m_init__()
             return obj
+        
+        def new_disallowed(cls: Type, *args, **kwargs) -> NoReturn:
+            raise APIMisused(
+                f'Class ``{cls.__name__}`` with ``Meta`` is disallowed to directly new an instance, '
+                f'please use ``{cls.__name__}.m__([args...])([args...])`` instead.'
+            )
+        
+        # set ``__new__`` method according to whether directly calling ``__new__`` is allowed
+        class_new_wraps(new if directly_new_allowed else new_disallowed)
         
         # ``m_new__`` wraps
         class_m_new_wraps = class_wraps.m_new__
