@@ -1,16 +1,16 @@
 from torchslime.core.context.base import BaseContext
-from . import Handler
+from . import Handler, HandlerContainer
 from torchslime.core.hooks.state import state_registry
-from torchslime.utils.bases import BaseList, Nothing, NOTHING, is_none_or_nothing
+from torchslime.utils.bases import Nothing
 from torchslime.utils.typing import (
     Union,
-    Iterable,
-    SupportsIndex,
     List,
-    Callable
+    Callable,
+    Generator,
+    Tuple,
+    TypeVar
 )
-from torchslime.utils.decorators import CallDebug
-from torchslime.utils import window_iter
+from torchslime.utils import GeneratorCaller, FuncCaller
 from torchslime.components.exception import (
     APIMisused,
     HandlerBaseException,
@@ -24,86 +24,50 @@ __all__ = [
     'StateHandler',
     'ConditionHandler'
 ]
+_T = TypeVar('_T')
 
 
 class HandlerWrapper(Handler):
     
-    __handler: Handler = NOTHING
+    def handle(self, ctx: BaseContext) -> Generator: pass
     
-    def set_handler(self, handler: Handler) -> None:
-        self.__handler = handler
-        
-    def get_handler(self) -> Handler:
-        return self.__handler if hasattr(self, '_HandlerWrapper__handler') else NOTHING
-    
-    def handle(self, ctx: BaseContext):
-        # NOTE: use ``handle`` rather than ``__call__`` here
-        # NOTE: use launch hook to process ``exec_ranks``
-        _handler_handle(self.__handler, ctx)
+    def gen(self, ctx: BaseContext) -> GeneratorCaller:
+        return GeneratorCaller(FuncCaller(self.handle, ctx))
 
-class HandlerWrapperContainer(Handler, BaseList[HandlerWrapper]):
+
+class HandlerWrapperContainer(HandlerContainer[Union[HandlerWrapper, _T]]):
     
     def __init__(self, wrappers: List[HandlerWrapper]):
-        Handler.__init__(self)
-        BaseList.__init__(self, wrappers)
+        super().__init__(wrappers)
     
-    def handle(self, ctx: BaseContext):
-        if len(self) < 1:
-            raise APIMisused('Call an empty ``HandlerWrapperContainer`` is not allowed.')
-        if is_none_or_nothing(self[-1].get_handler()):
-            raise APIMisused('You should apply ``bind(handler)`` first before calling ``HandlerWrapperContainer``.')
-        # NOTE: use ``handle`` rather than ``__call__`` here
-        # NOTE: use launch hook to process ``exec_ranks``
-        # call the first handler here
-        _handler_handle(self[0], ctx)
-    
-    def bind(self, handler: Handler):
-        if len(self) < 1:
-            raise APIMisused('Could not bind an empty ``HandlerWrapperContainer``.')
-        self[-1].set_handler(handler)
-    
-    def __setitem__(
-        self,
-        __key: Union[SupportsIndex, slice],
-        __value: Union[HandlerWrapper, Iterable[HandlerWrapper]]
-    ) -> None:
-        super().__setitem__(__key, __value)
-        # TODO: performance optimization
-        self.link_list()
-    
-    def __delitem__(
-        self,
-        __key: Union[SupportsIndex, slice]
-    ):
-        super().__delitem__(__key)
-        # TODO: performance optimization
-        self.link_list()
-    
-    def insert(self, __index: SupportsIndex, __handler: HandlerWrapper) -> None:
-        super().insert(__index, __handler)
-        # get index int
-        __index = __index.__index__()
-        
-        # link previous
-        if __index >= 1:
-            self[__index - 1].set_handler(__handler)
-        # link next
-        if __index <= len(self) - 2:
-            __handler.set_handler(self[__index + 1])
-    
-    def link_list(self):
-        for _prev, _next in window_iter(self, 2):
-            _prev.set_handler(_next)
+    def handle(self, ctx: BaseContext, wrapped: Handler):
+        gen_list: List[Tuple[GeneratorCaller, HandlerWrapper]] = []
+        flag = True
+        # before handle
+        for gen, wrapper in zip(
+            map(lambda _wrapper: _wrapper.gen(ctx), self),
+            self
+        ):
+            flag = _gen_call(gen, wrapper)
+            gen_list.append((gen, wrapper))
+            if not flag:
+                break
+        # handle
+        if flag:
+            wrapped.handle(ctx)
+        # after handle
+        for gen, wrapper in reversed(gen_list):
+            _gen_call(gen, wrapper)
 
-def _handler_handle(handler: Handler, ctx: BaseContext):
+def _gen_call(gen: GeneratorCaller, wrapper: HandlerWrapper):
     try:
-        ctx.hook_ctx.launch.handler_handle(handler, ctx)
+        return gen()
     # directly raise Handler Base Exception
     except HandlerBaseException as hbe:
         raise hbe
     # wrap other Exception with Handler Wrapper Exception
     except Exception as e:
-        raise HandlerWrapperException(exception_handler=handler, exception=e)
+        raise HandlerWrapperException(exception_handler=wrapper, exception=e)
 
 #
 # StateHandler
@@ -125,14 +89,13 @@ class StateHandler(HandlerWrapper):
         self.state = state
         self.restore = restore
     
-    @CallDebug(module_name='StateHandler')
     def handle(self, ctx: BaseContext):
         # cache the state before state set
         self.restore_state: Union[StateHook, Nothing] = ctx.hook_ctx.state
         ctx.hook_ctx.state: StateHook = state_registry.get(self.state)()
         ctx.hook_ctx.state.set_model_mode(ctx)
         # call wrapped handler
-        super().handle(ctx)
+        yield True
         # restore
         if self.restore:
             from torchslime.core.hooks.state import StateHook
@@ -162,10 +125,8 @@ class ConditionHandler(HandlerWrapper):
         super().__init__()
         self.condition = condition
     
-    @CallDebug(module_name='ConditionHandler')
     def handle(self, ctx: BaseContext):
-        if self.condition(ctx):
-            super().handle(ctx)
+        yield self.condition(ctx)
 
 #
 # Condition Operators

@@ -9,7 +9,7 @@ from torchslime.utils.typing import (
     TypeVar,
     Type
 )
-from torchslime.utils import Count, cli as Cursor
+from torchslime.utils import Count, cli as Cursor, FuncCaller
 from torchslime.core.context.base import BaseContext
 from torchslime.log import logger
 from torchslime.utils.bases import (
@@ -88,9 +88,7 @@ class HandlerMeta(Meta):
         if is_none_or_nothing(wrappers):
             self.__wrappers = NOTHING
         else:
-            wrapper_container = HandlerWrapperContainer(wrappers)
-            wrapper_container.bind(self)
-            self.__wrappers = wrapper_container
+            self.__wrappers = HandlerWrapperContainer(wrappers)
     
     def get_lifecycle(self):
         pass
@@ -113,9 +111,12 @@ class Handler(HandlerMeta):
     def __call__(self, ctx: BaseContext):
         try:
             wrappers = self.get_wrappers()
-            # call wrapper if wrapper is not empty
-            handler = self if is_none_or_nothing(wrappers) else wrappers
-            ctx.hook_ctx.launch.handler_handle(handler, ctx)
+            exec_ranks = self.get_exec_ranks()
+            
+            if is_none_or_nothing(wrappers):
+                ctx.hook_ctx.launch.call(FuncCaller(self.handle, ctx), exec_ranks=exec_ranks)
+            else:
+                ctx.hook_ctx.launch.call(FuncCaller(wrappers.handle, ctx, self), exec_ranks=exec_ranks)
         #
         # Handler Interrupt
         #
@@ -322,7 +323,7 @@ def _terminate_wrap(item) -> str:
     return Cursor.single_color('g') + item + '  ' + _terminate_indicator + Cursor.single_color('w')
 
 
-class HandlerContainer(Handler, BaseList[Handler]):
+class HandlerContainer(Handler, BaseList[Union[Handler, _T]]):
 
     def __init__(
         self,

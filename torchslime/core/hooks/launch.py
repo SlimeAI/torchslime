@@ -5,15 +5,21 @@ import torch
 from torch import Tensor
 import io
 import pickle
-from torchslime.utils.typing import List, Union
+from torchslime.utils.typing import (
+    List,
+    Union,
+    Callable,
+    Sequence,
+    TypeVar
+)
 from torchslime.core.context import BaseContext
-from torchslime.core.handlers import Handler
 from torchslime.core.hooks.build import _BuildInterface
-from torchslime.utils import is_torch_distributed_ready
+from torchslime.utils import is_torch_distributed_ready, FuncCaller
 from torchslime.log import logger
-from torchslime.utils.bases import NOTHING, is_none_or_nothing, PASS
+from torchslime.utils.bases import NOTHING, is_none_or_nothing, PASS, Nothing, Pass
 from torchslime.components.registry import Registry
 
+_T = TypeVar('_T')
 launch_registry = Registry('launch_registry')
 
 
@@ -23,7 +29,7 @@ class LaunchHook(_BuildInterface):
         super().__init__()
         self.dist_comm: DistComm = NOTHING
 
-    def handler_handle(self, handler: Handler, ctx: BaseContext): pass
+    def call(self, __caller: FuncCaller[_T], *, exec_ranks: Union[Sequence[int], None, Nothing, Pass] = PASS) -> Union[_T, None]: pass
     def is_distributed(self) -> bool: pass
     def is_distributed_ready(self) -> bool: pass
     def get_rank(self, group=None): pass
@@ -34,8 +40,13 @@ class LaunchHook(_BuildInterface):
 @launch_registry(name='vanilla')
 class VanillaLaunch(LaunchHook):
     
-    def handler_handle(self, handler: Handler, ctx: BaseContext):
-        handler.handle(ctx)
+    def call(
+        self,
+        __caller: FuncCaller[_T],
+        *,
+        exec_ranks: Union[Sequence[int], None, Nothing, Pass] = PASS
+    ) -> _T:
+        return __caller()
     
     def is_distributed(self) -> bool:
         return False
@@ -63,19 +74,22 @@ class DistributedLaunch(LaunchHook):
         super().__init__()
         self.dist_comm = TorchComm()
     
-    def handler_handle(self, handler: Handler, ctx: BaseContext):
-        exec_ranks = handler.get_exec_ranks()
+    def call(
+        self,
+        __caller: FuncCaller[_T],
+        *,
+        exec_ranks: Union[Sequence[int], None, Nothing, Pass] = PASS
+    ) -> Union[_T, None]:
         # always exec
         if exec_ranks is PASS:
-            handler.handle(ctx)
-            return
+            return __caller()
         # never exec
         if is_none_or_nothing(exec_ranks):
             return
         # exec in the specific ranks
         rank = self.get_rank()
         if rank in exec_ranks:
-            handler.handle(ctx)
+            return __caller()
 
     def is_distributed(self) -> bool:
         return True
