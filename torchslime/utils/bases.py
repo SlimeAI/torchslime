@@ -14,10 +14,14 @@ from .typing import (
     Generic,
     overload,
     SupportsIndex,
-    Type
+    Type,
+    Generator,
+    Callable
 )
+from functools import partial
 import threading
 import multiprocessing
+from types import TracebackType
 
 
 # TypeVars
@@ -361,3 +365,62 @@ def create_singleton(__name: str) -> Tuple[Type[object], object]:
 # ``Pass`` singleton constant
 Pass, PASS = create_singleton('PASS')
 Pass: Type[object]
+
+# Type Vars
+_YieldT_co = TypeVar('_YieldT_co', covariant=True)
+_SendT_contra = TypeVar('_SendT_contra', contravariant=True)
+_ReturnT_co = TypeVar('_ReturnT_co', covariant=True)
+
+class BaseGenerator(
+    Generator[_YieldT_co, _SendT_contra, _ReturnT_co],
+    Generic[_YieldT_co, _SendT_contra, _ReturnT_co]
+):
+
+    def __init__(
+        self,
+        __gen: Generator[_YieldT_co, _SendT_contra, _ReturnT_co],
+        *,
+        exit_allowed: bool = True
+    ) -> None:
+        if not isinstance(__gen, Generator):
+            raise TypeError(f'Argument ``__gen`` should be a generator.')
+        self.gen = __gen
+        self.exit_allowed = exit_allowed
+        
+        self.exit = False
+
+    def __call__(self) -> Any:
+        return next(self)
+
+    def send(self, __value: _SendT_contra) -> _YieldT_co:
+        return self.call__(partial(self.gen.send, __value))
+
+    @overload
+    def throw(
+        self,
+        __typ: Type[BaseException],
+        __val: Union[BaseException, object] = None,
+        __tb: Union[TracebackType, None] = None
+    ) -> _YieldT_co: pass
+    @overload
+    def throw(
+        self,
+        __typ: BaseException,
+        __val: None = None,
+        __tb: Union[TracebackType, None] = None
+    ) -> _YieldT_co: pass
+
+    def throw(self, __typ, __val=None, __tb=None) -> _YieldT_co:
+        return self.call__(partial(self.gen.throw, __typ, __val, __tb))
+
+    def call__(self, __caller: Callable[[], _T]) -> Union[_T, Nothing]:
+        if self.exit and not self.exit_allowed:
+            from torchslime.components.exception import APIMisused
+            raise APIMisused('``exit_allowed`` is set to False, and the generator already stopped but you still try to call ``next``.')
+        elif self.exit:
+            return NOTHING
+
+        try:
+            return __caller()
+        except (StopIteration, GeneratorExit):
+            self.exit = True

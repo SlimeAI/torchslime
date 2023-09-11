@@ -8,12 +8,7 @@ from .typing import (
     Iterable,
     Any,
     List,
-    Type,
     TypeVar,
-    Generator,
-    Callable,
-    overload,
-    Generic
 )
 from torch import Tensor
 from torch.nn import Module
@@ -359,42 +354,4 @@ def window_iter(__sequence: Sequence[_T], window_size: int = 1, step: int = 1) -
         yield tuple(__sequence[i * step : i * step + window_size])
 
 
-class FuncCaller(Generic[_T]):
-    
-    def __init__(self, __func: Callable[..., _T], *args, **kwargs) -> None:
-        self.func = __func
-        self.args = args
-        self.kwargs = kwargs
-    
-    def __call__(self) -> _T:
-        return self.func(*self.args, **self.kwargs)
-
-
 from torchslime.utils.bases import NOTHING
-from torchslime.components.exception import APIMisused
-
-
-class GeneratorCaller:
-    
-    def __init__(
-        self,
-        __caller: FuncCaller[Generator],
-        *,
-        exit_allowed: bool = True
-    ) -> None:
-        self.gen = __caller()
-        self.exit_allowed = exit_allowed
-        if not isinstance(self.gen, Generator):
-            raise TypeError(f'Function ``{__caller.func.__qualname__}`` should be a generator function or return a generator.')
-        self.exit = False
-    
-    def __call__(self) -> Any:
-        if self.exit and not self.exit_allowed:
-            raise APIMisused('``exit_allowed`` is set to False, and the generator already stopped but you still try to call ``next``.')
-        elif self.exit:
-            return NOTHING
-        
-        try:
-            return next(self.gen)
-        except (StopIteration, GeneratorExit):
-            self.exit = True

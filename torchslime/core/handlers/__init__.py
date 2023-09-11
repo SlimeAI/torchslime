@@ -9,7 +9,7 @@ from torchslime.utils.typing import (
     TypeVar,
     Type
 )
-from torchslime.utils import Count, cli as Cursor, FuncCaller
+from torchslime.utils import Count, cli as Cursor
 from torchslime.core.context.base import BaseContext
 from torchslime.log import logger
 from torchslime.utils.bases import (
@@ -30,6 +30,7 @@ from torchslime.components.exception import (
     HandlerWrapperException
 )
 from torchslime.utils.formatter import dict_to_key_value_str_list, concat_format
+from functools import partial
 
 _T = TypeVar('_T')
 
@@ -106,17 +107,18 @@ class Handler(HandlerMeta):
         # parent initialized to NOTHING
         self.__parent: Union[HandlerContainer, Nothing] = NOTHING
 
-    def handle(self, ctx: BaseContext): pass
+    def handle(self, ctx: BaseContext) -> None: pass
 
-    def __call__(self, ctx: BaseContext):
+    def __call__(self, ctx: BaseContext) -> None:
         try:
             wrappers = self.get_wrappers()
             exec_ranks = self.get_exec_ranks()
             
             if is_none_or_nothing(wrappers):
-                ctx.hook_ctx.launch.call(FuncCaller(self.handle, ctx), exec_ranks=exec_ranks)
+                ctx.hook_ctx.launch.call(partial(self.handle, ctx), exec_ranks=exec_ranks)
             else:
-                ctx.hook_ctx.launch.call(FuncCaller(wrappers.handle, ctx, self), exec_ranks=exec_ranks)
+                wrappers: HandlerWrapperContainer
+                ctx.hook_ctx.launch.call(partial(wrappers.handle, ctx, self), exec_ranks=exec_ranks)
         #
         # Handler Interrupt
         #
@@ -340,7 +342,7 @@ class HandlerContainer(Handler, BaseList[Union[Handler, _T]]):
             handlers
         )
     
-    def handle(self, ctx: BaseContext):
+    def handle(self, ctx: BaseContext) -> None:
         try:
             for handler in self:
                 handler(ctx)
@@ -348,7 +350,7 @@ class HandlerContainer(Handler, BaseList[Union[Handler, _T]]):
             # continue in the container
             pass
     
-    def __call__(self, ctx: BaseContext):
+    def __call__(self, ctx: BaseContext) -> None:
         try:
             super().__call__(ctx)
         except HandlerBreak:

@@ -14,7 +14,7 @@ from torchslime.utils.typing import (
 )
 from torchslime.core.context import BaseContext
 from torchslime.core.hooks.build import _BuildInterface
-from torchslime.utils import is_torch_distributed_ready, FuncCaller
+from torchslime.utils import is_torch_distributed_ready
 from torchslime.log import logger
 from torchslime.utils.bases import NOTHING, is_none_or_nothing, PASS, Nothing, Pass
 from torchslime.components.registry import Registry
@@ -29,7 +29,7 @@ class LaunchHook(_BuildInterface):
         super().__init__()
         self.dist_comm: DistComm = NOTHING
 
-    def call(self, __caller: FuncCaller[_T], *, exec_ranks: Union[Sequence[int], None, Nothing, Pass] = PASS) -> Union[_T, None]: pass
+    def call(self, __caller: Callable[[], _T], *, exec_ranks: Union[Sequence[int], None, Nothing, Pass] = PASS) -> Union[_T, None]: pass
     def is_distributed(self) -> bool: pass
     def is_distributed_ready(self) -> bool: pass
     def get_rank(self, group=None): pass
@@ -42,7 +42,7 @@ class VanillaLaunch(LaunchHook):
     
     def call(
         self,
-        __caller: FuncCaller[_T],
+        __caller: Callable[[], _T],
         *,
         exec_ranks: Union[Sequence[int], None, Nothing, Pass] = PASS
     ) -> _T:
@@ -76,7 +76,7 @@ class DistributedLaunch(LaunchHook):
     
     def call(
         self,
-        __caller: FuncCaller[_T],
+        __caller: Callable[[], _T],
         *,
         exec_ranks: Union[Sequence[int], None, Nothing, Pass] = PASS
     ) -> Union[_T, None]:

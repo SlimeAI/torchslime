@@ -1,22 +1,21 @@
 from torchslime.core.context.base import BaseContext
 from . import Handler, HandlerContainer
 from torchslime.core.hooks.state import state_registry
-from torchslime.utils.bases import Nothing
+from torchslime.utils.bases import BaseGenerator, Nothing
 from torchslime.utils.typing import (
     Union,
     List,
     Callable,
     Generator,
-    Tuple,
     TypeVar
 )
-from torchslime.utils import GeneratorCaller, FuncCaller
 from torchslime.components.exception import (
     APIMisused,
     HandlerBaseException,
     HandlerWrapperException
 )
 from torchslime.log import logger
+from functools import partial
 
 __all__ = [
     'HandlerWrapper',
@@ -25,14 +24,45 @@ __all__ = [
     'ConditionHandler'
 ]
 _T = TypeVar('_T')
+_YieldT_co = TypeVar('_YieldT_co', covariant=True)
+_SendT_contra = TypeVar('_SendT_contra', contravariant=True)
+_ReturnT_co = TypeVar('_ReturnT_co', covariant=True)
+
+
+class HandlerWrapperGenerator(BaseGenerator[_YieldT_co, _SendT_contra, _ReturnT_co]):
+    
+    def __init__(
+        self,
+        __handler: 'HandlerWrapper',
+        __ctx: BaseContext,
+        *,
+        exit_allowed: bool = True
+    ) -> None:
+        self.handler = __handler
+        __gen = __handler.handle(__ctx)
+        super().__init__(__gen, exit_allowed=exit_allowed)
+    
+    def send(self, __value: _SendT_contra) -> _YieldT_co:
+        return self.gen_call__(partial(super().send, __value))
+    
+    def throw(self, __typ, __val=None, __tb=None) -> _YieldT_co:
+        return self.gen_call__(partial(super().throw, __typ, __val, __tb))
+    
+    def gen_call__(self, __caller: Callable[[], _T]) -> _T:
+        try:
+            return __caller()
+        # directly raise Handler Base Exception
+        except HandlerBaseException as hbe:
+            raise hbe
+        # wrap other Exception with Handler Wrapper Exception
+        except Exception as e:
+            raise HandlerWrapperException(exception_handler=self.handler, exception=e)
 
 
 class HandlerWrapper(Handler):
     
     def handle(self, ctx: BaseContext) -> Generator: pass
-    
-    def gen(self, ctx: BaseContext) -> GeneratorCaller:
-        return GeneratorCaller(FuncCaller(self.handle, ctx))
+    def gen(self, ctx: BaseContext) -> HandlerWrapperGenerator: return HandlerWrapperGenerator(self, ctx)
 
 
 class HandlerWrapperContainer(HandlerContainer[Union[HandlerWrapper, _T]]):
@@ -41,33 +71,24 @@ class HandlerWrapperContainer(HandlerContainer[Union[HandlerWrapper, _T]]):
         super().__init__(wrappers)
     
     def handle(self, ctx: BaseContext, wrapped: Handler):
-        gen_list: List[Tuple[GeneratorCaller, HandlerWrapper]] = []
+        # the original generator list
+        gen_list: List[HandlerWrapperGenerator] = [wrapper.gen(ctx) for wrapper in self]
+        # wrapper exec list according to yield flags
+        exec_list: List[HandlerWrapperGenerator] = []
+        # yield flag controlling wrapper exec
         flag = True
         # before handle
-        for gen, wrapper in zip(
-            map(lambda _wrapper: _wrapper.gen(ctx), self),
-            self
-        ):
-            flag = _gen_call(gen, wrapper)
-            gen_list.append((gen, wrapper))
+        for gen in gen_list:
+            flag = gen()
+            exec_list.append(gen)
             if not flag:
                 break
         # handle
         if flag:
             wrapped.handle(ctx)
         # after handle
-        for gen, wrapper in reversed(gen_list):
-            _gen_call(gen, wrapper)
-
-def _gen_call(gen: GeneratorCaller, wrapper: HandlerWrapper):
-    try:
-        return gen()
-    # directly raise Handler Base Exception
-    except HandlerBaseException as hbe:
-        raise hbe
-    # wrap other Exception with Handler Wrapper Exception
-    except Exception as e:
-        raise HandlerWrapperException(exception_handler=wrapper, exception=e)
+        for gen in reversed(exec_list):
+            gen.send(wrapped)
 
 #
 # StateHandler
