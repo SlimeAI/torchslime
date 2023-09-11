@@ -1,13 +1,16 @@
 from torchslime.core.context.base import BaseContext
-from . import Handler, HandlerContainer
+from . import Handler, HandlerContainer, HandlerMeta
 from torchslime.core.hooks.state import state_registry
-from torchslime.utils.bases import BaseGenerator, Nothing
+from torchslime.utils.bases import NOTHING, BaseGenerator, Nothing
 from torchslime.utils.typing import (
+    Iterable,
     Union,
     List,
     Callable,
     Generator,
-    TypeVar
+    TypeVar,
+    overload,
+    Type
 )
 from torchslime.components.exception import (
     APIMisused,
@@ -59,13 +62,39 @@ class HandlerWrapperGenerator(BaseGenerator[_YieldT_co, _SendT_contra, _ReturnT_
             raise HandlerWrapperException(exception_handler=self.handler, exception=e)
 
 
-class HandlerWrapper(Handler):
+class HandlerWrapperMeta(HandlerMeta):
+    
+    # just for type hint
+    @overload
+    @classmethod
+    def m__(
+        cls: Type[_T],
+        id: Union[str, None, Nothing] = NOTHING
+    ) -> Type[_T]: pass
+    
+    def m_init__(self, id=NOTHING):
+        self.set_id(id)
+    
+    def _get_meta_dict(self) -> dict:
+        return {
+            'id': self.get_id()
+        }
+    
+    def set_exec_ranks(self, *args, **kwargs) -> None: pass
+    def get_exec_ranks(self) -> Nothing: return NOTHING
+    def set_wrappers(self, *args, **kwargs) -> None: pass
+    def get_wrappers(self) -> Nothing: return NOTHING
+    def set_lifecycle(self, *args, **kwargs): pass
+    def get_lifecycle(self) -> Nothing: return NOTHING
+
+
+class HandlerWrapper(HandlerWrapperMeta, Handler):
     
     def handle(self, ctx: BaseContext) -> Generator: pass
     def gen(self, ctx: BaseContext) -> HandlerWrapperGenerator: return HandlerWrapperGenerator(self, ctx)
 
 
-class HandlerWrapperContainer(HandlerContainer[Union[HandlerWrapper, _T]]):
+class HandlerWrapperContainer(HandlerWrapperMeta, HandlerContainer[Union[HandlerWrapper, _T]]):
     
     def __init__(self, wrappers: List[HandlerWrapper]):
         super().__init__(wrappers)
@@ -89,6 +118,9 @@ class HandlerWrapperContainer(HandlerContainer[Union[HandlerWrapper, _T]]):
         # after handle
         for gen in reversed(exec_list):
             gen.send(wrapped)
+    
+    def __str__(self) -> str:
+        return self.get_display_str()
 
 #
 # StateHandler
