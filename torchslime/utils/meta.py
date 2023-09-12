@@ -70,7 +70,6 @@ def _Meta(
         
         # ``__init_subclass__``
         init_subclass_wraps: ClassFuncWrapper = class_wraps.__init_subclass__
-        init_subclass_cls_func = init_subclass_wraps.cls_func__
         @init_subclass_wraps
         @classmethod
         def init_subclass(
@@ -78,7 +77,6 @@ def _Meta(
             directly_new_allowed: Union[bool, None, Nothing] = NOTHING,
             **kwargs
         ):
-            init_subclass_cls_func(**kwargs)
             # set original ``m__`` method to override type hint method definition
             original_m = get_cls_func(cls__, 'm__')
             cls_m = get_cls_func(cls, 'm__')
