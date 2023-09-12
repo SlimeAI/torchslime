@@ -294,6 +294,7 @@ class Nothing(metaclass=_NothingSingleton):
     'Nothing' allows any attribute-get or method-call operations without throwing Errors, making the program more stable.
     It will show Warnings in the console instead.
     """
+    __slots__ = ()
 
     def __init__(self): super().__init__()
     def __call__(self, *args, **kwargs): return self

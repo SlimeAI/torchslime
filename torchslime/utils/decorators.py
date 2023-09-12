@@ -342,46 +342,6 @@ def ItemAttrBinding(_cls=NOTHING, *, set_binding: bool = True, get_binding: bool
     return decorator
 
 
-# type hint
-@overload
-def ObjectAttrBinding(_cls: Union[None, Nothing] = NOTHING, *, set_binding: bool = True, get_binding: bool = True, del_binding: bool = True) -> Callable[[Type[_T]], Type[_T]]: pass
-@overload
-def ObjectAttrBinding(_cls: Type[_T], *, set_binding: bool = True, get_binding: bool = True, del_binding: bool = True) -> Type[_T]: pass
-
-@DecoratorCall(index=0, keyword='_cls')
-def ObjectAttrBinding(_cls=NOTHING, *, set_binding: bool = True, get_binding: bool = True, del_binding: bool = True):
-    """
-    [class]
-    """
-    def decorator(cls: Type[_T]) -> Type[_T]:
-        cls_wraps = ClassWraps(cls)
-
-        if set_binding is True:
-            object_set_wraps = cls_wraps.object_set__
-
-            @object_set_wraps
-            def object_set(self, __name: str, __value: Any) -> None:
-                object.__setattr__(self, __name, __value)
-        
-        if get_binding is True:
-            object_get_wraps = cls_wraps.object_get__
-
-            @object_get_wraps
-            def object_get(self, __name: str) -> Any:
-                return object.__getattribute__(self, __name)
-        
-        if del_binding is True:
-            object_del_wraps = cls_wraps.object_del__
-
-            @object_del_wraps
-            def object_del(self, __name: str) -> None:
-                object.__delattr__(self, __name)
-        
-        return cls
-
-    return decorator
-
-
 @overload
 def ContextDecoratorBinding(_cls: Union[None, Nothing] = NOTHING) -> Callable[[_T], _T]: pass
 @overload
@@ -397,9 +357,8 @@ def ContextDecoratorBinding(_cls=NOTHING):
             @wraps(func)
             def wrapper(*args, **kwargs):
                 with self:
-                    result = func(*args, **kwargs)
-                    # with ``__exit__`` statement will be automatically executed before return statement
-                    return result
+                    # context ``__exit__`` method will be automatically executed before return statement
+                    return func(*args, **kwargs)
             return wrapper
         
         return cls

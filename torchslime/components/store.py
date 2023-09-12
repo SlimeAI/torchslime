@@ -6,7 +6,7 @@ from torchslime.utils.typing import (
 import threading
 import os
 from torchslime.utils.bases import Base, NOTHING, is_none_or_nothing
-from torchslime.utils.decorators import Singleton, ItemAttrBinding, ObjectAttrBinding, ContextDecoratorBinding
+from torchslime.utils.decorators import Singleton, ItemAttrBinding, ContextDecoratorBinding
 from torchslime.utils import is_slime_naming
 
 _T = TypeVar('_T')
@@ -27,7 +27,6 @@ _store_dict = {
     'builtin__': _builtin_scoped_store
 }
 
-@ObjectAttrBinding
 @ItemAttrBinding
 @Singleton
 class Store:
@@ -50,14 +49,6 @@ class Store:
         
         if __key in _store_dict:
             del _store_dict[__key]
-
-    # original object operation, just for type hint
-    @overload
-    def object_set__(self, __name: str, __value: Any) -> None: pass
-    @overload
-    def object_get__(self, __name: str) -> Any: pass
-    @overload
-    def object_del__(self, __name: str) -> None: pass
 
     def __getattr__(self, __name: str) -> Any:
         return getattr(self.current__(), __name)
@@ -105,16 +96,16 @@ class StoreSet:
     
     def _set_value(self):
         # cache the store value before ``StoreSet``
-        self.restore_value = self._store[self.name]
+        self.prev_value = self._store[self.name]
         # set value
         self._store[self.name] = self.value
 
     def _restore_value(self):
         if self.restore is True:
-            self._store[self.name] = self.restore_value
+            self._store[self.name] = self.prev_value
         else:
             del self._store[self.name]
-        del self.restore_value
+        del self.prev_value
 
 
 store = Store()

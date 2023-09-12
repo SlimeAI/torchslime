@@ -9,7 +9,7 @@ from torchslime.utils.typing import (
     Tuple
 )
 from torchslime.utils.bases import Base, Nothing, NOTHING, is_none_or_nothing, BaseList, PASS
-from torchslime.utils.decorators import ItemAttrBinding, ObjectAttrBinding, Singleton
+from torchslime.utils.decorators import ItemAttrBinding, Singleton
 from torchslime.utils import is_slime_naming, xor__
 from torchslime.log import logger
 from torchslime.components.exception import APIMisused
@@ -40,7 +40,6 @@ class _ConfigBase:
 
     def __call__(self, plain: bool = True): pass
 
-@ObjectAttrBinding
 @ItemAttrBinding
 class ConfigContainer(_ConfigBase):
 
