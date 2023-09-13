@@ -7,7 +7,7 @@ from torchslime.utils.typing import (
     Iterable,
     Mapping,
     Nothing,
-    Type,
+    NoneOrNothing,
     TypeVar,
     Union,
     is_none_or_nothing,
@@ -289,9 +289,9 @@ class DisplayHandler(Handler):
     @classmethod
     def m__(
         cls: type[_T],
-        id: Union[str, Nothing, None] = NOTHING,
-        exec_ranks: Union[Iterable[int], Nothing, None, Pass] = NOTHING,
-        wrappers: Union[Iterable[HandlerWrapper], Nothing, None] = NOTHING,
+        id: Union[str, NoneOrNothing] = NOTHING,
+        exec_ranks: Union[Iterable[int], NoneOrNothing, Pass] = NOTHING,
+        wrappers: Union[Iterable[HandlerWrapper], NoneOrNothing] = NOTHING,
         lifecycle=NOTHING
     ) -> type[_T]: pass
     

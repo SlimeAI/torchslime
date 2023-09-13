@@ -1,6 +1,7 @@
 from torchslime.utils.typing import (
     NOTHING,
     Nothing,
+    NoneOrNothing,
     Union,
     List,
     Callable,
@@ -60,32 +61,32 @@ class HandlerMeta(Meta):
     @classmethod
     def m__(
         cls: Type[_T],
-        id: Union[str, None, Nothing] = NOTHING,
-        exec_ranks: Union[Iterable[int], None, Nothing, Pass] = PASS,
-        wrappers: Union[Iterable['HandlerWrapper'], None, Nothing] = NOTHING,
+        id: Union[str, NoneOrNothing] = NOTHING,
+        exec_ranks: Union[Iterable[int], NoneOrNothing, Pass] = PASS,
+        wrappers: Union[Iterable['HandlerWrapper'], NoneOrNothing] = NOTHING,
         lifecycle=NOTHING
     ) -> Type[_T]: pass
     
     def get_id(self) -> Union[str, Nothing]:
         return self.__id
 
-    def set_id(self, __id: Union[str, None, Nothing]) -> None:
+    def set_id(self, __id: Union[str, NoneOrNothing]) -> None:
         if is_none_or_nothing(__id):
             # TODO: thread-safe and process-safe
             self.__id = f'handler_{self._handler_id_gen}'
         else:
             self.__id = __id
     
-    def get_exec_ranks(self) -> Union[Iterable[int], None, Nothing, Pass]:
+    def get_exec_ranks(self) -> Union[Iterable[int], NoneOrNothing, Pass]:
         return self.__exec_ranks
     
-    def set_exec_ranks(self, exec_ranks: Union[Iterable[int], None, Nothing, Pass]) -> None:
+    def set_exec_ranks(self, exec_ranks: Union[Iterable[int], NoneOrNothing, Pass]) -> None:
         self.__exec_ranks = BaseList.create__(exec_ranks)
 
-    def get_wrappers(self) -> Union['HandlerWrapperContainer', None, Nothing]:
+    def get_wrappers(self) -> Union['HandlerWrapperContainer', NoneOrNothing]:
         return self.__wrappers
     
-    def set_wrappers(self, wrappers: Union[Iterable['HandlerWrapper'], None, Nothing]) -> None:
+    def set_wrappers(self, wrappers: Union[Iterable['HandlerWrapper'], NoneOrNothing]) -> None:
         if is_none_or_nothing(wrappers):
             self.__wrappers = NOTHING
         else:
@@ -194,7 +195,7 @@ class Handler(HandlerMeta):
             return False
         return True
     
-    def get_by_id(self, _id: str, result: Union[list, None, Nothing] = NOTHING) -> 'Handler':
+    def get_by_id(self, _id: str, result: Union[list, NoneOrNothing] = NOTHING) -> 'Handler':
         # initialize
         result = [] if is_none_or_nothing(result) else result
         
@@ -202,7 +203,7 @@ class Handler(HandlerMeta):
             self._append_search_result(self, result, allow_multiple=False)
         return NOTHING if len(result) < 1 else result[0]
     
-    def get_by_class(self, __class: Union[type, Tuple[type]], result: Union[list, None, Nothing] = NOTHING) -> List['Handler']:
+    def get_by_class(self, __class: Union[type, Tuple[type]], result: Union[list, NoneOrNothing] = NOTHING) -> List['Handler']:
         # initialize
         result = [] if is_none_or_nothing(result) else result
         
@@ -210,7 +211,7 @@ class Handler(HandlerMeta):
             self._append_search_result(self, result)
         return result
     
-    def get_by_filter(self, __function: Callable, result: Union[list, None, Nothing] = NOTHING) -> List['Handler']:
+    def get_by_filter(self, __function: Callable, result: Union[list, NoneOrNothing] = NOTHING) -> List['Handler']:
         # initialize
         result = [] if is_none_or_nothing(result) else result
         
@@ -250,8 +251,8 @@ class Handler(HandlerMeta):
     
     def get_display_str(
         self,
-        target_handlers: Union[List['Handler'], None, Nothing] = NOTHING,
-        wrap_func: Union[Callable[[str, 'Handler'], str], None, Nothing] = NOTHING
+        target_handlers: Union[List['Handler'], NoneOrNothing] = NOTHING,
+        wrap_func: Union[Callable[[str, 'Handler'], str], NoneOrNothing] = NOTHING
     ) -> str:
         display_str = str(self)
         
@@ -265,7 +266,7 @@ class Handler(HandlerMeta):
 
     def display_traceback(
         self,
-        target_handlers: Union[List['Handler'], None, Nothing] = NOTHING,
+        target_handlers: Union[List['Handler'], NoneOrNothing] = NOTHING,
         wrap_func: Union[str, Callable] = 'exception',
         level: str = 'error'
     ):
@@ -276,7 +277,7 @@ class Handler(HandlerMeta):
 
     def _is_target_handler(
         self,
-        target_handlers: Union[List['Handler'], None, Nothing] = NOTHING
+        target_handlers: Union[List['Handler'], NoneOrNothing] = NOTHING
     ):
         return self in BaseList.create__(
             target_handlers,
@@ -330,7 +331,7 @@ class HandlerContainer(Handler, BaseList[Union[Handler, _T]]):
 
     def __init__(
         self,
-        handlers: Union[Iterable[Handler], None, Nothing] = None,
+        handlers: Union[Iterable[Handler], NoneOrNothing] = None,
     ):
         Handler.__init__(self)
         # remove ``None`` and ``NOTHING`` in ``handlers``
@@ -358,7 +359,7 @@ class HandlerContainer(Handler, BaseList[Union[Handler, _T]]):
             # break out of the container
             pass
     
-    def get_by_id(self, _id: str, result: Union[list, None, Nothing] = NOTHING) -> 'Handler':
+    def get_by_id(self, _id: str, result: Union[list, NoneOrNothing] = NOTHING) -> 'Handler':
         # initialize
         result = [] if is_none_or_nothing(result) else result
         
@@ -367,7 +368,7 @@ class HandlerContainer(Handler, BaseList[Union[Handler, _T]]):
             handler.get_by_id(_id, result)
         return NOTHING if len(result) < 1 else result[0]
     
-    def get_by_class(self, __class: Union[type, Tuple[type]], result: Union[list, None, Nothing] = NOTHING) -> List['Handler']:
+    def get_by_class(self, __class: Union[type, Tuple[type]], result: Union[list, NoneOrNothing] = NOTHING) -> List['Handler']:
         # initialize
         result = [] if is_none_or_nothing(result) else result
         
@@ -376,7 +377,7 @@ class HandlerContainer(Handler, BaseList[Union[Handler, _T]]):
             handler.get_by_class(__class, result)
         return result
 
-    def get_by_filter(self, __function: Callable, result: Union[list, None, Nothing] = NOTHING) -> List['Handler']:
+    def get_by_filter(self, __function: Callable, result: Union[list, NoneOrNothing] = NOTHING) -> List['Handler']:
         # initialize
         result = [] if is_none_or_nothing(result) else result
         
@@ -422,8 +423,8 @@ class HandlerContainer(Handler, BaseList[Union[Handler, _T]]):
     
     def get_display_str(
         self,
-        target_handlers: Union[List['Handler'], None, Nothing] = NOTHING,
-        wrap_func: Union[Callable[[str, 'Handler'], str], None, Nothing] = NOTHING
+        target_handlers: Union[List['Handler'], NoneOrNothing] = NOTHING,
+        wrap_func: Union[Callable[[str, 'Handler'], str], NoneOrNothing] = NOTHING
     ) -> str:
         class_name = self._get_class_name()
         

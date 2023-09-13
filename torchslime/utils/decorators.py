@@ -218,7 +218,7 @@ def Singleton(cls: _T) -> _T:
 
 # type hint
 @overload
-def CallDebug(_func: Union[None, Nothing] = NOTHING, *, module_name=NOTHING) -> Callable[[_T], _T]: pass
+def CallDebug(_func: NoneOrNothing = NOTHING, *, module_name=NOTHING) -> Callable[[_T], _T]: pass
 @overload
 def CallDebug(_func: _T, *, module_name=NOTHING) -> _T: pass
 
@@ -285,7 +285,7 @@ def Deprecated():
 
 # type hint
 @overload
-def ReadonlyAttr(attrs: list, *, _cls: Union[None, Nothing] = NOTHING, nothing_allowed: bool = True, empty_allowed: bool = True) -> Callable[[Type[_T]], Type[_T]]: pass
+def ReadonlyAttr(attrs: list, *, _cls: NoneOrNothing = NOTHING, nothing_allowed: bool = True, empty_allowed: bool = True) -> Callable[[Type[_T]], Type[_T]]: pass
 @overload
 def ReadonlyAttr(attrs: list, *, _cls: Type[_T], nothing_allowed: bool = True, empty_allowed: bool = True) -> Type[_T]: pass
 
@@ -320,7 +320,7 @@ def ReadonlyAttr(attrs: list, *, _cls=NOTHING, nothing_allowed: bool = True, emp
 
 # type hint
 @overload
-def ItemAttrBinding(_cls: Union[None, Nothing] = NOTHING, *, set_binding: bool = True, get_binding: bool = True, del_binding: bool = True) -> Callable[[Type[_T]], Type[_T]]: pass
+def ItemAttrBinding(_cls: NoneOrNothing = NOTHING, *, set_binding: bool = True, get_binding: bool = True, del_binding: bool = True) -> Callable[[Type[_T]], Type[_T]]: pass
 @overload
 def ItemAttrBinding(_cls: Type[_T], *, set_binding: bool = True, get_binding: bool = True, del_binding: bool = True) -> Type[_T]: pass
 
@@ -359,7 +359,7 @@ def ItemAttrBinding(_cls=NOTHING, *, set_binding: bool = True, get_binding: bool
 
 
 @overload
-def ContextDecoratorBinding(_cls: Union[None, Nothing] = NOTHING) -> Callable[[_T], _T]: pass
+def ContextDecoratorBinding(_cls: NoneOrNothing = NOTHING) -> Callable[[_T], _T]: pass
 @overload
 def ContextDecoratorBinding(_cls: Type[_T]) -> Type[_T]: pass
 

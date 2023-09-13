@@ -3,7 +3,15 @@ A convenient module register util that helps you dynamically build modules.
 """
 from torchslime.utils.bases import BaseDict
 from torchslime.utils.decorators import DecoratorCall
-from torchslime.utils.typing import NOTHING, Nothing, Union, Sequence, Any, is_none_or_nothing
+from torchslime.utils.typing import (
+    NOTHING,
+    Nothing,
+    NoneOrNothing,
+    Union,
+    Sequence,
+    Any,
+    is_none_or_nothing
+)
 
 
 class Registry(BaseDict):
@@ -23,8 +31,8 @@ class Registry(BaseDict):
         self,
         _cls: Any = NOTHING,
         *,
-        name: Union[str, Nothing, None] = NOTHING,
-        strict: Union[bool, Nothing, None] = NOTHING
+        name: Union[str, NoneOrNothing] = NOTHING,
+        strict: Union[bool, NoneOrNothing] = NOTHING
     ):
         strict = self._get_strict(strict)
 
@@ -45,7 +53,7 @@ class Registry(BaseDict):
         names: Sequence[str],
         *,
         _cls=NOTHING,
-        strict: Union[bool, Nothing, None] = NOTHING
+        strict: Union[bool, NoneOrNothing] = NOTHING
     ):
         strict = self._get_strict(strict)
 
@@ -65,5 +73,5 @@ class Registry(BaseDict):
     def get_namespace(self):
         return self.__namespace
 
-    def _get_strict(self, strict: Union[bool, Nothing, None]):
+    def _get_strict(self, strict: Union[bool, NoneOrNothing]):
         return strict if not is_none_or_nothing(strict) else self.strict

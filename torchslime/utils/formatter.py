@@ -1,6 +1,14 @@
 """defines some format functions for log output.
 """
-from .typing import NOTHING, Tuple, Union, Mapping, Sequence, is_none_or_nothing
+from .typing import (
+    NOTHING,
+    Tuple,
+    Union,
+    Mapping,
+    Sequence,
+    is_none_or_nothing,
+    NoneOrNothing
+)
 import time
 from . import cli as Cursor
 from .typing import Nothing
@@ -132,7 +140,7 @@ def concat_format(
     __right: str,
     *,
     item_sep: str = ',',
-    indent_prefix: Union[str, None, Nothing] = NOTHING,
+    indent_prefix: Union[str, NoneOrNothing] = NOTHING,
     break_line: bool = True
 ) -> str:
     if len(__content) < 1:

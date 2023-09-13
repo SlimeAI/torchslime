@@ -2,6 +2,7 @@ from torchslime.utils.typing import (
     NOTHING,
     Any,
     Nothing,
+    NoneOrNothing,
     Union,
     Iterable,
     Callable,
@@ -126,7 +127,7 @@ class ConfigFactory(ConfigContainer):
 
     def __init__(
         self,
-        loaders: Union[Iterable['ConfigLoader'], Nothing, None] = NOTHING
+        loaders: Union[Iterable['ConfigLoader'], NoneOrNothing] = NOTHING
     ) -> None:
         super().__init__()
         
@@ -138,7 +139,7 @@ class ConfigFactory(ConfigContainer):
     @classmethod
     def get__(
         cls,
-        loaders: Union[Iterable['ConfigLoader'], Nothing, None] = NOTHING,
+        loaders: Union[Iterable['ConfigLoader'], NoneOrNothing] = NOTHING,
         plain: bool = True
     ) -> Config:
         return cls(loaders)(plain)
@@ -164,7 +165,7 @@ class ConfigContainerList(_ConfigBase, BaseList[_ConfigBase]):
     def __init__(
         self,
         container_class: Union[Type[_ConfigBase], Tuple[Type[_ConfigBase]]] = _ConfigBase,
-        container_list: Union[Iterable[_ConfigBase], None, Nothing] = NOTHING
+        container_list: Union[Iterable[_ConfigBase], NoneOrNothing] = NOTHING
     ):
         # set ``container_class`` before all list operations
         self.container_class = container_class
@@ -258,7 +259,7 @@ class ContainerListField(Field):
     def __init__(
         self,
         container_class: Union[Type[_ConfigBase], Tuple[Type[_ConfigBase]]] = _ConfigBase,
-        default_factory: Union[Callable[[], Iterable[_ConfigBase]], None, Nothing] = NOTHING
+        default_factory: Union[Callable[[], Iterable[_ConfigBase]], NoneOrNothing] = NOTHING
     ) -> None:
         super().__init__(
             default_factory=self._default_factory(container_class, default_factory),
@@ -268,7 +269,7 @@ class ContainerListField(Field):
     def _default_factory(
         self,
         container_class: Union[Type[_ConfigBase], Tuple[Type[_ConfigBase]]],
-        default_factory: Union[Callable[[], Iterable[_ConfigBase]], None, Nothing]
+        default_factory: Union[Callable[[], Iterable[_ConfigBase]], NoneOrNothing]
     ):
         def partial():
             if is_none_or_nothing(default_factory):

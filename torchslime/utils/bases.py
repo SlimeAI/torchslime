@@ -18,6 +18,7 @@ from .typing import (
     Callable,
     NOTHING,
     Nothing,
+    NoneOrNothing,
     Pass,
     PASS
 )
@@ -166,7 +167,7 @@ class BaseList(MutableSequence[_T], Generic[_T]):
                 (__list_like is None and return_none is True) or \
                 (__list_like is PASS and return_pass is True):
             # return the item itself
-            __list_like: Union[None, Nothing, Pass]
+            __list_like: Union[NoneOrNothing, Pass]
             return __list_like
         elif isinstance(__list_like, Iterable) or is_none_or_nothing(__list_like):
             return cls(__list_like)

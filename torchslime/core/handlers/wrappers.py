@@ -4,7 +4,7 @@ from torchslime.core.hooks.state import state_registry
 from torchslime.utils.bases import BaseGenerator
 from torchslime.utils.typing import (
     NOTHING,
-    Iterable,
+    NoneOrNothing,
     Nothing,
     Union,
     List,
@@ -71,7 +71,7 @@ class HandlerWrapperMeta(HandlerMeta):
     @classmethod
     def m__(
         cls: Type[_T],
-        id: Union[str, None, Nothing] = NOTHING
+        id: Union[str, NoneOrNothing] = NOTHING
     ) -> Type[_T]: pass
     
     def m_init__(self, id=NOTHING):

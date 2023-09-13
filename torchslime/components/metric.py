@@ -2,6 +2,7 @@ from torchslime.utils.typing import (
     NOTHING,
     Mapping,
     Nothing,
+    NoneOrNothing,
     Union,
     Dict,
     Iterable,
@@ -21,7 +22,7 @@ import inspect
 
 class Metric:
 
-    def __init__(self, name: Union[str, None, Nothing] = None):
+    def __init__(self, name: Union[str, NoneOrNothing] = None):
         self.name = name
 
     def get(self, ctx: BaseContext) -> Union[Dict, int, float]: pass
@@ -62,7 +63,7 @@ class LossFunc(Metric):
 
 class SimpleLossFunc(LossFunc):
     
-    def __init__(self, loss_func: Callable[[Any, Any], Union[Dict, Tensor]], name: Union[str, Nothing, None] = None):
+    def __init__(self, loss_func: Callable[[Any, Any], Union[Dict, Tensor]], name: Union[str, NoneOrNothing] = None):
         super().__init__(name)
         self.loss_func = loss_func
     
@@ -173,7 +174,7 @@ class Meter:
         self.mean = self.mean * (self.count / (self.count + 1)) + __value / (self.count + 1)
         self.count += 1
     
-    def get__(self, __key: Union[str, None, Nothing] = None):
+    def get__(self, __key: Union[str, NoneOrNothing] = None):
         result = {
             'mean': self.mean,
             'min': self.min,
@@ -192,7 +193,7 @@ class MeterDict(BaseDict[str, Meter]):
             # compute meter
             self[key](value)
 
-    def get__(self, __key: Union[str, None, Nothing] = None) -> Dict:
+    def get__(self, __key: Union[str, NoneOrNothing] = None) -> Dict:
         result = {}
         for key, meter in self.items():
             result[key] = meter.get__(__key)

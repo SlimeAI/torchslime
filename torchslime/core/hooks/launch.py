@@ -7,6 +7,7 @@ import io
 import pickle
 from torchslime.utils.typing import (
     NOTHING,
+    NoneOrNothing,
     List,
     Nothing,
     Union,
@@ -33,7 +34,7 @@ class LaunchHook(_BuildInterface):
         super().__init__()
         self.dist_comm: DistComm = NOTHING
 
-    def call(self, __caller: Callable[[], _T], *, exec_ranks: Union[Sequence[int], None, Nothing, Pass] = PASS) -> Union[_T, None]: pass
+    def call(self, __caller: Callable[[], _T], *, exec_ranks: Union[Sequence[int], NoneOrNothing, Pass] = PASS) -> Union[_T, None]: pass
     def is_distributed(self) -> bool: pass
     def is_distributed_ready(self) -> bool: pass
     def get_rank(self, group=None): pass
@@ -48,7 +49,7 @@ class VanillaLaunch(LaunchHook):
         self,
         __caller: Callable[[], _T],
         *,
-        exec_ranks: Union[Sequence[int], None, Nothing, Pass] = PASS
+        exec_ranks: Union[Sequence[int], NoneOrNothing, Pass] = PASS
     ) -> _T:
         return __caller()
     
@@ -82,7 +83,7 @@ class DistributedLaunch(LaunchHook):
         self,
         __caller: Callable[[], _T],
         *,
-        exec_ranks: Union[Sequence[int], None, Nothing, Pass] = PASS
+        exec_ranks: Union[Sequence[int], NoneOrNothing, Pass] = PASS
     ) -> Union[_T, None]:
         # always exec
         if exec_ranks is PASS:

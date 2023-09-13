@@ -1,5 +1,6 @@
 from .typing import (
     NOTHING,
+    NoneOrNothing,
     Any,
     Union,
     TypeVar,
@@ -9,7 +10,6 @@ from .typing import (
     overload,
     NoReturn
 )
-from .typing import Nothing
 from .decorators import ClassWraps, DecoratorCall, ClassFuncWrapper, get_cls_func
 from .formatter import dict_to_key_value_str_list, concat_format
 from torchslime.components.exception import APIMisused
@@ -47,7 +47,7 @@ class _MetaWrapper:
 
 # type hint
 @overload
-def _Meta(_cls: Union[None, Nothing] = NOTHING, *, directly_new_allowed: bool = True) -> Callable[[Type[_T]], Type[_T]]: pass
+def _Meta(_cls: NoneOrNothing = NOTHING, *, directly_new_allowed: bool = True) -> Callable[[Type[_T]], Type[_T]]: pass
 @overload
 def _Meta(_cls: Type[_T], *, directly_new_allowed: bool = True) -> Type[_T]: pass
 
@@ -76,7 +76,7 @@ def _Meta(
         @classmethod
         def init_subclass(
             cls,
-            directly_new_allowed: Union[bool, None, Nothing] = NOTHING,
+            directly_new_allowed: Union[bool, NoneOrNothing] = NOTHING,
             **kwargs
         ):
             # set original ``m__`` method to override type hint method definition
