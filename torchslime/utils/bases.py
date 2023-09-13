@@ -1,4 +1,3 @@
-from . import dict_merge
 import traceback
 from .typing import (
     Any,
@@ -16,18 +15,22 @@ from .typing import (
     SupportsIndex,
     Type,
     Generator,
-    Callable
+    Callable,
+    NOTHING,
+    Nothing,
+    Pass,
+    PASS
 )
 from functools import partial
-import threading
-import multiprocessing
 from types import TracebackType
-
 
 # TypeVars
 _T = TypeVar('_T')
 _KT = TypeVar('_KT')
 _VT = TypeVar('_VT')
+
+import torchslime.utils as utils
+from .typing import is_none_or_nothing
 
 
 class Base:
@@ -45,7 +48,7 @@ class Base:
         Args:
             kwargs (Dict): property dict.
         """
-        self.__dict__ = dict_merge(self.__dict__, _dict)
+        self.__dict__ = utils.dict_merge(self.__dict__, _dict)
 
     def check__(self, item: str):
         """check whether the object has a specific attribute.
@@ -267,105 +270,6 @@ class BaseDict(MutableMapping[_KT, _VT], Generic[_KT, _VT]):
         _dict=str(self.__dict)
         return f'{classname}<{_id}>({_dict})'
 
-#
-# Nothing class, NOTHING instance and related operations.
-#
-
-class _NothingSingleton(type):
-    """
-    Nothing Singleton should be implemented independently, because the ``Singleton`` decorator relies on the basic NOTHING object, which may cause circular reference.
-    """
-
-    __t_lock = threading.Lock()
-    __p_lock = multiprocessing.Lock()
-    __instance = None
-
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        if self.__instance is None:
-            with self.__t_lock, self.__p_lock:
-                if self.__instance is None:
-                    self.__instance = super().__call__(*args, **kwargs)
-        return self.__instance
-
-class Nothing(metaclass=_NothingSingleton):
-    """
-    'Nothing' object, different from python 'None'.
-    It often comes from getting properties or items that the object does not have, or simply represents a default value.
-    'Nothing' allows any attribute-get or method-call operations without throwing Errors, making the program more stable.
-    It will show Warnings in the console instead.
-    """
-    __slots__ = ()
-
-    def __init__(self): super().__init__()
-    def __call__(self, *args, **kwargs): return self
-    def __getattribute__(self, *_): return self
-    def __getitem__(self, *_): return self
-    def __setattr__(self, *_): pass
-    def __setitem__(self, *_): pass
-    def __len__(self): return 0
-    def __iter__(self): return self
-    def __next__(self): raise StopIteration
-    def __str__(self) -> str: return 'NOTHING'
-    def __repr__(self) -> str: return f'NOTHING<{str(hex(id(self)))}>'
-    def __format__(self, __format_spec: str) -> str: return 'NOTHING'
-    def __contains__(self) -> bool: return False
-
-    def __eq__(self, obj) -> bool:
-        if obj is NOTHING:
-            return True
-        return False
-
-    def __add__(self, _): return self
-    def __sub__(self, _): return self
-    def __mul__(self, _): return self
-    def __truediv__(self, _): return self
-    def __radd__(self, _): return self
-    def __rsub__(self, _): return self
-    def __rmul__(self, _): return self
-    def __rtruediv__(self, _): return self
-    def __int__(self) -> int: return 0
-    def __index__(self) -> int: return 0
-    def __float__(self): return 0.0
-    def __bool__(self) -> bool: return False
-
-NOTHING = Nothing()
-
-def is_none_or_nothing(obj) -> bool:
-    """Check whether an object is None, Nothing or neither.
-    Args:
-        obj (Any): object
-    Returns:
-        bool: check result.
-    """
-    return obj is None or obj is NOTHING
-
-
-def create_singleton(__name: str) -> Tuple[Type[object], object]:
-    """
-    Create a new singleton class with its singleton object. Mostly used in flag vars.
-    """
-    from .decorators import Singleton, ClassWraps
-    
-    new_class = type(__name, (object,), {})
-    
-    # set str and repr func
-    class_wraps = ClassWraps(new_class)
-    @class_wraps.__str__
-    def str_func(self) -> str:
-        return __name
-    
-    @class_wraps.__repr__
-    def repr_func(self) -> str:
-        return f'{__name}<{str(hex(id(self)))}>'
-    
-    new_class = Singleton(new_class)
-    singleton_object = new_class()
-    return new_class, singleton_object
-
-
-# ``Pass`` singleton constant
-Pass, PASS = create_singleton('PASS')
-Pass: Type[object]
 
 # Type Vars
 _YieldT_co = TypeVar('_YieldT_co', covariant=True)

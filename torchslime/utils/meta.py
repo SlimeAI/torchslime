@@ -1,13 +1,15 @@
 from .typing import (
+    NOTHING,
     Any,
     Union,
     TypeVar,
     Callable,
     Type,
+    is_none_or_nothing,
     overload,
     NoReturn
 )
-from .bases import NOTHING, Nothing, is_none_or_nothing
+from .typing import Nothing
 from .decorators import ClassWraps, DecoratorCall, ClassFuncWrapper, get_cls_func
 from .formatter import dict_to_key_value_str_list, concat_format
 from torchslime.components.exception import APIMisused

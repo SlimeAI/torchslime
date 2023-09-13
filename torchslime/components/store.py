@@ -1,13 +1,15 @@
 from torchslime.utils.typing import (
+    NOTHING,
     Any,
     TypeVar,
-    overload
+    is_none_or_nothing,
+    overload,
+    is_slime_naming
 )
 import threading
 import os
-from torchslime.utils.bases import Base, NOTHING, is_none_or_nothing
+from torchslime.utils.bases import Base
 from torchslime.utils.decorators import Singleton, ItemAttrBinding, ContextDecoratorBinding
-from torchslime.utils import is_slime_naming
 
 _T = TypeVar('_T')
 

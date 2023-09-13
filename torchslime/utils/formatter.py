@@ -1,9 +1,9 @@
 """defines some format functions for log output.
 """
-from .typing import Tuple, Union, Mapping, Sequence
+from .typing import NOTHING, Tuple, Union, Mapping, Sequence, is_none_or_nothing
 import time
 from . import cli as Cursor
-from .bases import NOTHING, Nothing, is_none_or_nothing
+from .typing import Nothing
 from torchslime.components.store import store
 from textwrap import indent
 

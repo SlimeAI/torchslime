@@ -1,9 +1,11 @@
 from torchslime.core.context.base import BaseContext
 from . import Handler, HandlerContainer, HandlerMeta
 from torchslime.core.hooks.state import state_registry
-from torchslime.utils.bases import NOTHING, BaseGenerator, Nothing
+from torchslime.utils.bases import BaseGenerator
 from torchslime.utils.typing import (
+    NOTHING,
     Iterable,
+    Nothing,
     Union,
     List,
     Callable,

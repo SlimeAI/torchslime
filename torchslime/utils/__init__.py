@@ -7,7 +7,6 @@ from .typing import (
     Iterator,
     Iterable,
     Any,
-    List,
     TypeVar,
 )
 from torch import Tensor
@@ -15,8 +14,6 @@ from torch.nn import Module
 from time import time
 import inspect
 import os
-from types import MethodType, FunctionType
-import re
 
 _T = TypeVar('_T')
 
@@ -57,10 +54,6 @@ def dict_merge(dict1: Dict, dict2: Dict):
 
 def safe_divide(dividend, divisor, default=0):
     return dividend / divisor if divisor != 0 else default
-
-
-def is_function_or_method(__item: Any) -> bool:
-    return isinstance(__item, (MethodType, FunctionType))
 
 
 class Count:
@@ -278,47 +271,9 @@ def is_torch_distributed_ready():
     return dist.is_available() and dist.is_initialized()
 
 
-class GenericID:
-
-    def __init__(self, attrs: Union[List, Tuple]) -> None:
-        self.attrs = list(attrs)
-
-    def __call__(self, *args, **kwargs):
-        return GIDValue(self.attrs, *args, **kwargs)
-
-
-class GIDValue:
-    
-    def __init__(self, attrs: Union[List, Tuple], *args, **kwargs) -> None:
-        self.attrs = attrs
-
-    def __str__(self) -> str:
-        pass
-
-    def __repr__(self) -> str:
-        pass
-
-
-class ContextDecorator:
-
-    pass
-
-
 class StrTemplate:
 
     pass
-
-
-MAGIC_PATTERN = re.compile('^_{2}[^_](?:.*[^_])?_{2}$')
-
-def is_magic_naming(__name: str) -> bool:
-    return re.match(MAGIC_PATTERN, str(__name)) is not None
-
-
-SLIME_PATTERN = re.compile('^[^_](?:.*[^_])?_{2}$')
-
-def is_slime_naming(__name: str) -> bool:
-    return re.match(SLIME_PATTERN, str(__name)) is not None
 
 
 def xor__(__x, __y) -> bool:
@@ -354,4 +309,4 @@ def window_iter(__sequence: Sequence[_T], window_size: int = 1, step: int = 1) -
         yield tuple(__sequence[i * step : i * step + window_size])
 
 
-from torchslime.utils.bases import NOTHING
+from torchslime.utils.typing import NOTHING

@@ -1,9 +1,9 @@
 """
 A convenient module register util that helps you dynamically build modules.
 """
-from torchslime.utils.bases import BaseDict, NOTHING, Nothing, is_none_or_nothing
+from torchslime.utils.bases import BaseDict
 from torchslime.utils.decorators import DecoratorCall
-from torchslime.utils.typing import Union, Sequence, Any
+from torchslime.utils.typing import NOTHING, Nothing, Union, Sequence, Any, is_none_or_nothing
 
 
 class Registry(BaseDict):

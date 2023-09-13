@@ -1,16 +1,21 @@
 from torchslime.utils.typing import (
+    NOTHING,
     Any,
+    Nothing,
     Union,
     Iterable,
     Callable,
     List,
     Dict,
     Type,
-    Tuple
+    Tuple,
+    is_none_or_nothing,
+    is_slime_naming,
+    PASS
 )
-from torchslime.utils.bases import Base, Nothing, NOTHING, is_none_or_nothing, BaseList, PASS
+from torchslime.utils.bases import Base, BaseList
 from torchslime.utils.decorators import ItemAttrBinding, Singleton
-from torchslime.utils import is_slime_naming, xor__
+from torchslime.utils import xor__
 from torchslime.log import logger
 from torchslime.components.exception import APIMisused
 

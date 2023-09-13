@@ -7,14 +7,16 @@ from .typing import (
     Callable,
     TypeVar,
     Type,
-    overload
+    is_function_or_method,
+    is_none_or_nothing,
+    overload,
+    RawFunc,
+    FuncOrMethod,
+    NoneOrNothing,
+    MethodType,
+    NOTHING,
+    Nothing
 )
-from types import (
-    FunctionType,
-    MethodType
-)
-from .bases import NOTHING, is_none_or_nothing, Nothing
-from . import get_exec_info, is_function_or_method
 
 _T = TypeVar('_T')
 
@@ -26,7 +28,7 @@ from functools import WRAPPER_ASSIGNMENTS, WRAPPER_UPDATES
 FUNC_CREATED = ('__module__', '__name__', '__qualname__')
 
 def _create_func(
-    func: Union[FunctionType, MethodType],
+    func: FuncOrMethod,
     cls: type,
     name: str,
     created: Union[list, tuple]
@@ -59,7 +61,7 @@ class ClassFuncWrapper:
         # get functions
         self.cls_func__ = get_cls_func(cls, name)
         self.super_func__ = get_super_func(cls, name)
-        self.this_func__ = _get_function_or_method(cls, name)
+        self.self_func__ = get_self_func(cls, name)
     
     def __call__(
         self,
@@ -70,18 +72,19 @@ class ClassFuncWrapper:
         created=FUNC_CREATED,
         use_wraps: bool = True
     ) -> Callable:
-        this_func = self.this_func__
+        self_func = self.self_func__
         
         def wrapper(func: Callable):
-            if not is_none_or_nothing(this_func) and use_wraps:
-                func = wraps(this_func, assigned=assigned, updated=updated)(func)
+            if not is_none_or_nothing(self_func) and use_wraps:
+                func = wraps(self_func, assigned=assigned, updated=updated)(func)
             else:
                 func = _create_func(func=func, cls=self.cls, name=self.name, created=created)
             # set wrapper__ attribute to denote it is a func wrapper
             func.wrapper__ = True
-            # set cls_func and super_func to func wrapper
+            # set cls_func, super_func and self_func to func wrapper
             func.cls_func__ = self.cls_func__
             func.super_func__ = self.super_func__
+            func.self_func__ = self.self_func__
             # set func wrapper to cls
             setattr(self.cls, self.name, func)
             return func
@@ -105,32 +108,43 @@ class ClassWraps:
         cls = super().__getattribute__('cls')
         return ClassFuncWrapper(cls, __name)
 
-def _get_function_or_method(cls: type, name: str):
+
+@overload
+def _unwrap(func: FuncOrMethod) -> RawFunc: pass
+@overload
+def _unwrap(func: NoneOrNothing) -> NoneOrNothing: pass
+
+def _unwrap(func: Union[FuncOrMethod, NoneOrNothing]) -> Union[RawFunc, NoneOrNothing]:
+    if isinstance(func, MethodType):
+        # get the original function body of the classmethod
+        func = func.__func__
+    return func
+
+def _get_self_func_or_method(cls: type, name: str) -> Union[FuncOrMethod, Nothing]:
     __item = cls.__dict__.get(name, NOTHING)
     return __item if is_function_or_method(__item) else NOTHING
 
-def _get_func_from_mro(cls: type, name: str, start: int=0):
+def get_self_func(cls: type, name: str) -> Union[RawFunc, Nothing]:
+    return _unwrap(_get_self_func_or_method(cls, name))
+
+def get_original_self_func(func):
+    while getattr(func, 'wrapper__', False) and hasattr(func, 'self_func__'):
+        func = getattr(func, 'self_func__')
+    return func
+
+def _get_func_from_mro(cls: type, name: str, start: int=0) -> Union[RawFunc, Nothing]:
     # get attr from the mro tuple
     mro_tuple = cls.__mro__
     try:
-        func = getattr(mro_tuple[start], name, NOTHING)
-        if isinstance(func, MethodType):
-            # get the original function body of the classmethod
-            func = func.__func__
-        return func
+        return _unwrap(getattr(mro_tuple[start], name, NOTHING))
     except IndexError:
         return NOTHING
 
-def get_cls_func(cls: type, name: str):
+def get_cls_func(cls: type, name: str) -> Union[RawFunc, Nothing]:
     return _get_func_from_mro(cls, name, start=0)
 
-def get_super_func(cls: type, name: str):
+def get_super_func(cls: type, name: str) -> Union[RawFunc, Nothing]:
     return _get_func_from_mro(cls, name, start=1)
-
-def get_original_cls_func(func):
-    while getattr(func, 'wrapper__', False) and hasattr(func, 'cls_func__'):
-        func = getattr(func, 'cls_func__')
-    return func
 
 
 def DecoratorCall(
@@ -216,6 +230,8 @@ def CallDebug(_func: _T = NOTHING, *, module_name=NOTHING):
     Args:
         func (_type_): _description_
     """
+    from . import get_exec_info
+    
     def decorator(func: _T) -> _T:
         from torchslime.log import logger
         from torchslime.components.store import store

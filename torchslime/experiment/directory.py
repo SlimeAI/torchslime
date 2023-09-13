@@ -1,4 +1,4 @@
-from torchslime.utils.bases import NOTHING
+from torchslime.utils.typing import NOTHING
 import os
 
 BASE_PATH = NOTHING

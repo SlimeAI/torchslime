@@ -1,12 +1,15 @@
 from torchslime.utils.typing import (
+    NOTHING,
     Mapping,
+    Nothing,
     Union,
     Dict,
     Iterable,
     Callable,
-    Any
+    Any,
+    is_none_or_nothing
 )
-from torchslime.utils.bases import NOTHING, BaseDict, BaseList, Nothing, is_none_or_nothing
+from torchslime.utils.bases import BaseDict, BaseList
 from torchslime.utils import dict_merge, safe_divide, LessThanAnything, GreaterThanAnything
 from .registry import Registry
 from .exception import APIMisused

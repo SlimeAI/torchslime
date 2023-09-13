@@ -6,17 +6,21 @@ from torch import Tensor
 import io
 import pickle
 from torchslime.utils.typing import (
+    NOTHING,
     List,
+    Nothing,
     Union,
     Callable,
     Sequence,
-    TypeVar
+    TypeVar,
+    is_none_or_nothing,
+    Pass,
+    PASS
 )
 from torchslime.core.context import BaseContext
 from torchslime.core.hooks.build import _BuildInterface
 from torchslime.utils import is_torch_distributed_ready
 from torchslime.log import logger
-from torchslime.utils.bases import NOTHING, is_none_or_nothing, PASS, Nothing, Pass
 from torchslime.components.registry import Registry
 
 _T = TypeVar('_T')

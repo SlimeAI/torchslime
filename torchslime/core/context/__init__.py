@@ -5,14 +5,15 @@ from torchslime.utils.typing import (
     Optional,
     Union,
     Callable,
-    Iterable
+    Iterable,
+    is_none_or_nothing
 )
 from torchslime.components.data import ConstantProvider, DataParser, DataProvider, IndexParser
 from torchslime.components.metric import MetricContainer, LossReductionFactory, Metric, LossFunc, LossFuncContainer
 from torchslime.components.exception import APIMisused
 from torchslime.utils import get_device, type_cast, count_params
 from torchslime.log import logger
-from torchslime.utils.bases import NOTHING, is_none_or_nothing
+from torchslime.utils.typing import NOTHING
 from torchslime.utils.decorators import CallDebug, MethodChaining
 from torchslime.utils.typing import NUMBER
 from torchslime.core.context.base import BaseContext
