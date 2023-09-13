@@ -1,4 +1,5 @@
 import traceback
+from typing import Any
 from .typing import (
     Any,
     Dict,
@@ -20,8 +21,10 @@ from .typing import (
     Nothing,
     NoneOrNothing,
     Pass,
-    PASS
+    PASS,
+    is_none_or_nothing
 )
+import torchslime.utils as utils
 from functools import partial
 from types import TracebackType
 
@@ -29,9 +32,6 @@ from types import TracebackType
 _T = TypeVar('_T')
 _KT = TypeVar('_KT')
 _VT = TypeVar('_VT')
-
-import torchslime.utils as utils
-from .typing import is_none_or_nothing
 
 
 class Base:
@@ -330,3 +330,23 @@ class BaseGenerator(
             return __caller()
         except (StopIteration, GeneratorExit):
             self.exit = True
+
+
+class BaseProxy(Generic[_T]):
+    
+    def __init__(
+        self,
+        __obj: _T,
+        __attrs: List[str]
+    ) -> None:
+        super().__init__()
+        self.obj__ = __obj
+        self.attrs__ = __attrs
+    
+    def __getattribute__(self, __name: str) -> Any:
+        if __name in ['obj__', 'attrs__']:
+            return super().__getattribute__(__name)
+        # attr proxy
+        if __name in self.attrs__:
+            return getattr(self.obj__, __name)
+        return super().__getattribute__(__name)

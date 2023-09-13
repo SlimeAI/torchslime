@@ -1,16 +1,77 @@
 # TODO: combine with torchslime.log to build a unified output interface
 import sys
+from .decorators import ContextDecoratorBinding
+from .typing import (
+    Union,
+    TextIO,
+    AnyStr,
+    List,
+    IO,
+    NoneOrNothing
+)
+from .bases import BaseProxy
+from io import TextIOWrapper
 
 
+@ContextDecoratorBinding
 class set_cli_interceptor:
-    pass
+    
+    def __init__(
+        self,
+        __out: Union['CLIInterceptor', NoneOrNothing] = None,
+        __err: Union['CLIInterceptor', NoneOrNothing] = None,
+        *,
+        restore_out: bool = True,
+        restore_err: bool = True
+    ) -> None:
+        # stdout
+        self.prev_out = sys.stdout
+        self.restore_out = restore_out
+        if __out is not None:
+            sys.stdout = __out
+        # stderr
+        self.prev_err = sys.stderr
+        self.restore_err = restore_err
+        if __err is not None:
+            sys.stderr = __err
+    
+    def __enter__(self) -> None: pass
+    
+    def __exit__(self, *args, **kwargs) -> None:
+        if self.restore_out:
+            sys.stdout = self.prev_out
+        if self.restore_err:
+            sys.stderr = self.prev_err
 
+class CLIInterceptor(TextIO, BaseProxy[TextIOWrapper]):
+    
+    __slots__ = ('text_io_wrapper', 'adapter_list')
+    
+    def __init__(
+        self,
+        text_io_wrapper: TextIOWrapper,
+    ) -> None:
+        TextIO.__init__(self)
+        BaseProxy.__init__(self, text_io_wrapper, [
+            'buffer', 'encoding', 'errors', 'line_buffering', 'newlines',
+            'mode', 'name', 'closed', 'close', 'fileno', 'flush', 'isatty',
+            'read', 'readable', 'readline', 'readlines', 'seek', 'seekable',
+            'tell', 'truncate', 'writable'
+        ])
+    
+    def write(self, s: AnyStr) -> int:
+        pass
 
-
+    def writelines(self, lines: List[AnyStr]) -> None:
+        pass
+    
+    # adapter
+    def __enter__(self) -> IO[AnyStr]: return self.obj__.__enter__()
+    def __exit__(self, type, value, traceback) -> None: return self.obj__.__exit__(type, value, traceback)
 
 
 ESC = '\x1b'  # the ANSI escape code.
-CSI = ESC + '['  # control Sequence Introducer.
+CSI = ESC + '['  # Control Sequence Introducer.
 CURSOR_UP = CSI + '{}A'
 CURSOR_DOWN = CSI + '{}B'
 CURSOR_LEFT = CSI + '{}C'
