@@ -15,42 +15,59 @@ _T = TypeVar('_T')
 
 
 class ScopedStore(Base):
-
-    def __init__(self, key__) -> None:
+    
+    def __init__(self) -> None:
         super().__init__()
-        self.key__ = key__
 
-# 
-# Store, builtin ScopedStore and store_dict
-#
 
-_builtin_scoped_store = ScopedStore('builtin__')
-_store_dict = {
-    'builtin__': _builtin_scoped_store
-}
+@Singleton
+class BuiltinScopedStore(ScopedStore):
+    
+    def __init__(self) -> None:
+        """
+        set ``builtin__`` store config
+        """
+        super().__init__()
+        # whether to save log metadata (e.g., exec_name, lineno, etc.) to cache.
+        self.use_log_cache = True
+        self.log_cache = Base()
+        # flag to log only once. For example, some warnings may appear only once.
+        self.log_once = Base()
+        # whether to use call debug
+        self.use_call_debug = False
+        self.call_debug_cache = Base()
+        # indent str for CLI display
+        self.indent_str = ' ' * 4  # default is 4 spaces
+        # cli flag
+        self.prev_refresh = False
+        self.refresh_state = False
+
+_builtin_scoped_store = BuiltinScopedStore()
+
+_scoped_store_dict = {}
 
 @ItemAttrBinding
 @Singleton
 class Store:
     
     def scope__(self, __key) -> ScopedStore:
-        if __key in _store_dict:
-            return _store_dict[__key]
+        if __key in _scoped_store_dict:
+            return _scoped_store_dict[__key]
         else:
-            return _store_dict.setdefault(__key, ScopedStore(key__=__key))
+            return _scoped_store_dict.setdefault(__key, ScopedStore())
 
     def current__(self) -> ScopedStore:
         return self.scope__(self.get_current_key__())
 
-    def builtin__(self) -> ScopedStore:
-        return self.scope__('builtin__')
+    def builtin__(self) -> BuiltinScopedStore:
+        return _builtin_scoped_store
 
     def destroy__(self, __key=NOTHING):
         if is_none_or_nothing(__key):
             __key = self.get_current_key__()
         
-        if __key in _store_dict:
-            del _store_dict[__key]
+        if __key in _scoped_store_dict:
+            del _scoped_store_dict[__key]
 
     def __getattr__(self, __name: str) -> Any:
         return getattr(self.current__(), __name)
@@ -111,16 +128,3 @@ class StoreSet:
 
 
 store = Store()
-
-"""set ``builtin__`` store config"""
-# whether to save log metadata (e.g., exec_name, lineno, etc.) to cache.
-store.builtin__().use_log_cache = True
-store.builtin__().log_cache = Base()
-# flag to log only once. For example, some warnings may appear only once.
-store.builtin__().log_once = Base()
-# whether to use call debug
-store.builtin__().use_call_debug = False
-store.builtin__().call_debug_cache = Base()
-# indent str for CLI display
-store.builtin__().indent_str = ' ' * 4  # default is 4 spaces
-# TODO: cli flag
