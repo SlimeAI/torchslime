@@ -5,16 +5,20 @@ from torchslime.utils.bases import BaseDict
 from torchslime.utils.decorators import DecoratorCall
 from torchslime.utils.typing import (
     NOTHING,
-    Nothing,
     NoneOrNothing,
     Union,
     Sequence,
-    Any,
-    is_none_or_nothing
+    is_none_or_nothing,
+    TypeVar,
+    Type,
+    overload,
+    Callable
 )
 
+_T = TypeVar('_T')
 
-class Registry(BaseDict):
+
+class Registry(BaseDict[str, Type[_T]]):
 
     def __init__(
         self,
@@ -26,17 +30,34 @@ class Registry(BaseDict):
         self.__namespace = namespace
         self.strict = strict
     
-    @DecoratorCall(index=1, keyword='_cls')
+    @overload
     def __call__(
         self,
-        _cls: Any = NOTHING,
+        _cls: NoneOrNothing = NOTHING,
         *,
         name: Union[str, NoneOrNothing] = NOTHING,
         strict: Union[bool, NoneOrNothing] = NOTHING
-    ):
+    ) -> Callable[[Type[_T]], Type[_T]]: pass
+    @overload
+    def __call__(
+        self,
+        _cls: Type[_T],
+        *,
+        name: Union[str, NoneOrNothing] = NOTHING,
+        strict: Union[bool, NoneOrNothing] = NOTHING
+    ) -> Type[_T]: pass
+    
+    @DecoratorCall(index=1, keyword='_cls')
+    def __call__(
+        self,
+        _cls: Union[Type[_T], NoneOrNothing] = NOTHING,
+        *,
+        name: Union[str, NoneOrNothing] = NOTHING,
+        strict: Union[bool, NoneOrNothing] = NOTHING
+    ) -> Type[_T]:
         strict = self._get_strict(strict)
 
-        def decorator(cls):
+        def decorator(cls: Type[_T]) -> Type[_T]:
             nonlocal name
             if is_none_or_nothing(name):
                 name = getattr(cls, '__name__', NOTHING)
@@ -48,29 +69,44 @@ class Registry(BaseDict):
         
         return decorator
 
+    @overload
     def register_multi(
         self,
         names: Sequence[str],
         *,
-        _cls=NOTHING,
+        _cls: NoneOrNothing = NOTHING,
         strict: Union[bool, NoneOrNothing] = NOTHING
-    ):
+    ) -> Callable[[Type[_T]], Type[_T]]: pass
+    @overload
+    def register_multi(
+        self,
+        names: Sequence[str],
+        *,
+        _cls: Type[_T],
+        strict: Union[bool, NoneOrNothing] = NOTHING
+    ) -> Type[_T]: pass
+
+    @DecoratorCall(keyword='_cls')
+    def register_multi(
+        self,
+        names: Sequence[str],
+        *,
+        _cls: Union[Type[_T], NoneOrNothing] = NOTHING,
+        strict: Union[bool, NoneOrNothing] = NOTHING
+    ) -> Type[_T]:
         strict = self._get_strict(strict)
 
-        def decorator(cls):
+        def decorator(cls: Type[_T]) -> Type[_T]:
             for name in names:
                 self(_cls=cls, name=name, strict=strict)
             return cls
         
-        if is_none_or_nothing(_cls):
-            return decorator
-        
-        return decorator(cls=_cls)
+        return decorator
 
-    def get(self, __name):
+    def get(self, __name: str) -> Type[_T]:
         return super().get(__name)
 
-    def get_namespace(self):
+    def get_namespace(self) -> str:
         return self.__namespace
 
     def _get_strict(self, strict: Union[bool, NoneOrNothing]):
