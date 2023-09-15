@@ -1,3 +1,5 @@
+from collections.abc import Mapping
+from typing import Any
 from torchslime.utils import bound_clip
 from torchslime.log.common import TerminalLoggerItem, LoggerItem
 from torchslime.utils.bases import BaseList
@@ -255,3 +257,30 @@ logger: Union[Logger, DistributedLogger, LoggerProxy] = LoggerProxy()
 
 def set_logger(_logger: Logger):
     logger._logger = _logger
+
+
+from .launch import launch_util_registry
+
+
+from logging import Formatter, Filter, LogRecord, Logger
+import logging
+
+logger: Logger = logging.getLogger('builtin__')
+logger
+
+
+@Singleton
+class Logger:
+    pass
+
+
+class SlimeFormatter(Formatter):
+    
+    def format(self, record) -> str:
+        text = super().format(record)
+
+
+class SlimeFilter(Filter):
+    
+    def filter(self, record: LogRecord) -> bool:
+        return 

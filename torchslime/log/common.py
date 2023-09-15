@@ -24,7 +24,7 @@ class LoggerItem:
         pass
     
     def remove_self(self):
-        from torchslime.log import logger
+        from torchslime.utils.log import logger
         logger.remove_logger_item(self)
 
 

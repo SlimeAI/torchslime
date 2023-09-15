@@ -12,7 +12,7 @@ from torchslime.components.data import ConstantProvider, DataParser, DataProvide
 from torchslime.components.metric import MetricContainer, LossReductionFactory, Metric, LossFunc, LossFuncContainer
 from torchslime.components.exception import APIMisused
 from torchslime.utils import get_device, type_cast, count_params
-from torchslime.log import logger
+from torchslime.utils.log import logger
 from torchslime.utils.typing import NOTHING
 from torchslime.utils.decorators import CallDebug, MethodChaining
 from torchslime.utils.typing import NUMBER

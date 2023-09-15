@@ -76,7 +76,7 @@ class Base:
 
     @staticmethod
     def process_exc__():
-        from torchslime.log import logger
+        from torchslime.utils.log import logger
         # output error
         logger.error(
             'Python exception raised:\n' +

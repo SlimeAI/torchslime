@@ -15,7 +15,7 @@ from torchslime.utils import dict_merge, safe_divide, LessThanAnything, GreaterT
 from .registry import Registry
 from .exception import APIMisused
 from torchslime.core.context.base import BaseContext
-from torchslime.log import logger
+from torchslime.utils.log import logger
 from torch import Tensor
 import inspect
 

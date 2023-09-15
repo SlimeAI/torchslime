@@ -1,7 +1,7 @@
 from torchslime.core.context import BaseContext
 from torchslime.components.registry import Registry
 from torchslime.core.handlers.wrappers import validation_check
-from torchslime.log import logger
+from torchslime.utils.log import logger
 
 build_registry = Registry('build_registry')
 

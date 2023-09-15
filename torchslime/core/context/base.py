@@ -4,7 +4,7 @@ from torch.optim.optimizer import Optimizer
 from torchslime.utils.bases import Base
 from torchslime.utils.typing import NOTHING, NUMBER, Nothing
 from torchslime.utils.typing import Any, Sequence, Union, Dict, Tuple, Callable, List
-from torchslime.log import logger
+from torchslime.utils.log import logger
 
 
 class BaseContext(Base):

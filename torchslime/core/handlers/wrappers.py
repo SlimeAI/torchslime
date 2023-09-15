@@ -19,7 +19,7 @@ from torchslime.components.exception import (
     HandlerBaseException,
     HandlerWrapperException
 )
-from torchslime.log import logger
+from torchslime.utils.log import logger
 from functools import partial
 
 __all__ = [

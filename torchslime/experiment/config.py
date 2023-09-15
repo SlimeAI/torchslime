@@ -17,7 +17,7 @@ from torchslime.utils.typing import (
 from torchslime.utils.bases import Base, BaseList
 from torchslime.utils.decorators import ItemAttrBinding, Singleton
 from torchslime.utils import xor__
-from torchslime.log import logger
+from torchslime.utils.log import logger
 from torchslime.components.exception import APIMisused
 
 #
