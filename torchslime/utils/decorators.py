@@ -337,7 +337,7 @@ def ItemAttrBinding(_cls=NOTHING, *, set_binding: bool = True, get_binding: bool
 
             @setitem_wraps
             def setitem(self, __name: str, __value: Any) -> None:
-                setattr(self, __name, __value)
+                return setattr(self, __name, __value)
         
         if get_binding is True:
             getitem_wraps = cls_wraps.__getitem__
@@ -351,7 +351,7 @@ def ItemAttrBinding(_cls=NOTHING, *, set_binding: bool = True, get_binding: bool
 
             @delitem_wraps
             def delitem(self, __name: str) -> None:
-                delattr(self, __name)
+                return delattr(self, __name)
         
         return cls
 

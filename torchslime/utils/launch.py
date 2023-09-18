@@ -18,7 +18,7 @@ from .typing import (
 from . import is_torch_distributed_ready
 
 _T = TypeVar('_T')
-launch_util_registry = Registry('launch_util_registry')
+launch_util_registry = Registry['LaunchUtil']('launch_util_registry')
 
 
 class LaunchUtil:

@@ -92,39 +92,33 @@ class Base:
     def __getattr__(self, *_):
         return NOTHING
 
-    def __getattribute__(self, __name: str):
-        return super().__getattribute__(str(__name))
+    def __getattribute__(self, __name: str) -> Any:
+        try:
+            return super().__getattribute__(str(__name))
+        except Exception:
+            return self.process_exc__()
 
     def __setattr__(self, __name: str, __value: Any) -> None:
         try:
-            super().__setattr__(str(__name), __value)
+            return super().__setattr__(str(__name), __value)
         except Exception:
-            return
+            self.process_exc__()
 
     def __delattr__(self, __name: str) -> None:
         # safe delete
         try:
-            super().__delattr__(str(__name))
+            return super().__delattr__(str(__name))
         except Exception:
             return
 
     def __getitem__(self, __name: str):
-        try:
-            return getattr(self, __name)
-        except Exception:
-            return self.process_exc__()
+        return getattr(self, __name)
 
     def __setitem__(self, __name: str, __value: Any):
-        try:
-            return setattr(self, __name, __value)
-        except Exception:
-            return self.process_exc__()
+        return setattr(self, __name, __value)
 
     def __delitem__(self, __name: str):
-        try:
-            return delattr(self, __name)
-        except Exception:
-            return
+        return delattr(self, __name)
     
     def __str__(self) -> str:
         from .formatter import dict_to_key_value_str

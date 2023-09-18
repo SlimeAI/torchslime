@@ -1,23 +1,62 @@
+from typing import Any
 from torchslime.utils.typing import (
     NOTHING,
     Any,
     TypeVar,
     is_none_or_nothing,
     overload,
-    is_slime_naming
+    is_slime_naming,
+    Dict,
+    List,
+    TextIO
 )
 import threading
 import os
+import sys
 from torchslime.utils.bases import Base
 from torchslime.utils.decorators import Singleton, ItemAttrBinding, ContextDecoratorBinding
 
 _T = TypeVar('_T')
 
 
+class StoreListener:
+    def value_change__(self, new_value: Any, old_value: Any, key: str): pass
+
+
 class ScopedStore(Base):
     
     def __init__(self) -> None:
         super().__init__()
+        self.__listener_dict: Dict[str, List[StoreListener]] = {}
+    
+    def get_listeners__(self, __key: str) -> List[StoreListener]:
+        if __key in self.__listener_dict:
+            return self.__listener_dict[__key]
+        else:
+            return self.__listener_dict.setdefault(__key, [])
+    
+    def add_listener__(self, __key: str, __listener: StoreListener, *, init: bool = False) -> None:
+        self.get_listeners__(__key).append(__listener)
+        if init:
+            value = getattr(self, __key)
+            __listener.value_change__()
+    
+    def remove_listener__(self, __key: str, __listener: StoreListener) -> None:
+        try:
+            self.get_listeners__(__key).remove(__listener)
+        except ValueError:
+            pass
+    
+    # def __setattr__(self, __name: str, __value: Any) -> None:
+    #     # listeners = self.__listener_dict.get(__name, NOTHING)
+    #     listeners = NOTHING
+    #     if listeners is NOTHING:
+    #         return super().__setattr__(__name, __value)
+    #     else:
+    #         old_value = getattr(self, __name)
+    #         super().__setattr__(__name, __value)
+    #         for listener in listeners:
+    #             listener.value_change__(__value, old_value, __name)
 
 
 @Singleton
@@ -41,6 +80,9 @@ class BuiltinScopedStore(ScopedStore):
         # cli flag
         self.prev_refresh = False
         self.refresh_state = False
+        # std out / err
+        self.stdout = sys.stdout
+        self.stderr = sys.stderr
 
 _builtin_scoped_store = BuiltinScopedStore()
 

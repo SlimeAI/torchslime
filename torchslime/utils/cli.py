@@ -10,6 +10,7 @@ from .typing import (
     NoneOrNothing
 )
 from .bases import BaseProxy
+from torchslime.components.store import store, StoreSet
 from io import TextIOWrapper
 
 
@@ -60,7 +61,10 @@ class CLIInterceptor(TextIO, BaseProxy[TextIOWrapper]):
         ])
     
     def write(self, s: AnyStr) -> int:
-        pass
+        # TODO refresh control
+        if store.builtin__().prev_refresh and not store.builtin__().refresh_state:
+            pass
+        return self.obj__.write('sdasdf: ' + s)
 
     def writelines(self, lines: List[AnyStr]) -> None:
         pass
