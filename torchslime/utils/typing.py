@@ -75,6 +75,13 @@ if sys.version_info >= (3, 9):
     ContextManager = contextlib.AbstractContextManager
     AsyncContextManager = contextlib.AbstractAsyncContextManager
 
+try:
+    from typing import _overload_dummy
+    overload_dummy: FunctionType = _overload_dummy
+except Exception:
+    def overload_dummy(): pass
+    overload_dummy = overload(overload_dummy)
+
 #
 # Nothing class, NOTHING instance and related operations.
 #
@@ -116,7 +123,7 @@ class Nothing(metaclass=_NothingSingleton):
     def __str__(self) -> str: return 'NOTHING'
     def __repr__(self) -> str: return f'NOTHING<{str(hex(id(self)))}>'
     def __format__(self, __format_spec: str) -> str: return 'NOTHING'
-    def __contains__(self) -> bool: return False
+    def __contains__(self, _) -> bool: return False
 
     def __eq__(self, obj) -> bool:
         if obj is NOTHING:

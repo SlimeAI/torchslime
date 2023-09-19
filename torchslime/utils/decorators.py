@@ -15,7 +15,9 @@ from .typing import (
     NoneOrNothing,
     MethodType,
     NOTHING,
-    Nothing
+    Nothing,
+    List,
+    overload_dummy
 )
 
 _T = TypeVar('_T')
@@ -337,21 +339,21 @@ def ItemAttrBinding(_cls=NOTHING, *, set_binding: bool = True, get_binding: bool
 
             @setitem_wraps
             def setitem(self, __name: str, __value: Any) -> None:
-                return setattr(self, __name, __value)
+                return setattr(self, str(__name), __value)
         
         if get_binding is True:
             getitem_wraps = cls_wraps.__getitem__
 
             @getitem_wraps
             def getitem(self, __name: str) -> Any:
-                return getattr(self, __name)
+                return getattr(self, str(__name))
         
         if del_binding is True:
             delitem_wraps = cls_wraps.__delitem__
 
             @delitem_wraps
             def delitem(self, __name: str) -> None:
-                return delattr(self, __name)
+                return delattr(self, str(__name))
         
         return cls
 
@@ -359,7 +361,7 @@ def ItemAttrBinding(_cls=NOTHING, *, set_binding: bool = True, get_binding: bool
 
 
 @overload
-def ContextDecoratorBinding(_cls: NoneOrNothing = NOTHING) -> Callable[[_T], _T]: pass
+def ContextDecoratorBinding(_cls: NoneOrNothing = NOTHING) -> Callable[[Type[_T]], Type[_T]]: pass
 @overload
 def ContextDecoratorBinding(_cls: Type[_T]) -> Type[_T]: pass
 
@@ -376,6 +378,30 @@ def ContextDecoratorBinding(_cls=NOTHING):
                     # context ``__exit__`` method will be automatically executed before return statement
                     return func(*args, **kwargs)
             return wrapper
+        
+        return cls
+    return decorator
+
+
+@overload
+def RemoveOverload(_cls: NoneOrNothing = NOTHING, *, checklist: Union[NoneOrNothing, List[str]] = NOTHING) -> Callable[[Type[_T]], Type[_T]]: pass
+@overload
+def RemoveOverload(_cls: Type[_T], *, checklist: Union[NoneOrNothing, List[str]] = NOTHING) -> Type[_T]: pass
+
+@DecoratorCall(index=0, keyword='_cls')
+def RemoveOverload(_cls=NOTHING, *, checklist: Union[NoneOrNothing, List[str]] = NOTHING):
+    def decorator(cls: Type[_T]) -> Type[_T]:
+        nonlocal checklist
+        
+        _dict = cls.__dict__
+        filter_func = lambda key: key in _dict and _unwrap(_dict[key]) is overload_dummy
+        
+        if is_none_or_nothing(checklist):
+            checklist = filter(filter_func, _dict.keys())
+        else:
+            checklist = filter(filter_func, checklist)
+        for attr in checklist:
+            delattr(cls, attr)
         
         return cls
     return decorator

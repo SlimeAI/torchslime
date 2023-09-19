@@ -6,7 +6,6 @@ from torchslime.utils.typing import (
     Callable,
     Iterable,
     Mapping,
-    Nothing,
     NoneOrNothing,
     TypeVar,
     Union,
@@ -21,7 +20,7 @@ from torchslime.utils import (
 )
 from torchslime.utils.bases import BaseList, Pass
 from torchslime.components.metric import MeterDict
-from torchslime.utils.decorators import CallDebug
+from torchslime.utils.decorators import CallDebug, RemoveOverload
 from torchslime.utils.formatter import progress_format, eta_format
 from torchslime.core.context.base import BaseContext
 from torchslime.core.handlers import Handler, HandlerContainer
@@ -272,6 +271,7 @@ class MeterHandler(Handler):
         ctx.hook_ctx.state.update_meter(ctx, ctx.step_ctx.loss_values, ctx.step_ctx.metrics)
 
 
+@RemoveOverload(checklist=['m__'])
 class DisplayHandler(Handler):
     
     def m_init__(

@@ -10,7 +10,7 @@ from .typing import (
     overload,
     NoReturn
 )
-from .decorators import ClassWraps, DecoratorCall, ClassFuncWrapper, get_cls_func
+from .decorators import ClassWraps, DecoratorCall, ClassFuncWrapper, RemoveOverload
 from .formatter import dict_to_key_value_str_list, concat_format
 from torchslime.components.exception import APIMisused
 
@@ -79,11 +79,6 @@ def _Meta(
             directly_new_allowed: Union[bool, NoneOrNothing] = NOTHING,
             **kwargs
         ):
-            # set original ``m__`` method to override type hint method definition
-            original_m = get_cls_func(cls__, 'm__')
-            cls_m = get_cls_func(cls, 'm__')
-            if cls_m is not original_m:
-                cls.m__ = classmethod(original_m)
             # change ``__new__`` method if ``directly_new_allowed`` is set
             if not is_none_or_nothing(directly_new_allowed):
                 cls.__new__ = new if directly_new_allowed else new_disallowed
@@ -124,7 +119,9 @@ def _Meta(
     return decorator
 
 @_Meta
+@RemoveOverload(checklist=['m__'])
 class Meta:
     def m_init__(self, *args, **kwargs): pass
+    @overload
     @classmethod
     def m__(cls: Type[_T], *args, **kwargs) -> Type[_T]: return cls

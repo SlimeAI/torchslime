@@ -8,19 +8,29 @@ from torchslime.utils.typing import (
     is_slime_naming,
     Dict,
     List,
+    Callable,
     TextIO
 )
 import threading
 import os
 import sys
 from torchslime.utils.bases import Base
-from torchslime.utils.decorators import Singleton, ItemAttrBinding, ContextDecoratorBinding
+from torchslime.utils.decorators import Singleton, ItemAttrBinding, ContextDecoratorBinding, RemoveOverload
 
 _T = TypeVar('_T')
 
 
 class StoreListener:
-    def value_change__(self, new_value: Any, old_value: Any, key: str): pass
+    def value_change__(self, new_value: Any, old_value: Any, key: str) -> None: pass
+
+class SimpleStoreListener(StoreListener):
+    
+    def __init__(self, __func: Callable[[Any, Any, str], None]) -> None:
+        super().__init__()
+        self.func = __func
+    
+    def value_change__(self, new_value: Any, old_value: Any, key: str) -> None:
+        return self.func(new_value, old_value, key)
 
 
 class ScopedStore(Base):
@@ -29,34 +39,33 @@ class ScopedStore(Base):
         super().__init__()
         self.__listener_dict: Dict[str, List[StoreListener]] = {}
     
-    def get_listeners__(self, __key: str) -> List[StoreListener]:
-        if __key in self.__listener_dict:
-            return self.__listener_dict[__key]
-        else:
-            return self.__listener_dict.setdefault(__key, [])
-    
     def add_listener__(self, __key: str, __listener: StoreListener, *, init: bool = False) -> None:
-        self.get_listeners__(__key).append(__listener)
+        if __key in self.__listener_dict:
+            return self.__listener_dict[__key].append(__listener)
+        else:
+            self.__listener_dict[__key] = [__listener]
+        
         if init:
             value = getattr(self, __key)
-            __listener.value_change__()
+            __listener.value_change__(value, NOTHING, __key)
     
     def remove_listener__(self, __key: str, __listener: StoreListener) -> None:
+        if __key not in self.__listener_dict:
+            return
+        
         try:
-            self.get_listeners__(__key).remove(__listener)
+            self.__listener_dict[__key].remove(__listener)
         except ValueError:
             pass
     
-    # def __setattr__(self, __name: str, __value: Any) -> None:
-    #     # listeners = self.__listener_dict.get(__name, NOTHING)
-    #     listeners = NOTHING
-    #     if listeners is NOTHING:
-    #         return super().__setattr__(__name, __value)
-    #     else:
-    #         old_value = getattr(self, __name)
-    #         super().__setattr__(__name, __value)
-    #         for listener in listeners:
-    #             listener.value_change__(__value, old_value, __name)
+    def __setattr__(self, __name: str, __value: Any) -> None:
+        if __name not in self.__listener_dict:
+            return super().__setattr__(__name, __value)
+        else:
+            old_value = getattr(self, __name)
+            super().__setattr__(__name, __value)
+            for listener in self.__listener_dict[__name]:
+                listener.value_change__(__value, old_value, __name)
 
 
 @Singleton
@@ -81,8 +90,8 @@ class BuiltinScopedStore(ScopedStore):
         self.prev_refresh = False
         self.refresh_state = False
         # std out / err
-        self.stdout = sys.stdout
-        self.stderr = sys.stderr
+        self.stdout: TextIO = sys.stdout
+        self.stderr: TextIO = sys.stderr
 
 _builtin_scoped_store = BuiltinScopedStore()
 
@@ -90,6 +99,7 @@ _scoped_store_dict = {}
 
 @ItemAttrBinding
 @Singleton
+@RemoveOverload(checklist=['add_listener__', 'remove_listener__'])
 class Store:
     
     def scope__(self, __key) -> ScopedStore:
@@ -132,9 +142,15 @@ class Store:
         pid = os.getpid(),
         tid = threading.get_ident()
         return f'p{pid}-t{tid}'
+    
+    @overload
+    def add_listener__(self, __key: str, __listener: StoreListener, *, init: bool = False) -> None: pass
+    @overload
+    def remove_listener__(self, __key: str, __listener: StoreListener) -> None: pass
 
 
 @ContextDecoratorBinding
+@RemoveOverload(checklist=['__call__'])
 class StoreSet:
 
     def __init__(self, __name: str, __value: Any, *, restore: bool = True, key=NOTHING) -> None:

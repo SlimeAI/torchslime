@@ -22,6 +22,7 @@ from torchslime.utils.bases import (
     BaseList
 )
 from torchslime.utils.meta import Meta
+from torchslime.utils.decorators import RemoveOverload
 from torchslime.components.registry import Registry
 from torchslime.components.exception import (
     HandlerException,
@@ -36,6 +37,7 @@ from functools import partial
 _T = TypeVar('_T')
 
 
+@RemoveOverload(checklist=['m__'])
 class HandlerMeta(Meta):
     """
     Meta initialization and operations

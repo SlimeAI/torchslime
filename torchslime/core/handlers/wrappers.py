@@ -19,6 +19,7 @@ from torchslime.components.exception import (
     HandlerBaseException,
     HandlerWrapperException
 )
+from torchslime.utils.decorators import RemoveOverload
 from torchslime.utils.log import logger
 from functools import partial
 
@@ -64,6 +65,7 @@ class HandlerWrapperGenerator(BaseGenerator[_YieldT_co, _SendT_contra, _ReturnT_
             raise HandlerWrapperException(exception_handler=self.handler, exception=e)
 
 
+@RemoveOverload(checklist=['m__'])
 class HandlerWrapperMeta(HandlerMeta):
     
     # just for type hint
