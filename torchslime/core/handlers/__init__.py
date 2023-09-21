@@ -388,6 +388,16 @@ class HandlerContainer(Handler, BaseList[Union[Handler, _T]]):
             handler.get_by_filter(__function, result)
         return result
     
+    def set_list__(self, __list: list[Union[Handler, _T]]) -> None:
+        prev_list = self.get_list__()
+        super().set_list__(__list)
+        
+        for prev_handler in prev_list:
+            prev_handler.del_parent()
+        
+        for handler in __list:
+            handler.set_parent(self)
+    
     def __setitem__(
         self,
         __key: Union[SupportsIndex, slice],
