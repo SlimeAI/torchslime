@@ -13,12 +13,13 @@ from .typing import (
     NoneOrNothing,
     Pass,
     PASS,
-    is_none_or_nothing
+    is_none_or_nothing,
+    Type
 )
 from . import is_torch_distributed_ready
 
 _T = TypeVar('_T')
-launch_util_registry = Registry['LaunchUtil']('launch_util_registry')
+launch_util_registry = Registry[Type['LaunchUtil']]('launch_util_registry')
 
 
 class LaunchUtil:
@@ -31,8 +32,8 @@ class LaunchUtil:
     def is_exec(self, exec_ranks: Union[Sequence[int], NoneOrNothing, Pass] = PASS) -> bool: pass
     def is_distributed(self) -> bool: pass
     def is_distributed_ready(self) -> bool: pass
-    def get_rank(self, group=None): pass
-    def get_world_size(self, group=None): pass
+    def get_rank(self, group=None) -> Union[int, NoneOrNothing]: pass
+    def get_world_size(self, group=None) -> Union[int, NoneOrNothing]: pass
 
 
 @launch_util_registry(name='vanilla')

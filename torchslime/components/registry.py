@@ -18,7 +18,7 @@ from torchslime.utils.typing import (
 _T = TypeVar('_T')
 
 
-class Registry(BaseDict[str, Type[_T]]):
+class Registry(BaseDict[str, _T]):
 
     def __init__(
         self,
@@ -37,27 +37,27 @@ class Registry(BaseDict[str, Type[_T]]):
         *,
         name: Union[str, NoneOrNothing] = NOTHING,
         strict: Union[bool, NoneOrNothing] = NOTHING
-    ) -> Callable[[Type[_T]], Type[_T]]: pass
+    ) -> Callable[[_T], _T]: pass
     @overload
     def __call__(
         self,
-        _cls: Type[_T],
+        _cls: _T,
         *,
         name: Union[str, NoneOrNothing] = NOTHING,
         strict: Union[bool, NoneOrNothing] = NOTHING
-    ) -> Type[_T]: pass
+    ) -> _T: pass
     
     @DecoratorCall(index=1, keyword='_cls')
     def __call__(
         self,
-        _cls: Union[Type[_T], NoneOrNothing] = NOTHING,
+        _cls: Union[_T, NoneOrNothing] = NOTHING,
         *,
         name: Union[str, NoneOrNothing] = NOTHING,
         strict: Union[bool, NoneOrNothing] = NOTHING
-    ) -> Type[_T]:
+    ) -> _T:
         strict = self._get_strict(strict)
 
-        def decorator(cls: Type[_T]) -> Type[_T]:
+        def decorator(cls: _T) -> _T:
             nonlocal name
             if is_none_or_nothing(name):
                 name = getattr(cls, '__name__', NOTHING)
@@ -76,35 +76,32 @@ class Registry(BaseDict[str, Type[_T]]):
         *,
         _cls: NoneOrNothing = NOTHING,
         strict: Union[bool, NoneOrNothing] = NOTHING
-    ) -> Callable[[Type[_T]], Type[_T]]: pass
+    ) -> Callable[[_T], _T]: pass
     @overload
     def register_multi(
         self,
         names: Sequence[str],
         *,
-        _cls: Type[_T],
+        _cls: _T,
         strict: Union[bool, NoneOrNothing] = NOTHING
-    ) -> Type[_T]: pass
+    ) -> _T: pass
 
     @DecoratorCall(keyword='_cls')
     def register_multi(
         self,
         names: Sequence[str],
         *,
-        _cls: Union[Type[_T], NoneOrNothing] = NOTHING,
+        _cls: Union[_T, NoneOrNothing] = NOTHING,
         strict: Union[bool, NoneOrNothing] = NOTHING
-    ) -> Type[_T]:
+    ) -> _T:
         strict = self._get_strict(strict)
 
-        def decorator(cls: Type[_T]) -> Type[_T]:
+        def decorator(cls: _T) -> _T:
             for name in names:
                 self(_cls=cls, name=name, strict=strict)
             return cls
         
         return decorator
-
-    def get(self, __name: str) -> Type[_T]:
-        return super().get(__name)
 
     def get_namespace(self) -> str:
         return self.__namespace

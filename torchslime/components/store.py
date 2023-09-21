@@ -9,7 +9,9 @@ from torchslime.utils.typing import (
     Dict,
     List,
     Callable,
-    TextIO
+    TextIO,
+    Union,
+    NoneOrNothing
 )
 import threading
 import os
@@ -53,10 +55,13 @@ class ScopedStore(Base):
         if __key not in self.__listener_dict:
             return
         
-        try:
-            self.__listener_dict[__key].remove(__listener)
-        except ValueError:
-            pass
+        listeners = self.__listener_dict[__key]
+        if __listener not in listeners:
+            return
+        
+        listeners.remove(__listener)
+        if len(listeners) < 1:
+            del self.__listener_dict[__key]
     
     def __setattr__(self, __name: str, __value: Any) -> None:
         if __name not in self.__listener_dict:
@@ -64,8 +69,10 @@ class ScopedStore(Base):
         else:
             old_value = getattr(self, __name)
             super().__setattr__(__name, __value)
-            for listener in self.__listener_dict[__name]:
-                listener.value_change__(__value, old_value, __name)
+            # listener is called only when the new value is different from the old value
+            if __value is not old_value:
+                for listener in self.__listener_dict[__name]:
+                    listener.value_change__(__value, old_value, __name)
 
 
 @Singleton
@@ -90,8 +97,12 @@ class BuiltinScopedStore(ScopedStore):
         self.prev_refresh = False
         self.refresh_state = False
         # std out / err
-        self.stdout: TextIO = sys.stdout
-        self.stderr: TextIO = sys.stderr
+        self.stdout: Union[TextIO, NoneOrNothing] = sys.stdout
+        self.stderr: Union[TextIO, NoneOrNothing] = sys.stderr
+        # log template
+        self.log_template: Union[str, NoneOrNothing] = NOTHING
+        self.log_template_with_color: Union[str, NoneOrNothing] = NOTHING
+        self.log_dateformat: Union[str, NoneOrNothing] = NOTHING
 
 _builtin_scoped_store = BuiltinScopedStore()
 

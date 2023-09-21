@@ -13,6 +13,24 @@ from .bases import BaseProxy
 from torchslime.components.store import store, StoreSet
 from io import TextIOWrapper
 
+#
+# ``sys.stdout and sys.stderr`` operations
+#
+
+def update_store_stdout():
+    store.builtin__().stdout = sys.stdout
+
+def set_stdout(stdout: Union[TextIO, NoneOrNothing]):
+    sys.stdout = stdout
+    update_store_stdout()
+
+def update_store_stderr():
+    store.builtin__().stderr = sys.stderr
+
+def set_stderr(stderr: Union[TextIO, NoneOrNothing]):
+    sys.stderr = stderr
+    update_store_stderr()
+
 
 @ContextDecoratorBinding
 class set_cli_interceptor:
@@ -29,20 +47,20 @@ class set_cli_interceptor:
         self.prev_out = sys.stdout
         self.restore_out = restore_out
         if __out is not None:
-            sys.stdout = __out
+            set_stdout(__out)
         # stderr
         self.prev_err = sys.stderr
         self.restore_err = restore_err
         if __err is not None:
-            sys.stderr = __err
+            set_stderr(__err)
     
     def __enter__(self) -> None: pass
     
     def __exit__(self, *args, **kwargs) -> None:
         if self.restore_out:
-            sys.stdout = self.prev_out
+            set_stdout(self.prev_out)
         if self.restore_err:
-            sys.stderr = self.prev_err
+            set_stderr(self.prev_err)
 
 class CLIInterceptor(TextIO, BaseProxy[TextIOWrapper]):
     
@@ -131,7 +149,8 @@ def single_color(color: str):
         'b': 34,  # blue
         'p': 35,  # purple
         'c': 36,  # cyan
-        'w': 37  # white
+        'w': 37,  # white
+        '$': 0  # clear
     }
     return CSI + str(color_dict.get(color, 37)) + 'm'
 

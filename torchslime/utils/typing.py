@@ -219,3 +219,7 @@ def create_singleton(__name: str) -> Tuple[Type[object], object]:
 # ``Pass`` singleton constant
 Pass, PASS = create_singleton('PASS')
 Pass: Type[object]
+
+# ``Missing`` singleton constant
+Missing, MISSING = create_singleton('MISSING')
+Missing: Type[object]
