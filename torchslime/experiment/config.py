@@ -246,7 +246,7 @@ class ContainerField(Field):
     def _validator(self, item):
         # only warning and do nothing here
         if not isinstance(item, ConfigContainer):
-            logger.warn(
+            logger.warning(
                 'You are setting a ``ConfigContainer`` item to a plain object item, '
                 'and pre-defined validators and parsers in the item will not work. '
                 f'Fieldname being set: {self.fieldname}'
@@ -282,7 +282,7 @@ class ContainerListField(Field):
     def _validator(self, item):
         # only warning and do nothing here
         if not isinstance(item, ConfigContainerList):
-            logger.warn(
+            logger.warning(
                 'You are setting a ``ConfigContainerList`` item to a plain object item, '
                 'and pre-defined type checker in the item will not work. '
                 f'Fieldname being set: {self.fieldname}'

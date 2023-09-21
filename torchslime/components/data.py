@@ -16,7 +16,7 @@ class DataProvider:
     def __call__(self, ctx: BaseContext) -> DataLoader:
         data_loader = self.get(ctx)
         if isinstance(data_loader, DataLoader) is False:
-            logger.warn('DataProvider returns a non-DataLoader object, this may cause some problems.')
+            logger.warning('DataProvider returns a non-DataLoader object, this may cause some problems.')
         return data_loader
 
 
@@ -40,7 +40,7 @@ class DataParser:
     def __call__(self, ctx: BaseContext) -> Tuple[Any, Any, Any]:
         batch = self.get(ctx)
         if isinstance(batch, tuple) is False or len(batch) != 3:
-            logger.warn('DataParser returns a non-tuple object or the tuple length is not 3, this may cause value-unpack exceptions.')
+            logger.warning('DataParser returns a non-tuple object or the tuple length is not 3, this may cause value-unpack exceptions.')
         return batch
 
 

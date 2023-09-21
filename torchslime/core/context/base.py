@@ -4,7 +4,7 @@ from torch.optim.optimizer import Optimizer
 from torchslime.utils.bases import Base
 from torchslime.utils.typing import NOTHING, NUMBER, Nothing
 from torchslime.utils.typing import Any, Sequence, Union, Dict, Tuple, Callable, List
-from torchslime.utils.log import logger
+from torchslime.utils.log import logger, LoggerKwargs
 
 
 class BaseContext(Base):
@@ -51,9 +51,9 @@ class BaseContext(Base):
             if _result is False:
                 msg = 'Context check failed: got NOTHING with key \'%s\'.' % _item
                 if silent is True:
-                    logger.debug(msg, _frame_offset=2)
+                    logger.debug(msg, LoggerKwargs(stacklevel=3))
                 else:
-                    logger.warn(msg, _frame_offset=2)
+                    logger.warning(msg, LoggerKwargs(stacklevel=3))
             return _result
 
         if isinstance(items, (list, tuple)):

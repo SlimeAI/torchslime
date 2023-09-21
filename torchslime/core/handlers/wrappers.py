@@ -142,7 +142,7 @@ class StateHandler(HandlerWrapper):
         from torchslime.core.hooks.state import state_registry
         mode_supported = list(state_registry.keys())
         if state not in mode_supported:
-            logger.warn('An unsupported state is set, this may cause some problems.')
+            logger.warning('An unsupported state is set, this may cause some problems.')
         self.state = state
         self.restore = restore
     

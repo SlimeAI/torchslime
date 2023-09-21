@@ -192,7 +192,7 @@ class Handler(HandlerMeta):
     def _verify_parent(self) -> bool:
         if self.get_parent() is NOTHING or self not in self.get_parent():
             # root node, wild pointer or unmatched parent
-            logger.warn('')
+            logger.warning('')
             self.del_parent()
             return False
         return True
@@ -230,14 +230,14 @@ class Handler(HandlerMeta):
     ):
         if item in result and allow_duplicate is False:
             # duplicate node
-            logger.warn('')
+            logger.warning('')
             return
         # append matched item
         result.append(item)
         # ``len(result) == 2``: warn only once
         if allow_multiple is False and len(result) == 2:
             # multiple matched nodes
-            logger.warn('')
+            logger.warning('')
     
     def get_parent(self):
         return self.__parent
@@ -245,7 +245,7 @@ class Handler(HandlerMeta):
     def set_parent(self, _parent):
         if not is_none_or_nothing(self.__parent):
             # duplicate parent
-            logger.warn('')
+            logger.warning('')
         self.__parent = _parent
     
     def del_parent(self):

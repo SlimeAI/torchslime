@@ -57,7 +57,7 @@ class VanillaLaunchUtil(LaunchUtil):
         ready = is_torch_distributed_ready()
         if ready is True:
             from .log import logger
-            logger.warn('Trying to run torch distributed in the vanilla launch, where TorchSlime will not have the distributed behavior.')
+            logger.warning('Trying to run torch distributed in the vanilla launch, where TorchSlime will not have the distributed behavior.')
         return ready
     
     def get_rank(self, group=None):

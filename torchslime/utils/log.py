@@ -16,7 +16,7 @@ from .typing import (
     Missing,
     Any
 )
-from .bases import BaseList
+from .bases import BaseList, BaseDict
 from .decorators import Singleton
 from bisect import bisect_right
 import sys
@@ -44,6 +44,9 @@ def _get_color(levelno: int) -> str:
     ]
     return Cursor.single_color(color_list[bisect_right(level_list, levelno)])
 
+#
+# Slime Logger
+#
 
 class SlimeLogger(Logger):
     
@@ -86,6 +89,18 @@ class SlimeLogger(Logger):
         super().removeHandler(handler)
         if isinstance(handler, SlimeCLIHandler):
             store.builtin__().remove_listener__('stderr', handler)
+
+#
+# Logger Func Arg Adapter
+#
+
+class LoggerKwargs(BaseDict[str, Any]):
+    
+    def __init__(self, **kwargs):
+        # ``stacklevel`` argument was added after py3.8
+        if sys.version_info < (3, 8):
+            kwargs.pop('stacklevel', NOTHING)
+        super().__init__(**kwargs)
 
 #
 # Slime Filter

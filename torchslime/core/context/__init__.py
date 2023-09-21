@@ -82,7 +82,7 @@ class Context(BaseContext):
     @MethodChaining
     def display_train(self) -> 'Context':
         if is_none_or_nothing(self.run_ctx.train):
-            logger.warn('``display_train`` called before train handlers are built.')
+            logger.warning('``display_train`` called before train handlers are built.')
         self.run_ctx.train.display()
 
     @CallDebug(module_name='Context.eval')
@@ -110,7 +110,7 @@ class Context(BaseContext):
     @MethodChaining
     def display_eval(self) -> 'Context':
         if is_none_or_nothing(self.run_ctx.eval):
-            logger.warn('``display_eval`` called before eval handlers are built.')
+            logger.warning('``display_eval`` called before eval handlers are built.')
         self.run_ctx.eval.display()
 
     @CallDebug(module_name='Context.predict')
@@ -138,7 +138,7 @@ class Context(BaseContext):
     @MethodChaining
     def display_predict(self) -> 'Context':
         if is_none_or_nothing(self.run_ctx.predict):
-            logger.warn('``display_predict`` called before predict handlers are built.')
+            logger.warning('``display_predict`` called before predict handlers are built.')
         self.run_ctx.predict.display()
 
     @CallDebug(module_name='Context.summary')
@@ -224,7 +224,7 @@ class Context(BaseContext):
     def compile_train_end(self, train_end: int) -> 'Context':
         if not isinstance(train_end, int):
             classname = type(train_end).__name__
-            logger.warn(f'``train_end`` should be ``int``, but ``{classname}`` found.')
+            logger.warning(f'``train_end`` should be ``int``, but ``{classname}`` found.')
         self.iteration_ctx.total = train_end
 
     @CallDebug(module_name='Context.compile_train_start')
@@ -232,7 +232,7 @@ class Context(BaseContext):
     def compile_train_start(self, train_start: int) -> 'Context':
         if not isinstance(train_start, int):
             classname = type(train_start).__name__
-            logger.warn(f'``train_start`` should be ``int``, but ``{classname}`` found.')
+            logger.warning(f'``train_start`` should be ``int``, but ``{classname}`` found.')
         self.iteration_ctx.start = train_start
 
     @CallDebug(module_name='Context.compile_dataset')
@@ -244,7 +244,7 @@ class Context(BaseContext):
 
             mode_supported = ['train', 'eval']
             if mode not in mode_supported:
-                logger.warn('compile_dataset mode not supported.')
+                logger.warning('compile_dataset mode not supported.')
             setattr(self.run_ctx, f'{mode}_provider', dataset)
 
     @CallDebug(module_name='Context.compile_grad_acc')
@@ -264,7 +264,7 @@ class Context(BaseContext):
         elif isinstance(build_hook, BuildHook):
             self.hook_ctx.build = build_hook
         else:
-            logger.warn('Build hook type unsupported.')
+            logger.warning('Build hook type unsupported.')
     
     @CallDebug(module_name='Context.compile_launch_hook')
     @MethodChaining
@@ -274,7 +274,7 @@ class Context(BaseContext):
         elif isinstance(launch_hook, LaunchHook):
             self.hook_ctx.launch = launch_hook
         else:
-            logger.warn('Launch hook type unsupported.')
+            logger.warning('Launch hook type unsupported.')
 
     @CallDebug(module_name='Context.compile_valid_freq')
     @MethodChaining

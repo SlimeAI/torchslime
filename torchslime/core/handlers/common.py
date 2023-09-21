@@ -100,8 +100,8 @@ class EpochIterationHandler(HandlerContainer):
         for current in range(ctx.iteration_ctx.start, ctx.iteration_ctx.total):
             # set current epoch to the context
             ctx.iteration_ctx.current = current
-            # output epoch info. TODO: change logger operation to a handler?
-            logger.log(f'Epoch {ctx.iteration_ctx.current + 1}\n')
+            # output epoch info.
+            logger.info(f'Epoch {ctx.iteration_ctx.current + 1} begins.')
             super().handle(ctx)
 
 
@@ -113,7 +113,7 @@ class IterationHandler(HandlerContainer):
         loader = ctx.hook_ctx.state.get_loader(ctx)
         # loader check
         if is_none_or_nothing(loader):
-            logger.warn('Got empty data loader.')
+            logger.warning('Got empty data loader.')
             return
         
         for batch, progress, time, current, total in IterTool(loader, True, True, True, True):
@@ -139,7 +139,7 @@ class StepIterationHandler(HandlerContainer):
         loader = ctx.hook_ctx.state.get_loader(ctx)
         # loader check
         if is_none_or_nothing(loader):
-            logger.warn('Got empty data loader.')
+            logger.warning('Got empty data loader.')
             return
         
         total = ctx.iteration_ctx.total

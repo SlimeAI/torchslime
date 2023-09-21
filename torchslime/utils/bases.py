@@ -120,7 +120,7 @@ class BaseList(MutableSequence[_T], Generic[_T]):
 
     def __init__(
         self,
-        __list_like: Union[Iterable[_T], None, 'Nothing'] = None
+        __list_like: Union[Iterable[_T], NoneOrNothing] = None
     ):
         self.__list: List[_T] = []
         if not is_none_or_nothing(__list_like):
@@ -131,7 +131,7 @@ class BaseList(MutableSequence[_T], Generic[_T]):
     @classmethod
     def create__(
         cls,
-        __list_like: Union[_T, Iterable[_T], None, 'Nothing', 'Pass'] = None,
+        __list_like: Union[_T, Iterable[_T], NoneOrNothing, Pass] = None,
         *,
         strict = False,
         return_none: bool = True,
@@ -205,7 +205,7 @@ class BaseDict(MutableMapping[_KT, _VT], Generic[_KT, _VT]):
 
     def __init__(
         self,
-        __dict_like: Union[Dict[_KT, _VT], Iterable[Tuple[_KT, _VT]], None, 'Nothing'] = None,
+        __dict_like: Union[Dict[_KT, _VT], Iterable[Tuple[_KT, _VT]], NoneOrNothing] = None,
         **kwargs
     ):
         self.__dict: Dict[_KT, _VT] = {}

@@ -29,7 +29,7 @@ class SaveCheckpoint(Callback):
         self.save_per = save_per
 
         if isinstance(checkpoint_name, str):
-            logger.warn('The checkpoint name is set to a constant string, and the previous checkpoint will be overwritten when a new checkpoint is saved.')
+            logger.warning('The checkpoint name is set to a constant string, and the previous checkpoint will be overwritten when a new checkpoint is saved.')
         if (checkpoint_name is None or isinstance(checkpoint_name, str) or callable(checkpoint_name)) is False:
             checkpoint_name = None
             logger.error('You have set an unsupported checkpoint name. The checkpoint name should be a string, a function or None. Now the checkpoint name is set to default(None).')
@@ -123,7 +123,7 @@ class SaveMetrics(Callback):
             or (ctx.iteration_ctx.current_epoch + 1) % self.save_per == 0:
             list_len = self.append_list(self.parse(ctx, self.save_options))
             if list_len > ctx.iteration_ctx.current_epoch + 1:
-                logger.warn('The length of metric list is greater than number of epochs that have been executed, possibly there are some other items included in the list.')
+                logger.warning('The length of metric list is greater than number of epochs that have been executed, possibly there are some other items included in the list.')
 
     def parse(self, ctx: BaseContext, save_options):
         from torchslime.core.hooks.state import state_registry, StateHook

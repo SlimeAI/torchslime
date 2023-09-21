@@ -259,9 +259,10 @@ def CallDebug(_func: _T = NOTHING, *, module_name=NOTHING):
                 _exec_info = get_exec_info(func)
                 call_debug_cache[func_id] = _exec_info
 
-            logger.debug(f'{module_name} begins.', _exec_info=_exec_info)
+            # TODO logger format
+            logger.debug(f'{module_name} begins.')
             result = func(*args, **kwargs)
-            logger.debug(f'{module_name} ends.', _exec_info=_exec_info)
+            logger.debug(f'{module_name} ends.')
             return result
         return wrapper
     return decorator
