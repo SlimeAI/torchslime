@@ -142,6 +142,8 @@ class Nothing(metaclass=_NothingSingleton):
     def __index__(self) -> int: return 0
     def __float__(self): return 0.0
     def __bool__(self) -> bool: return False
+    def __enter__(self) -> 'Nothing': return self
+    def __exit__(self, *args, **kwargs): return
 
 NOTHING = Nothing()
 NoneOrNothing = Union[None, Nothing]
