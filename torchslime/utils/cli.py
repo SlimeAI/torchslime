@@ -1,4 +1,3 @@
-# TODO: combine with torchslime.log to build a unified output interface
 import sys
 from .decorators import ContextDecoratorBinding
 from .typing import (
@@ -7,10 +6,11 @@ from .typing import (
     AnyStr,
     List,
     IO,
-    NoneOrNothing
+    NoneOrNothing,
+    MISSING
 )
-from .bases import BaseProxy
-from torchslime.components.store import store, StoreSet
+from .bases import BaseProxy, BaseGenerator
+from torchslime.components.store import store, BuiltinStoreSet
 from io import TextIOWrapper
 
 #
@@ -79,13 +79,32 @@ class CLIInterceptor(TextIO, BaseProxy[TextIOWrapper]):
         ])
     
     def write(self, s: AnyStr) -> int:
-        # TODO refresh control
-        if store.builtin__().prev_refresh and not store.builtin__().refresh_state:
-            pass
-        return self.obj__.write('sdasdf: ' + s)
+        gen = BaseGenerator(self.output_control__())
+        # before output
+        state = gen()
+        # output
+        if state:
+            result = self.obj__.write(s)
+        # after output
+        gen()
+        return result
 
     def writelines(self, lines: List[AnyStr]) -> None:
-        pass
+        gen = BaseGenerator(self.output_control__())
+        # before output
+        state = gen()
+        # output
+        if state:
+            result = self.obj__.writelines(lines)
+        # after output
+        gen()
+        return result
+    
+    def output_control__(self):
+        if store.builtin__().prev_refresh and not store.builtin__().refresh_state:
+            self.obj__.write('\n')
+        yield True
+        store.builtin__().prev_refresh = store.builtin__().refresh_state
     
     # adapter
     def __enter__(self) -> IO[AnyStr]: return self.obj__.__enter__()
@@ -170,16 +189,21 @@ def execute(*commands, file=sys.stdout):
 def refresh_print(
     *contents,
     sep: str = ' ',
-    file=sys.stdout,
+    file=MISSING,
     end='',
     cursor_location: str = ''
 ):
     """
     Execute refresh command and output contents.
     """
-    execute(cursor_location, start(), clear_line())
-    file.write(sep.join(contents) + end)
-    file.flush()
+    file = sys.stderr if file is MISSING else file
+    if store.builtin__().prev_refresh:
+        execute(cursor_location, start(), clear_line())
+    with BuiltinStoreSet('refresh_state', True):
+        file.write(sep.join(contents) + end)
+        file.flush()
+    # set ``prev_refresh`` to ``True``, still work for original stdout and stderr
+    store.builtin__().prev_refresh = True
 
 
 def multi_lines(lines):

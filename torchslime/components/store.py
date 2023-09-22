@@ -113,8 +113,10 @@ _scoped_store_dict = {}
 @RemoveOverload(checklist=['add_listener__', 'remove_listener__'])
 class Store:
     
-    def scope__(self, __key) -> ScopedStore:
-        if __key in _scoped_store_dict:
+    def scope__(self, __key) -> Union[ScopedStore, BuiltinScopedStore]:
+        if __key == 'builtin__':
+            return _builtin_scoped_store
+        elif __key in _scoped_store_dict:
             return _scoped_store_dict[__key]
         else:
             return _scoped_store_dict.setdefault(__key, ScopedStore())
@@ -123,7 +125,7 @@ class Store:
         return self.scope__(self.get_current_key__())
 
     def builtin__(self) -> BuiltinScopedStore:
-        return _builtin_scoped_store
+        return self.scope__('builtin__')
 
     def destroy__(self, __key=NOTHING):
         if is_none_or_nothing(__key):
@@ -194,6 +196,12 @@ class StoreSet:
         else:
             del self._store[self.name]
         del self.prev_value
+
+
+class BuiltinStoreSet(StoreSet):
+    
+    def __init__(self, __name: str, __value: Any, *, restore: bool = True) -> None:
+        super().__init__(__name, __value, restore=restore, key='builtin__')
 
 
 store = Store()
