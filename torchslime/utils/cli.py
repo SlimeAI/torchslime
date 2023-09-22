@@ -197,13 +197,13 @@ def refresh_print(
     Execute refresh command and output contents.
     """
     file = sys.stderr if file is MISSING else file
-    if store.builtin__().prev_refresh:
-        execute(cursor_location, start(), clear_line())
     with BuiltinStoreSet('refresh_state', True):
+        if store.builtin__().prev_refresh:
+            execute(cursor_location, start(), clear_line())
         file.write(sep.join(contents) + end)
         file.flush()
-    # set ``prev_refresh`` to ``True``, still work for original stdout and stderr
-    store.builtin__().prev_refresh = True
+        # set ``prev_refresh`` to ``True``, still work for original stdout and stderr
+        store.builtin__().prev_refresh = True
 
 
 def multi_lines(lines):
