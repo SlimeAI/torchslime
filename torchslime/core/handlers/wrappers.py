@@ -106,18 +106,18 @@ class HandlerWrapperContainer(HandlerWrapperMeta, HandlerContainer[Union[Handler
     def handle(self, ctx: BaseContext, wrapped: Handler):
         # the original generator list
         gen_list: List[HandlerWrapperGenerator] = [wrapper.gen(ctx) for wrapper in self]
-        # wrapper exec list according to yield flags
+        # wrapper exec list according to yield states
         exec_list: List[HandlerWrapperGenerator] = []
-        # yield flag controlling wrapper exec
-        flag = True
+        # yield state controlling wrapper exec
+        state = True
         # before handle
         for gen in gen_list:
-            flag = gen()
+            state = gen()
             exec_list.append(gen)
-            if not flag:
+            if not state:
                 break
         # handle
-        if flag:
+        if state:
             wrapped.handle(ctx)
         # after handle
         for gen in reversed(exec_list):
