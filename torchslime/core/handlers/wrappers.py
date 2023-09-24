@@ -227,7 +227,7 @@ class Not(_ConditionOperator):
 
 def validation_check(ctx: BaseContext) -> bool:
     valid_freq = ctx.run_ctx.valid_freq
-    if isinstance(valid_freq, Callable):
+    if callable(valid_freq):
         return valid_freq(ctx)
     elif isinstance(valid_freq, list):
         return ctx.iteration_ctx.current in valid_freq

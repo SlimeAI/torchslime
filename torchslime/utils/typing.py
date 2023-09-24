@@ -186,13 +186,13 @@ def is_function_or_method(__item: Any) -> bool:
 MAGIC_PATTERN = re.compile('^_{2}[^_](?:.*[^_])?_{2}$')
 
 def is_magic_naming(__name: str) -> bool:
-    return re.match(MAGIC_PATTERN, str(__name)) is not None
+    return MAGIC_PATTERN.match(str(__name)) is not None
 
 
 SLIME_PATTERN = re.compile('^[^_](?:.*[^_])?_{2}$')
 
 def is_slime_naming(__name: str) -> bool:
-    return re.match(SLIME_PATTERN, str(__name)) is not None
+    return SLIME_PATTERN.match(str(__name)) is not None
 
 
 def create_singleton(__name: str) -> Tuple[Type[object], object]:
