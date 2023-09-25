@@ -14,9 +14,13 @@ from .typing import (
     Pass,
     PASS,
     is_none_or_nothing,
-    Type
+    Type,
+    Iterable,
+    Missing,
+    MISSING
 )
 from . import is_torch_distributed_ready
+from .bases import BaseList
 
 _T = TypeVar('_T')
 launch_util_registry = Registry[Type['LaunchUtil']]('launch_util_registry')
@@ -103,6 +107,39 @@ class DistributedLaunchUtil(LaunchUtil):
     def get_world_size(self, group=None):
         import torch.distributed as dist
         return dist.get_world_size(group=group)
+
+
+from torchslime.components.store import StoreListen, StoreListener
+
+class Launcher(StoreListener):
+    
+    def __init__(
+        self,
+        launch: Union[str, LaunchUtil, Missing] = MISSING,
+        exec_ranks: Union[Iterable[int], NoneOrNothing, Pass] = PASS,
+    ) -> None:
+        if launch is MISSING:
+            from torchslime.components.store import store
+            store.builtin__().add_listen_name__(self, 'launch')
+        else:
+            self.set_launch__(launch)
+        
+        self.set_exec_ranks__(exec_ranks)
+    
+    def set_launch__(self, launch: Union[str, LaunchUtil]):
+        if isinstance(launch, str):
+            launch = launch_util_registry.get(launch)()
+        self.launch__ = launch
+    
+    @StoreListen
+    def launch_listen__(self, new_value, old_value):
+        self.set_launch__(new_value)
+    
+    def set_exec_ranks__(self, exec_ranks: Union[Iterable[int], NoneOrNothing, Pass]):
+        self.exec_ranks__ = BaseList.create__(exec_ranks)
+    
+    def is_exec__(self):
+        return self.launch__.is_exec(self.exec_ranks__)
 
 
 class DistComm:
