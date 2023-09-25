@@ -3,7 +3,7 @@ import os
 from torchslime.callback import Callback, DistributedCallbackWrapper
 from torchslime.core.context.base import BaseContext
 from torchslime.experiment.directory import get_checkpoint_path, join_path, get_metric_path, safe_makedirs
-from torchslime.utils.log import logger
+from torchslime.logging.logger import logger
 from torchslime.utils.typing import NOTHING
 from torchslime.utils.typing import INT_SEQ_N
 import torch

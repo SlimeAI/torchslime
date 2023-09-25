@@ -24,7 +24,7 @@ from torchslime.utils.decorators import CallDebug, RemoveOverload
 from torchslime.utils.formatter import progress_format, eta_format
 from torchslime.core.context.base import BaseContext
 from torchslime.core.handlers import Handler, HandlerContainer
-from torchslime.utils.log import logger
+from torchslime.logging.logger import logger
 from torch import set_grad_enabled
 from functools import wraps
 

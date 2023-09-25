@@ -31,7 +31,7 @@ def set_namespace(namespace: str):
     if os.path.exists(namespace_path) is False:
         safe_makedirs(namespace_path)
     else:
-        from torchslime.utils.log import logger
+        from torchslime.logging.logger import logger
         logger.warning('The namespace folder already exists. Please check the namespace to avoid overwriting previous log files.')
 
 

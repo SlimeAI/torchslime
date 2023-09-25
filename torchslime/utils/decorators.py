@@ -235,7 +235,7 @@ def CallDebug(_func: _T = NOTHING, *, module_name=NOTHING):
     from . import get_exec_info
     
     def decorator(func: _T) -> _T:
-        from torchslime.utils.log import logger
+        from torchslime.logging.logger import logger
         from torchslime.components.store import store
         from time import time
 

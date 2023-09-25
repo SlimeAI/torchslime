@@ -20,7 +20,7 @@ from torchslime.components.exception import (
     HandlerWrapperException
 )
 from torchslime.utils.decorators import RemoveOverload
-from torchslime.utils.log import logger
+from torchslime.logging.logger import logger
 from functools import partial
 
 __all__ = [

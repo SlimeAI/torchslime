@@ -17,7 +17,7 @@ from torchslime.utils.typing import (
 )
 from torchslime.utils import Count, cli as Cursor
 from torchslime.core.context.base import BaseContext
-from torchslime.utils.log import logger
+from torchslime.logging.logger import logger
 from torchslime.utils.bases import (
     BaseList
 )

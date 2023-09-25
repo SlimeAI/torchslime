@@ -53,7 +53,7 @@ def StoreListen(_func=NOTHING, *, flag: bool = True):
         try:
             setattr(func, LISTEN_FLAG, flag)
         except Exception:
-            from torchslime.utils.log import logger
+            from torchslime.logging.logger import logger
             logger.warning(f'Set ``{LISTEN_FLAG}`` attribute failed. Callable: {str(func)}. Please make sure it supports attribute set.')
         return func
     return decorator

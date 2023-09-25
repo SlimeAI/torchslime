@@ -4,7 +4,7 @@ from torch.optim.optimizer import Optimizer
 from torchslime.utils.bases import Base
 from torchslime.utils.typing import NOTHING, NUMBER, Nothing
 from torchslime.utils.typing import Any, Sequence, Union, Dict, Tuple, Callable, List
-from torchslime.utils.log import logger, LoggerKwargs
+from torchslime.logging.logger import logger, LoggerKwargs
 
 
 class BaseContext(Base):
@@ -223,11 +223,11 @@ class HookContext(TempContext):
         self.lr_decay_mode = 'step'
         
         # hooks
-        from ..hooks.plugin import PluginContainer
+        from torchslime.core.hooks.plugin import PluginContainer
         self.plugins: PluginContainer = PluginContainer()
-        from ..hooks.launch import LaunchHook
+        from torchslime.core.hooks.launch import LaunchHook
         self.launch: LaunchHook = NOTHING
-        from ..hooks.build import BuildHook
+        from torchslime.core.hooks.build import BuildHook
         self.build: BuildHook = NOTHING
-        from ..hooks.state import StateHook
+        from torchslime.core.hooks.state import StateHook
         self.state: StateHook = NOTHING

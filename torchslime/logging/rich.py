@@ -1,4 +1,4 @@
-from .typing import (
+from torchslime.utils.typing import (
     MISSING,
     Iterable,
     Missing,
@@ -6,7 +6,7 @@ from .typing import (
     Pass,
     Union
 )
-from .launch import LaunchUtil, Launcher
+from torchslime.utils.launch import LaunchUtil, Launcher
 from rich.progress import Progress
 from rich.tree import Tree
 

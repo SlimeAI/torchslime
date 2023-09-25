@@ -60,7 +60,7 @@ class VanillaLaunchUtil(LaunchUtil):
     def is_distributed_ready(self) -> bool:
         ready = is_torch_distributed_ready()
         if ready is True:
-            from .log import logger
+            from torchslime.logging.logger import logger
             logger.warning('Trying to run torch distributed in the vanilla launch, where TorchSlime will not have the distributed behavior.')
         return ready
     

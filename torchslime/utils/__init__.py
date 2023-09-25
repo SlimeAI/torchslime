@@ -230,7 +230,7 @@ class IterTool(Iter):
         try:
             return len(self._iterable)
         except Exception:
-            from torchslime.utils.log import logger
+            from torchslime.logging.logger import logger
             logger.error('The iterable item has no __len__.')
             return 0
 
