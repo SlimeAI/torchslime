@@ -89,7 +89,9 @@ _scoped_store_dict = {}
     'subscribe__',
     'subscribe_attr__',
     'unsubscribe__',
-    'unsubscribe_attr__'
+    'unsubscribe_attr__',
+    'assign__',
+    'restore__'
 ])
 class Store:
     
