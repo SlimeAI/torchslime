@@ -5,6 +5,7 @@ from torchslime.components.store import store
 from torchslime.utils.launch import LaunchUtil, Launcher
 from torchslime.utils.typing import (
     NOTHING,
+    is_none_or_nothing,
     Iterable,
     Union,
     NoneOrNothing,
@@ -18,10 +19,15 @@ from torchslime.utils.decorators import Singleton
 import sys
 
 
-# initialize log template
-store.builtin__().init__('log_template', '{prefix__} - {asctime} - "{filename}:{lineno}" - {message}')
-store.builtin__().init__('log_rich_template', '{message}')
-store.builtin__().init__('log_dateformat', '%Y/%m/%d %H:%M:%S')
+# initialize log template (if not specified)
+if is_none_or_nothing(store.builtin__().log_template):
+    store.builtin__().log_template = '{prefix__} - {asctime} - "{filename}:{lineno}" - {message}'
+
+if is_none_or_nothing(store.builtin__().log_rich_template):
+    store.builtin__().log_rich_template = '{message}'
+
+if is_none_or_nothing(store.builtin__().log_dateformat):
+    store.builtin__().log_dateformat = '%Y/%m/%d %H:%M:%S'
 
 #
 # Slime Logger
@@ -130,6 +136,4 @@ store.builtin__().subscribe__(slime_formatter_observer, init=False)
 logger: SlimeLogger = SlimeLogger(name='builtin__', level=logging.INFO)
 logger.propagate = False
 logger.addFilter(SlimeFilter())
-logger.addHandler(RichHandler(
-    rich_tracebacks=True
-))
+logger.addHandler(RichHandler())

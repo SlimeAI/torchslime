@@ -22,11 +22,13 @@ from .typing import (
     NoneOrNothing,
     Pass,
     PASS,
-    is_none_or_nothing
+    is_none_or_nothing,
+    Set
 )
 import torchslime.utils as utils
 from functools import partial
 from types import TracebackType
+import re
 
 # TypeVars
 _T = TypeVar('_T')
@@ -332,3 +334,123 @@ class BaseProxy(Generic[_T]):
         if __name in self.attrs__:
             return getattr(self.obj__, __name)
         return super().__getattribute__(__name)
+
+
+OBSERVE_FUNC_SUFFIX = '_observe__'
+OBSERVE_FUNC_SUFFIX_PATTERN = re.compile(f'{OBSERVE_FUNC_SUFFIX}$')
+OBSERVE_FLAG = 'attr_observe__'
+
+class BaseAttrObserver:
+    
+    def observe_inspect__(self) -> Set[str]:
+        return set(
+            map(
+                # get the real observed attribute name
+                lambda name: OBSERVE_FUNC_SUFFIX_PATTERN.sub('', name),
+                filter(
+                    # filter out attr observe function
+                    lambda name: OBSERVE_FUNC_SUFFIX_PATTERN.search(name) is not None and getattr(getattr(self, name), OBSERVE_FLAG, NOTHING),
+                    dir(self)
+                )
+            )
+        )
+
+
+class BaseAttrObservable:
+    
+    def __init__(self) -> None:
+        # attr name to observers
+        self.__observe: Dict[str, List[BaseAttrObserver]] = {}
+        # observer id to observe attr names
+        self.__observe_attrs: Dict[str, Set[str]] = {}
+    
+    def subscribe__(self, __observer: BaseAttrObserver, *, init: bool = True) -> None:
+        observer_id = self.get_observer_id__(__observer)
+        names = __observer.observe_inspect__()
+        
+        if observer_id in self.__observe_attrs:
+            # inspect new observe attrs
+            # use a copy of observe attrs to avoid value change during iteration
+            names = names - set(self.__observe_attrs[observer_id])
+        
+        for name in names:
+            self.subscribe_attr__(__observer, name, init=init)
+    
+    def subscribe_attr__(self, __observer: BaseAttrObserver, __name: str, *, init: bool = True):
+        observer_id = self.get_observer_id__(__observer)
+        if observer_id not in self.__observe_attrs:
+            self.__observe_attrs[observer_id] = set()
+        
+        if __name not in self.__observe:
+            self.__observe[__name] = []
+        
+        self.__observe_attrs[observer_id].add(__name)
+        self.__observe[__name].append(__observer)
+        
+        if init:
+            value = getattr(self, __name, NOTHING)
+            self.publish__(__observer, __name, value, NOTHING)
+    
+    def unsubscribe__(self, __observer: BaseAttrObserver) -> None:
+        observer_id = self.get_observer_id__(__observer)
+        if observer_id not in self.__observe_attrs:
+            return
+        
+        # use a copy of observe attrs to avoid value change during iteration
+        for name in list(self.__observe_attrs[observer_id]):
+            self.unsubscribe_attr__(__observer, name)
+    
+    def unsubscribe_attr__(self, __observer: BaseAttrObserver, __name: str) -> None:
+        observer_id = self.get_observer_id__(__observer)
+        if observer_id in self.__observe_attrs:
+            names = self.__observe_attrs[observer_id]
+            if __name in names:
+                names.remove(__name)
+            if len(names) < 1:
+                del self.__observe_attrs[observer_id]
+
+        if __name in self.__observe:
+            observers = self.__observe[__name]
+            if __observer in observers:
+                observers.remove(__observer)
+            if len(observers) < 1:
+                del self.__observe[__name]
+    
+    def publish__(self, __observer: BaseAttrObserver, __name: str, __new_value: Any, __old_value: Any) -> None:
+        func: Callable[[Any, Any], None] = getattr(__observer, f'{__name}{OBSERVE_FUNC_SUFFIX}')
+        return func(__new_value, __old_value)
+    
+    @staticmethod
+    def get_observer_id__(__observer: BaseAttrObserver) -> str:
+        # this behavior may change through different torchslime versions
+        return str(id(__observer))
+    
+    def __setattr__(self, __name: str, __value: Any) -> None:
+        if __name not in self.__observe:
+            return super().__setattr__(__name, __value)
+        else:
+            old_value = getattr(self, __name, NOTHING)
+            super().__setattr__(__name, __value)
+            # observer is called only when the new value is different from the old value
+            if __value is not old_value:
+                for observer in self.__observe[__name]:
+                    self.publish__(observer, __name, __value, old_value)
+
+
+from .decorators import DecoratorCall
+
+@overload
+def BaseAttrObserve(_func: NoneOrNothing = NOTHING, *, flag: bool = True) -> Callable[[_T], _T]: pass
+@overload
+def BaseAttrObserve(_func: _T, *, flag: bool = True) -> _T: pass
+
+@DecoratorCall(index=0, keyword='_func')
+def BaseAttrObserve(_func=NOTHING, *, flag: bool = True):
+    def decorator(func: _T) -> _T:
+        try:
+            setattr(func, OBSERVE_FLAG, flag)
+        except Exception:
+            from torchslime.logging.logger import logger
+            logger.warning(f'Set ``{OBSERVE_FLAG}`` attribute failed. Observe object: {str(func)}. Please make sure it supports attribute set.')
+        return func
+    return decorator

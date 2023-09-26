@@ -310,3 +310,10 @@ def window_iter(__sequence: Sequence[_T], window_size: int = 1, step: int = 1) -
 
 
 from torchslime.utils.typing import NOTHING
+
+
+def get_len(__obj: Any, *, default: _T = NOTHING) -> Union[int, _T]:
+    try:
+        return len(__obj)
+    except TypeError:
+        return default

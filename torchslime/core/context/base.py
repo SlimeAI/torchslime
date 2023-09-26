@@ -106,10 +106,6 @@ class StepContext(TempContext):
         self.current: int = NOTHING
         # total steps of iteration
         self.total: int = NOTHING
-        # timestamp at the beginning of the step
-        self.time: Union[int, float] = NOTHING
-        # tuple of current step and total steps, it's used for progress visualization in the console
-        self.progress: Tuple[int, int] = NOTHING
         # original batch data of the iteration of dataloader
         self.batch: Any = NOTHING
 
@@ -175,6 +171,9 @@ class RunContext(TempContext):
         # loss reduction func
         from torchslime.components.metric import LossReductionFactory
         self.loss_reduction: Callable[[BaseContext], Tensor] = LossReductionFactory.get('mean')
+        # progress
+        from torchslime.logging.rich import SlimeProgress
+        self.progress: Union[SlimeProgress, Nothing] = NOTHING
 
 
 class HandlerContext(TempContext):

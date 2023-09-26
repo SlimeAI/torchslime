@@ -20,7 +20,7 @@ from .typing import (
     MISSING
 )
 from . import is_torch_distributed_ready
-from .bases import BaseList
+from .bases import BaseList, BaseAttrObserver, BaseAttrObserve
 
 _T = TypeVar('_T')
 launch_util_registry = Registry[Type['LaunchUtil']]('launch_util_registry')
@@ -108,9 +108,7 @@ class DistributedLaunchUtil(LaunchUtil):
         return dist.get_world_size(group=group)
 
 
-from torchslime.components.store import StoreListen, StoreListener
-
-class Launcher(StoreListener):
+class Launcher(BaseAttrObserver):
     
     def __init__(
         self,
@@ -119,7 +117,7 @@ class Launcher(StoreListener):
     ) -> None:
         if launch is MISSING:
             from torchslime.components.store import store
-            store.builtin__().add_listen_name__(self, 'launch')
+            store.builtin__().subscribe_attr__(self, 'launch')
         else:
             self.set_launch__(launch)
         
@@ -130,8 +128,8 @@ class Launcher(StoreListener):
             launch = launch_util_registry.get(launch)()
         self.launch__ = launch
     
-    @StoreListen
-    def launch_listen__(self, new_value, old_value):
+    @BaseAttrObserve
+    def launch_observe__(self, new_value, old_value):
         self.set_launch__(new_value)
     
     def set_exec_ranks__(self, exec_ranks: Union[Iterable[int], NoneOrNothing, Pass]):

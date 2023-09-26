@@ -5,24 +5,19 @@ from torchslime.utils.typing import (
     is_none_or_nothing,
     overload,
     is_slime_naming,
-    Dict,
     List,
-    Callable,
     Union,
-    NoneOrNothing,
     Nothing,
-    Set,
     MISSING,
     TYPE_CHECKING,
     Missing,
     TextIO
 )
-from torchslime.utils.bases import Base
-from torchslime.utils.decorators import Singleton, ItemAttrBinding, ContextDecoratorBinding, RemoveOverload, DecoratorCall
+from torchslime.utils.bases import Base, BaseAttrObservable, BaseAttrObserver
+from torchslime.utils.decorators import Singleton, ItemAttrBinding, ContextDecoratorBinding, RemoveOverload
 from io import TextIOWrapper
 import threading
 import os
-import re
 # type hint only
 if TYPE_CHECKING:
     from torchslime.logging.rich import SlimeConsole, SlimeAltConsole
@@ -30,51 +25,11 @@ if TYPE_CHECKING:
 
 _T = TypeVar('_T')
 
-LISTEN_FUNC_SUFFIX = '_listen__'
-LISTEN_FUNC_SUFFIX_PATTERN = re.compile(f'{LISTEN_FUNC_SUFFIX}$')
-LISTEN_FLAG = 'store_listen__'
 
-class StoreListener:
-    
-    def listen_inspect__(self) -> Set[str]:
-        return set(
-            map(
-                # get the real listened attribute name
-                lambda name: LISTEN_FUNC_SUFFIX_PATTERN.sub('', name),
-                filter(
-                    # filter out store listen function and check if it's callable
-                    lambda name: LISTEN_FUNC_SUFFIX_PATTERN.search(name) is not None and getattr(getattr(self, name), LISTEN_FLAG, NOTHING),
-                    dir(self)
-                )
-            )
-        )
-
-
-@overload
-def StoreListen(_func: NoneOrNothing = NOTHING, *, flag: bool = True) -> Callable[[_T], _T]: pass
-@overload
-def StoreListen(_func: _T, *, flag: bool = True) -> _T: pass
-
-@DecoratorCall(index=0, keyword='_func')
-def StoreListen(_func=NOTHING, *, flag: bool = True):
-    def decorator(func: _T) -> _T:
-        try:
-            setattr(func, LISTEN_FLAG, flag)
-        except Exception:
-            from torchslime.logging.logger import logger
-            logger.warning(f'Set ``{LISTEN_FLAG}`` attribute failed. Listen object: {str(func)}. Please make sure it supports attribute set.')
-        return func
-    return decorator
-
-
-class ScopedStore(Base):
+class ScopedStore(Base, BaseAttrObservable):
     
     def __init__(self) -> None:
         super().__init__()
-        # attr name to listeners
-        self.__listen: Dict[str, List[StoreListener]] = {}
-        # listener id to attr names
-        self.__listen_names: Dict[str, Set[str]] = {}
     
     def init__(self, __name: str, __value: Any):
         """
@@ -83,78 +38,6 @@ class ScopedStore(Base):
         if not self.hasattr__(__name) or \
                 getattr(self, __name, MISSING) is MISSING:
             setattr(self, __name, __value)
-    
-    def add_listener__(self, __listener: StoreListener, *, init: bool = True) -> None:
-        listener_id = self.get_listener_id__(__listener)
-        names = __listener.listen_inspect__()
-        
-        if listener_id in self.__listen_names:
-            # inspect new listen names
-            # use a copy of ``listen_names`` to avoid value change during iteration
-            names = names - set(self.__listen_names[listener_id])
-        
-        for name in names:
-            self.add_listen_name__(__listener, name, init=init)
-    
-    def add_listen_name__(self, __listener: StoreListener, __name: str, *, init: bool = True):
-        listener_id = self.get_listener_id__(__listener)
-        if listener_id not in self.__listen_names:
-            self.__listen_names[listener_id] = set()
-        
-        if __name not in self.__listen:
-            self.__listen[__name] = []
-        
-        self.__listen_names[listener_id].add(__name)
-        self.__listen[__name].append(__listener)
-        
-        if init:
-            value = getattr(self, __name, NOTHING)
-            self.notify__(__listener, __name, value, NOTHING)
-    
-    def notify__(self, __listener: StoreListener, __name: str, __new_value: Any, __old_value: Any) -> None:
-        func: Callable[[Any, Any], None] = getattr(__listener, f'{__name}{LISTEN_FUNC_SUFFIX}')
-        return func(__new_value, __old_value)
-    
-    def remove_listener__(self, __listener: StoreListener) -> None:
-        listener_id = self.get_listener_id__(__listener)
-        if listener_id not in self.__listen_names:
-            return
-        
-        # use a copy of ``listen_names`` to avoid value change during iteration
-        for name in list(self.__listen_names[listener_id]):
-            self.remove_listen_name__(__listener, name)
-    
-    def remove_listen_name__(self, __listener: StoreListener, __name: str) -> None:
-        listener_id = self.get_listener_id__(__listener)
-        if listener_id in self.__listen_names:
-            names = self.__listen_names[listener_id]
-            if __name in names:
-                names.remove(__name)
-            if len(names) < 1:
-                del self.__listen_names[listener_id]
-
-        if __name in self.__listen:
-            listeners = self.__listen[__name]
-            if __listener in listeners:
-                listeners.remove(__listener)
-            if len(listeners) < 1:
-                del self.__listen[__name]
-    
-    @staticmethod
-    def get_listener_id__(__listener: StoreListener) -> str:
-        # this behavior may change through different torchslime versions
-        return str(id(__listener))
-    
-    def __setattr__(self, __name: str, __value: Any) -> None:
-        if __name not in self.__listen:
-            return super().__setattr__(__name, __value)
-        else:
-            old_value = getattr(self, __name, NOTHING)
-            super().__setattr__(__name, __value)
-            # listener is called only when the new value is different from the old value
-            if __value is not old_value:
-                for listener in self.__listen[__name]:
-                    self.notify__(listener, __name, __value, old_value)
 
 
 @Singleton
@@ -187,10 +70,10 @@ _scoped_store_dict = {}
 @ItemAttrBinding
 @Singleton
 @RemoveOverload(checklist=[
-    'add_listener__',
-    'add_listen_name__',
-    'remove_listener__',
-    'remove_listen_name__'
+    'subscribe__',
+    'subscribe_attr__',
+    'unsubscribe__',
+    'unsubscribe_attr__'
 ])
 class Store:
     
@@ -238,13 +121,13 @@ class Store:
         return f'p{pid}-t{tid}'
     
     @overload
-    def add_listener__(self, __listener: StoreListener, *, init: bool = True) -> None: pass
+    def subscribe__(self, __observer: BaseAttrObserver, *, init: bool = True) -> None: pass
     @overload
-    def add_listen_name__(self, __listener: StoreListener, __name: str, *, init: bool = True): pass
+    def subscribe_attr__(self, __observer: BaseAttrObserver, __name: str, *, init: bool = True): pass
     @overload
-    def remove_listener__(self, __listener: StoreListener) -> None: pass
+    def unsubscribe__(self, __observer: BaseAttrObserver) -> None: pass
     @overload
-    def remove_listen_name__(self, __listener: StoreListener, __name: str) -> None: pass
+    def unsubscribe_attr__(self, __observer: BaseAttrObserver, __name: str) -> None: pass
 
 
 @ContextDecoratorBinding

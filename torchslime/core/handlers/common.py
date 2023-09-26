@@ -16,7 +16,8 @@ from torchslime.utils import (
     IterTool,
     cli as Cursor,
     type_cast,
-    inf_enumerate
+    inf_enumerate,
+    get_len
 )
 from torchslime.utils.bases import BaseList, Pass
 from torchslime.components.metric import MeterDict
@@ -27,6 +28,7 @@ from torchslime.core.handlers import Handler, HandlerContainer
 from torchslime.logging.logger import logger
 from torch import set_grad_enabled
 from functools import wraps
+from itertools import cycle
 
 __all__ = [
     'TorchGrad',
@@ -116,14 +118,15 @@ class IterationHandler(HandlerContainer):
             logger.warning('Got empty data loader.')
             return
         
-        for batch, progress, time, current, total in IterTool(loader, True, True, True, True):
-            ctx.step_ctx.from_dict__({
-                'batch': batch,  # original batch data of the dataset
-                'progress': progress,  # progress of iteration(includes current step and total steps)
-                'time': time,  # time of the iter(current time)
-                'current': current,  # the current step
-                'total': total  # total steps of iteration
-            })
+        # set total
+        total = get_len(loader)
+        
+        for current, batch in enumerate(loader):
+            ctx.step_ctx.from_kwargs__(
+                batch=batch,  # original batch data of the dataset
+                current=current,  # the current step
+                total=total  # total steps
+            )
             # carry out the subsequent actions
             super().handle(ctx)
 
@@ -143,21 +146,20 @@ class StepIterationHandler(HandlerContainer):
             return
         
         total = ctx.iteration_ctx.total
-        for (step, batch), time in IterTool(inf_enumerate(loader, start=ctx.iteration_ctx.start), time=True):
-            # current global step increases by 1
-            ctx.iteration_ctx.current = step
+        
+        for current, batch in enumerate(cycle(loader), start=ctx.iteration_ctx.start):
+            # current global step
+            ctx.iteration_ctx.current = current
 
-            ctx.step_ctx.from_dict__({
-                'batch': batch,  # original batch data of the dataset
-                'progress': (step, total),  # progress of iteration(includes current step and total steps)
-                'time': time,  # time of the iter(current time)
-                'current': step,  # the current step
-                'total': total  # total steps of iteration
-            })
+            ctx.step_ctx.from_kwargs__(
+                batch=batch,  # original batch data of the dataset
+                current=current,  # the current step
+                total=total  # total steps
+            )
             # carry out the subsequent actions
             super().handle(ctx)
             # break if finish
-            if step + 1 >= total:
+            if current + 1 >= total:
                 break
 
 
@@ -177,13 +179,13 @@ class ForwardHandler(Handler):
         y_pred = ctx.model(type_cast(x, ctx.device))
         y_true = type_cast(y_true, ctx.device)
         # clone and update context info
-        ctx.step_ctx.from_dict__({
+        ctx.step_ctx.from_kwargs__(
             # the result of the forward progress
-            'x': x,
-            'y_true': y_true,
-            'y_pred': y_pred,
-            'extra': extra
-        })
+            x=x,
+            y_true=y_true,
+            y_pred=y_pred,
+            extra=extra
+        )
 
 
 class LossHandler(Handler):
