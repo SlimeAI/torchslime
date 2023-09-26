@@ -12,7 +12,7 @@ from torchslime.utils.typing import (
 from torchslime.utils.launch import LaunchUtil, Launcher
 from torchslime.utils.decorators import ReadonlyAttr
 from torchslime.components.store import store
-from torchslime.utils.bases import BaseAttrObserver, BaseAttrObserve
+from torchslime.utils.bases import AttrObserver, AttrObserve
 from rich import get_console
 from rich.progress import Progress
 from rich.console import Console
@@ -77,7 +77,7 @@ class SlimeAltConsole(SlimeConsole):
 store.builtin__().init__('alt_console', SlimeAltConsole())
 
 
-class SlimeProgress(Launcher, BaseAttrObserver):
+class SlimeProgress(Launcher, AttrObserver):
     
     def __init__(
         self,
@@ -107,7 +107,7 @@ class SlimeProgress(Launcher, BaseAttrObserver):
     def set_console__(self, __console: Union[Console, NoneOrNothing]) -> None:
         self.progress.live.console = __console
 
-    @BaseAttrObserve
+    @AttrObserve
     def console_observe__(self, new_value: SlimeConsole, old_value):
         # update progress console
         self.set_console__(new_value.console)

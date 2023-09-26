@@ -1,6 +1,7 @@
 from torchslime.utils.typing import (
     NOTHING,
     Any,
+    Type,
     TypeVar,
     is_none_or_nothing,
     overload,
@@ -11,10 +12,14 @@ from torchslime.utils.typing import (
     MISSING,
     TYPE_CHECKING,
     Missing,
-    TextIO
+    TextIO,
+    NoneOrNothing
 )
-from torchslime.utils.bases import Base, BaseAttrObservable, BaseAttrObserver
-from torchslime.utils.decorators import Singleton, ItemAttrBinding, ContextDecoratorBinding, RemoveOverload
+from torchslime.utils.bases import (
+    Base,
+    AttrObservable
+)
+from torchslime.utils.decorators import Singleton, ItemAttrBinding, RemoveOverload
 from io import TextIOWrapper
 import threading
 import os
@@ -22,11 +27,19 @@ import os
 if TYPE_CHECKING:
     from torchslime.logging.rich import SlimeConsole, SlimeAltConsole
     from torchslime.utils.launch import LaunchUtil
+    from torchslime.utils.bases import (
+        AttrObserver,
+        ScopedAttrAssign,
+        ScopedAttrRestore
+    )
 
 _T = TypeVar('_T')
 
+#
+# Scoped Store
+#
 
-class ScopedStore(Base, BaseAttrObservable):
+class ScopedStore(Base, AttrObservable):
     
     def __init__(self) -> None:
         super().__init__()
@@ -38,7 +51,6 @@ class ScopedStore(Base, BaseAttrObservable):
         if not self.hasattr__(__name) or \
                 getattr(self, __name, MISSING) is MISSING:
             setattr(self, __name, __value)
-
 
 @Singleton
 class BuiltinScopedStore(ScopedStore):
@@ -63,9 +75,13 @@ class BuiltinScopedStore(ScopedStore):
         self.alt_console: Union["SlimeAltConsole", Nothing, Missing] = MISSING
         self.alt_console_files: List[Union[TextIO, TextIOWrapper]] = []
 
+BUILTIN_SCOPED_STORE_KEY = 'builtin__'
 _builtin_scoped_store = BuiltinScopedStore()
-
 _scoped_store_dict = {}
+
+#
+# Store
+#
 
 @ItemAttrBinding
 @Singleton
@@ -78,7 +94,7 @@ _scoped_store_dict = {}
 class Store:
     
     def scope__(self, __key) -> Union[ScopedStore, BuiltinScopedStore]:
-        if __key == 'builtin__':
+        if __key == BUILTIN_SCOPED_STORE_KEY:
             return _builtin_scoped_store
         elif __key in _scoped_store_dict:
             return _scoped_store_dict[__key]
@@ -89,7 +105,7 @@ class Store:
         return self.scope__(self.get_current_key__())
 
     def builtin__(self) -> BuiltinScopedStore:
-        return self.scope__('builtin__')
+        return self.scope__(BUILTIN_SCOPED_STORE_KEY)
 
     def destroy__(self, __key=NOTHING):
         if is_none_or_nothing(__key):
@@ -121,55 +137,58 @@ class Store:
         return f'p{pid}-t{tid}'
     
     @overload
-    def subscribe__(self, __observer: BaseAttrObserver, *, init: bool = True) -> None: pass
+    def subscribe__(self, __observer: "AttrObserver", *, init: bool = True) -> None: pass
     @overload
-    def subscribe_attr__(self, __observer: BaseAttrObserver, __name: str, *, init: bool = True): pass
+    def subscribe_attr__(self, __observer: "AttrObserver", __name: str, *, init: bool = True): pass
     @overload
-    def unsubscribe__(self, __observer: BaseAttrObserver) -> None: pass
+    def unsubscribe__(self, __observer: "AttrObserver") -> None: pass
     @overload
-    def unsubscribe_attr__(self, __observer: BaseAttrObserver, __name: str) -> None: pass
-
-
-@ContextDecoratorBinding
-@RemoveOverload(checklist=['__call__'])
-class StoreSet:
-
-    def __init__(self, __name: str, __value: Any, *, restore: bool = True, key=NOTHING) -> None:
-        self.name = __name
-        self.value = __value
-        self.restore = restore
-        self.key = store.get_current_key__() if is_none_or_nothing(key) is True else key
-        self._store = store.scope__(self.key)
-    
-    # just for type hint
+    def unsubscribe_attr__(self, __observer: "AttrObserver", __name: str) -> None: pass
     @overload
-    def __call__(self, func: _T) -> _T: pass
-
-    def __enter__(self) -> 'StoreSet':
-        self._set_value()
-        return self
-
-    def __exit__(self, *args, **kwargs):
-        self._restore_value()
-    
-    def _set_value(self):
-        # cache the store value before ``StoreSet``
-        self.prev_value = self._store[self.name]
-        # set value
-        self._store[self.name] = self.value
-
-    def _restore_value(self):
-        if self.restore is True:
-            self._store[self.name] = self.prev_value
-        else:
-            del self._store[self.name]
-        del self.prev_value
-
-
-class BuiltinStoreSet(StoreSet):
-    
-    def __init__(self, __name: str, __value: Any, *, restore: bool = True) -> None:
-        super().__init__(__name, __value, restore=restore, key='builtin__')
-
+    def assign__(self, **kwargs) -> "ScopedAttrAssign": pass
+    @overload
+    def restore__(self, *attrs: str) -> "ScopedAttrRestore": pass
 
 store = Store()
+
+#
+# Store Assign
+#
+
+from torchslime.utils.bases import ScopedAttrAssign
+
+@RemoveOverload(checklist=['m__'])
+class StoreAssign(ScopedAttrAssign[Union[ScopedStore, _T]], directly_new_allowed=True):
+    
+    def m_init__(
+        self,
+        key: Union[str, NoneOrNothing] = NOTHING,
+        restore: bool = True
+    ) -> None:
+        self.key = store.get_current_key__() if is_none_or_nothing(key) else key
+        super().m_init__(store.scope__(self.key), restore)
+    
+    @overload
+    @classmethod
+    def m__(
+        cls: Type[_T],
+        key: Union[str, NoneOrNothing] = NOTHING,
+        restore: bool = True
+    ) -> Type[_T]: pass
+
+
+@RemoveOverload(checklist=['m__'])
+class BuiltinStoreAssign(StoreAssign[Union[BuiltinScopedStore, _T]]):
+    
+    def m_init__(
+        self,
+        restore: bool = True
+    ) -> None:
+        super().m_init__(BUILTIN_SCOPED_STORE_KEY, restore)
+    
+    @overload
+    @classmethod
+    def m__(
+        cls: Type[_T],
+        restore: bool = True
+    ) -> Type[_T]: pass

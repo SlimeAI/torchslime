@@ -1,3 +1,4 @@
+from torchslime.utils.common import dict_to_key_value_str_list
 from torchslime.utils.typing import (
     NOTHING,
     Nothing,
@@ -31,7 +32,7 @@ from torchslime.components.exception import (
     HandlerContinue,
     HandlerWrapperException
 )
-from torchslime.utils.formatter import dict_to_key_value_str_list, concat_format
+from torchslime.utils.common import concat_format
 from functools import partial
 
 _T = TypeVar('_T')

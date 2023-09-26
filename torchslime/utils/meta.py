@@ -1,3 +1,4 @@
+from .common import dict_to_key_value_str_list
 from .typing import (
     NOTHING,
     NoneOrNothing,
@@ -11,7 +12,6 @@ from .typing import (
     NoReturn
 )
 from .decorators import ClassWraps, DecoratorCall, ClassFuncWrapper, RemoveOverload
-from .formatter import dict_to_key_value_str_list, concat_format
 from torchslime.components.exception import APIMisused
 
 _T = TypeVar('_T')
@@ -24,6 +24,7 @@ class _MetaWrapper:
         self.kwargs = kwargs
         
         # set meta info
+        from .common import concat_format
         args_str = concat_format('', [str(arg) for arg in args], '', item_sep=', ', break_line=False)
         kwargs_str = concat_format('', dict_to_key_value_str_list(kwargs), '', item_sep=', ', break_line=False)
         meta_str = concat_format('', [item for item in [args_str, kwargs_str] if len(item) > 0], '', item_sep=', ', break_line=False)
@@ -76,9 +77,11 @@ def _Meta(
         @classmethod
         def init_subclass(
             cls,
+            *args,
             directly_new_allowed: Union[bool, NoneOrNothing] = NOTHING,
             **kwargs
         ):
+            super(cls__, cls).__init_subclass__(*args, **kwargs)
             # change ``__new__`` method if ``directly_new_allowed`` is set
             if not is_none_or_nothing(directly_new_allowed):
                 cls.__new__ = new if directly_new_allowed else new_disallowed

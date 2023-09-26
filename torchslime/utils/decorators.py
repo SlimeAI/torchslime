@@ -321,7 +321,7 @@ def ReadonlyAttr(attrs: list, *, _cls=NOTHING, nothing_allowed: bool = True, emp
                     (attr__ is NOTHING and nothing_allowed):
                 return setattr_cls_func(self, __name, __value)
             else:
-                raise AttributeError(f'{__name} is readonly attribute')
+                raise AttributeError(f'``{__name}`` is readonly attribute')
         
         return cls
     return decorator

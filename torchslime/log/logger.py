@@ -14,7 +14,7 @@ from torchslime.utils.typing import (
     Missing,
     Any
 )
-from torchslime.utils.bases import BaseDict, BaseAttrObserver, BaseAttrObserve
+from torchslime.utils.bases import BaseDict, AttrObserver, AttrObserve
 from torchslime.utils.decorators import Singleton
 import sys
 
@@ -33,7 +33,7 @@ if is_none_or_nothing(store.builtin__().log_dateformat):
 # Slime Logger
 #
 
-class SlimeLogger(Logger, Launcher, BaseAttrObserver):
+class SlimeLogger(Logger, Launcher, AttrObserver):
     
     def __init__(
         self,
@@ -47,7 +47,7 @@ class SlimeLogger(Logger, Launcher, BaseAttrObserver):
         
         Logger.__init__(self, *args, **kwargs)
         Launcher.__init__(self, launch, exec_ranks)
-        BaseAttrObserver.__init__(self)
+        AttrObserver.__init__(self)
 
     def addHandler(self, handler: Handler) -> None:
         if not handler.formatter:
@@ -103,21 +103,21 @@ class SlimeRichFormatter(Formatter):
         )
 
 @Singleton
-class SlimeFormatterObserver(BaseAttrObserver):
+class SlimeFormatterObserver(AttrObserver):
     
-    @BaseAttrObserve
+    @AttrObserve
     def log_template_observe__(self, new_value, old_value) -> None:
         for handler in logger.handlers:
             if isinstance(handler.formatter, SlimeFormatter):
                 handler.setFormatter(SlimeFormatter())
     
-    @BaseAttrObserve
+    @AttrObserve
     def log_rich_template_observe__(self, new_value, old_value) -> None:
         for handler in logger.handlers:
             if isinstance(handler.formatter, SlimeRichFormatter):
                 handler.setFormatter((SlimeRichFormatter()))
     
-    @BaseAttrObserve
+    @AttrObserve
     def log_dateformat_observe__(self, new_value, old_value) -> None:
         for handler in logger.handlers:
             if isinstance(handler.formatter, SlimeFormatter):

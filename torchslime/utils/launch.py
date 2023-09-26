@@ -20,7 +20,7 @@ from .typing import (
     MISSING
 )
 from . import is_torch_distributed_ready
-from .bases import BaseList, BaseAttrObserver, BaseAttrObserve
+from .bases import BaseList, AttrObserver, AttrObserve
 
 _T = TypeVar('_T')
 launch_util_registry = Registry[Type['LaunchUtil']]('launch_util_registry')
@@ -108,7 +108,7 @@ class DistributedLaunchUtil(LaunchUtil):
         return dist.get_world_size(group=group)
 
 
-class Launcher(BaseAttrObserver):
+class Launcher(AttrObserver):
     
     def __init__(
         self,
@@ -128,7 +128,7 @@ class Launcher(BaseAttrObserver):
             launch = launch_util_registry.get(launch)()
         self.launch__ = launch
     
-    @BaseAttrObserve
+    @AttrObserve
     def launch_observe__(self, new_value, old_value):
         self.set_launch__(new_value)
     

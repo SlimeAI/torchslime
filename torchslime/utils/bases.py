@@ -1,5 +1,5 @@
 import traceback
-from typing import Any
+from .meta import Meta
 from .typing import (
     Any,
     Dict,
@@ -25,18 +25,27 @@ from .typing import (
     is_none_or_nothing,
     Set
 )
-import torchslime.utils as utils
 from functools import partial
 from types import TracebackType
 import re
 
 # TypeVars
 _T = TypeVar('_T')
+_T1 = TypeVar('_T1')
 _KT = TypeVar('_KT')
 _VT = TypeVar('_VT')
 
 
-class Base:
+class ScopedAttr:
+    
+    def assign__(self, **kwargs) -> "ScopedAttrAssign":
+        return ScopedAttrAssign.m__(self)(**kwargs)
+    
+    def restore__(self, *attrs: str) -> "ScopedAttrRestore":
+        return ScopedAttrRestore.m__(self)(*attrs)
+
+
+class Base(ScopedAttr):
     """
     Base class, making its subclasses be able to use '[]' operations(just like python dict).
     Return 'Nothing' if the object does not have the property being retrieved, without throwing Errors.
@@ -51,7 +60,8 @@ class Base:
         Args:
             kwargs (Dict): property dict.
         """
-        self.__dict__ = utils.dict_merge(self.__dict__, _dict)
+        from . import dict_merge
+        self.__dict__ = dict_merge(self.__dict__, _dict)
 
     def check__(self, item: str):
         """check whether the object has a specific attribute.
@@ -111,7 +121,7 @@ class Base:
         return delattr(self, __name)
     
     def __str__(self) -> str:
-        from .formatter import dict_to_key_value_str
+        from .common import dict_to_key_value_str
         classname=str(self.__class__.__name__)
         _id=str(hex(id(self)))
         _dict=dict_to_key_value_str(self.__dict__)
@@ -316,7 +326,7 @@ class BaseGenerator(
             self.exit = True
 
 
-class BaseProxy(Generic[_T]):
+class AttrProxy(Generic[_T]):
     
     def __init__(
         self,
@@ -335,12 +345,15 @@ class BaseProxy(Generic[_T]):
             return getattr(self.obj__, __name)
         return super().__getattribute__(__name)
 
+#
+# Attr Observer
+#
 
 OBSERVE_FUNC_SUFFIX = '_observe__'
 OBSERVE_FUNC_SUFFIX_PATTERN = re.compile(f'{OBSERVE_FUNC_SUFFIX}$')
 OBSERVE_FLAG = 'attr_observe__'
 
-class BaseAttrObserver:
+class AttrObserver:
     
     def observe_inspect__(self) -> Set[str]:
         return set(
@@ -356,15 +369,15 @@ class BaseAttrObserver:
         )
 
 
-class BaseAttrObservable:
+class AttrObservable:
     
     def __init__(self) -> None:
         # attr name to observers
-        self.__observe: Dict[str, List[BaseAttrObserver]] = {}
+        self.__observe: Dict[str, List[AttrObserver]] = {}
         # observer id to observe attr names
         self.__observe_attrs: Dict[str, Set[str]] = {}
     
-    def subscribe__(self, __observer: BaseAttrObserver, *, init: bool = True) -> None:
+    def subscribe__(self, __observer: AttrObserver, *, init: bool = True) -> None:
         observer_id = self.get_observer_id__(__observer)
         names = __observer.observe_inspect__()
         
@@ -376,7 +389,7 @@ class BaseAttrObservable:
         for name in names:
             self.subscribe_attr__(__observer, name, init=init)
     
-    def subscribe_attr__(self, __observer: BaseAttrObserver, __name: str, *, init: bool = True):
+    def subscribe_attr__(self, __observer: AttrObserver, __name: str, *, init: bool = True):
         observer_id = self.get_observer_id__(__observer)
         if observer_id not in self.__observe_attrs:
             self.__observe_attrs[observer_id] = set()
@@ -391,7 +404,7 @@ class BaseAttrObservable:
             value = getattr(self, __name, NOTHING)
             self.publish__(__observer, __name, value, NOTHING)
     
-    def unsubscribe__(self, __observer: BaseAttrObserver) -> None:
+    def unsubscribe__(self, __observer: AttrObserver) -> None:
         observer_id = self.get_observer_id__(__observer)
         if observer_id not in self.__observe_attrs:
             return
@@ -400,7 +413,7 @@ class BaseAttrObservable:
         for name in list(self.__observe_attrs[observer_id]):
             self.unsubscribe_attr__(__observer, name)
     
-    def unsubscribe_attr__(self, __observer: BaseAttrObserver, __name: str) -> None:
+    def unsubscribe_attr__(self, __observer: AttrObserver, __name: str) -> None:
         observer_id = self.get_observer_id__(__observer)
         if observer_id in self.__observe_attrs:
             names = self.__observe_attrs[observer_id]
@@ -416,12 +429,12 @@ class BaseAttrObservable:
             if len(observers) < 1:
                 del self.__observe[__name]
     
-    def publish__(self, __observer: BaseAttrObserver, __name: str, __new_value: Any, __old_value: Any) -> None:
+    def publish__(self, __observer: AttrObserver, __name: str, __new_value: Any, __old_value: Any) -> None:
         func: Callable[[Any, Any], None] = getattr(__observer, f'{__name}{OBSERVE_FUNC_SUFFIX}')
         return func(__new_value, __old_value)
     
     @staticmethod
-    def get_observer_id__(__observer: BaseAttrObserver) -> str:
+    def get_observer_id__(__observer: AttrObserver) -> str:
         # this behavior may change through different torchslime versions
         return str(id(__observer))
     
@@ -437,15 +450,15 @@ class BaseAttrObservable:
                     self.publish__(observer, __name, __value, old_value)
 
 
-from .decorators import DecoratorCall
+from .decorators import ContextDecoratorBinding, DecoratorCall, RemoveOverload
 
 @overload
-def BaseAttrObserve(_func: NoneOrNothing = NOTHING, *, flag: bool = True) -> Callable[[_T], _T]: pass
+def AttrObserve(_func: NoneOrNothing = NOTHING, *, flag: bool = True) -> Callable[[_T], _T]: pass
 @overload
-def BaseAttrObserve(_func: _T, *, flag: bool = True) -> _T: pass
+def AttrObserve(_func: _T, *, flag: bool = True) -> _T: pass
 
 @DecoratorCall(index=0, keyword='_func')
-def BaseAttrObserve(_func=NOTHING, *, flag: bool = True):
+def AttrObserve(_func=NOTHING, *, flag: bool = True):
     def decorator(func: _T) -> _T:
         try:
             setattr(func, OBSERVE_FLAG, flag)
@@ -454,3 +467,70 @@ def BaseAttrObserve(_func=NOTHING, *, flag: bool = True):
             logger.warning(f'Set ``{OBSERVE_FLAG}`` attribute failed. Observe object: {str(func)}. Please make sure it supports attribute set.')
         return func
     return decorator
+
+#
+# Scoped Attr Utils
+#
+
+@ContextDecoratorBinding
+@RemoveOverload(checklist=[
+    'm__',
+    '__call__'
+])
+class ScopedAttrRestore(Meta, Generic[_T], directly_new_allowed=False):
+
+    def __init__(self, *attrs: str) -> None:
+        self.attrs: Tuple[str, ...] = attrs
+        self.prev_value_dict: Dict[str, Any] = {}
+
+    def m_init__(
+        self,
+        obj: _T,
+        restore: bool = True
+    ) -> None:
+        self.obj: _T = obj
+        self.restore = restore
+
+    @overload
+    @classmethod
+    def m__(
+        cls: Type[_T1],
+        obj: Any,
+        restore: bool = True
+    ) -> Type[_T1]: pass
+
+    # just for type hint
+    @overload
+    def __call__(self, func: _T1) -> _T1: pass
+
+    def __enter__(self) -> "ScopedAttrRestore":
+        for attr in self.attrs:
+            self.prev_value_dict[attr] = getattr(self.obj, attr, NOTHING)
+        return self
+
+    def __exit__(self, *args, **kwargs):
+        if self.restore:
+            for attr, value in self.prev_value_dict.items():
+                try:
+                    setattr(self.obj, attr, value)
+                except Exception as e:
+                    from torchslime.logging.logger import logger
+                    logger.error(f'Restoring scoped attribute failed. Object: {str(self.obj)}, attribute: {attr}. {str(e.__class__.__name__)}: {str(e)}')
+
+
+@RemoveOverload(checklist=['m__'])
+class ScopedAttrAssign(ScopedAttrRestore[_T]):
+
+    def __init__(self, **kwargs) -> None:
+        super().__init__(*kwargs.keys())
+        self.attr_dict: Dict[str, Any] = kwargs
+
+    def __enter__(self) -> "ScopedAttrAssign":
+        # backup previous values
+        super().__enter__()
+        for attr, value in self.attr_dict.items():
+            try:
+                setattr(self.obj, attr, value)
+            except Exception as e:
+                from torchslime.logging.logger import logger
+                logger.error(f'Assigning scoped attribute failed. Object: {str(self.obj)}, attribute: {attr}. {str(e.__class__.__name__)}: {str(e)}')
