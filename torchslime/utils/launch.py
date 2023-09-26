@@ -29,7 +29,6 @@ launch_util_registry = Registry[Type['LaunchUtil']]('launch_util_registry')
 class LaunchUtil:
     
     def __init__(self) -> None:
-        super().__init__()
         self.dist_comm: Union[DistComm, NoneOrNothing] = NOTHING
 
     def call(self, __caller: Callable[[], _T], *, exec_ranks: Union[Sequence[int], NoneOrNothing, Pass] = PASS) -> Union[_T, None]: pass

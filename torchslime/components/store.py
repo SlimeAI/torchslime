@@ -8,17 +8,25 @@ from torchslime.utils.typing import (
     Dict,
     List,
     Callable,
-    TextIO,
     Union,
     NoneOrNothing,
-    Set
+    Nothing,
+    Set,
+    MISSING,
+    TYPE_CHECKING,
+    Missing,
+    TextIO
 )
 from torchslime.utils.bases import Base
 from torchslime.utils.decorators import Singleton, ItemAttrBinding, ContextDecoratorBinding, RemoveOverload, DecoratorCall
+from io import TextIOWrapper
 import threading
 import os
-import sys
 import re
+# type hint only
+if TYPE_CHECKING:
+    from torchslime.logging.rich import SlimeConsole, SlimeAltConsole
+    from torchslime.utils.launch import LaunchUtil
 
 _T = TypeVar('_T')
 
@@ -54,7 +62,7 @@ def StoreListen(_func=NOTHING, *, flag: bool = True):
             setattr(func, LISTEN_FLAG, flag)
         except Exception:
             from torchslime.logging.logger import logger
-            logger.warning(f'Set ``{LISTEN_FLAG}`` attribute failed. Callable: {str(func)}. Please make sure it supports attribute set.')
+            logger.warning(f'Set ``{LISTEN_FLAG}`` attribute failed. Listen object: {str(func)}. Please make sure it supports attribute set.')
         return func
     return decorator
 
@@ -67,6 +75,14 @@ class ScopedStore(Base):
         self.__listen: Dict[str, List[StoreListener]] = {}
         # listener id to attr names
         self.__listen_names: Dict[str, Set[str]] = {}
+    
+    def init__(self, __name: str, __value: Any):
+        """
+        Init attribute only when it is not set or is ``MISSING``
+        """
+        if not self.hasattr__(__name) or \
+                getattr(self, __name, MISSING) is MISSING:
+            setattr(self, __name, __value)
     
     def add_listener__(self, __listener: StoreListener, *, init: bool = True) -> None:
         listener_id = self.get_listener_id__(__listener)
@@ -149,29 +165,20 @@ class BuiltinScopedStore(ScopedStore):
         set ``builtin__`` store config
         """
         super().__init__()
-        # whether to save log metadata (e.g., exec_name, lineno, etc.) to cache.
-        self.use_log_cache = True
-        self.log_cache = Base()
-        # flag to log only once. For example, some warnings may appear only once.
-        self.log_once = Base()
         # whether to use call debug
-        self.use_call_debug = False
-        self.call_debug_cache = Base()
+        self.call_debug = False
         # indent str for CLI display
         self.indent_str = ' ' * 4  # default is 4 spaces
-        # cli flag
-        self.prev_refresh = False
-        self.refresh_state = False
-        # std out / err
-        self.stdout: Union[TextIO, NoneOrNothing] = sys.stdout
-        self.stderr: Union[TextIO, NoneOrNothing] = sys.stderr
         # log template
-        self.log_template: Union[str, NoneOrNothing] = NOTHING
-        self.log_rich_template: Union[str, NoneOrNothing] = NOTHING
-        self.log_dateformat: Union[str, NoneOrNothing] = NOTHING
+        self.log_template: Union[str, Missing] = MISSING
+        self.log_rich_template: Union[str, Missing] = MISSING
+        self.log_dateformat: Union[str, Missing] = MISSING
         # launch
-        from torchslime.utils.launch import LaunchUtil
-        self.launch: Union[str, LaunchUtil] = 'vanilla'
+        self.launch: Union[str, "LaunchUtil"] = 'vanilla'
+        # console
+        self.console: Union["SlimeConsole", Nothing, Missing] = MISSING
+        self.alt_console: Union["SlimeAltConsole", Nothing, Missing] = MISSING
+        self.alt_console_files: List[Union[TextIO, TextIOWrapper]] = []
 
 _builtin_scoped_store = BuiltinScopedStore()
 

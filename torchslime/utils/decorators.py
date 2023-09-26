@@ -249,7 +249,7 @@ def CallDebug(_func: _T = NOTHING, *, module_name=NOTHING):
         @wraps(func)
         def wrapper(*args, **kwargs):
             # do not use debug
-            if not store.builtin__().use_call_debug:
+            if not store.builtin__().call_debug:
                 return func(*args, **kwargs)
 
             # cache debug info
