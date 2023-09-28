@@ -13,16 +13,14 @@ from torchslime.utils.typing import (
     overload
 )
 from torchslime.utils import (
-    IterTool,
     cli as Cursor,
     type_cast,
-    inf_enumerate,
     get_len
 )
 from torchslime.utils.bases import BaseList, Pass
 from torchslime.components.metric import MeterDict
 from torchslime.utils.decorators import CallDebug, RemoveOverload
-from torchslime.utils.formatter import progress_format, eta_format
+from torchslime.utils.formatter import progress_format
 from torchslime.core.context.base import BaseContext
 from torchslime.core.handlers import Handler, HandlerContainer
 from torchslime.logging.logger import logger
@@ -33,15 +31,15 @@ from itertools import cycle
 __all__ = [
     'TorchGrad',
     'EmptyHandler',
-    'LambdaHandler',
-    'EpochIterationHandler',
-    'IterationHandler',
-    'StepIterationHandler',
+    'FuncHandler',
+    'EpochIterationContainer',
+    'IterationContainer',
+    'StepIterationContainer',
     'ForwardHandler',
     'LossHandler',
     'BackwardHandler',
-    'OptimizerHandler',
-    'MetricsHandler',
+    'OptimizerContainer',
+    'MetricHandler',
     'GatherAverageHandler',
     'MeterInitHandler',
     'MeterHandler',
@@ -77,24 +75,24 @@ class EmptyHandler(Handler):
         pass
 
 
-class LambdaHandler(Handler, BaseList[Callable[[BaseContext], None]]):
+class FuncHandler(Handler, BaseList[Callable[[BaseContext], None]]):
     
-    def __init__(self, __lambdas: Iterable[Callable[[BaseContext], None]]):
+    def __init__(self, __func_list: Iterable[Callable[[BaseContext], None]]):
         Handler.__init__(self)
-        BaseList.__init__(self, __lambdas)
+        BaseList.__init__(self, __func_list)
     
     def handle(self, ctx: BaseContext):
         # execute lambda functions
-        for _lambda in self:
-            _lambda(ctx)
+        for func in self:
+            func(ctx)
 
 
-class EpochIterationHandler(HandlerContainer):
+class EpochIterationContainer(HandlerContainer):
     """
     Train Only
     """
 
-    @CallDebug(module_name='EpochIterationHandler')
+    @CallDebug(module_name='EpochIterationContainer')
     def handle(self, ctx: BaseContext):
         # context check
         ctx.ctx_check('iteration_ctx.total', silent=False)
@@ -107,9 +105,9 @@ class EpochIterationHandler(HandlerContainer):
             super().handle(ctx)
 
 
-class IterationHandler(HandlerContainer):
+class IterationContainer(HandlerContainer):
 
-    @CallDebug(module_name='IterationHandler')
+    @CallDebug(module_name='IterationContainer')
     @TorchGrad
     def handle(self, ctx: BaseContext):
         loader = ctx.hook_ctx.state.get_loader(ctx)
@@ -122,21 +120,21 @@ class IterationHandler(HandlerContainer):
         total = get_len(loader)
         
         for current, batch in enumerate(loader):
-            ctx.step_ctx.from_kwargs__(
+            with ctx.step_ctx.assign__(
                 batch=batch,  # original batch data of the dataset
                 current=current,  # the current step
                 total=total  # total steps
-            )
-            # carry out the subsequent actions
-            super().handle(ctx)
+            ):
+                # carry out the subsequent actions
+                super().handle(ctx)
 
 
-class StepIterationHandler(HandlerContainer):
+class StepIterationContainer(HandlerContainer):
     """
     Train Only
     """
     
-    @CallDebug(module_name='StepIterationHandler')
+    @CallDebug(module_name='StepIterationContainer')
     @TorchGrad
     def handle(self, ctx: BaseContext):
         loader = ctx.hook_ctx.state.get_loader(ctx)
@@ -151,13 +149,13 @@ class StepIterationHandler(HandlerContainer):
             # current global step
             ctx.iteration_ctx.current = current
 
-            ctx.step_ctx.from_kwargs__(
+            with ctx.step_ctx.assign__(
                 batch=batch,  # original batch data of the dataset
                 current=current,  # the current step
                 total=total  # total steps
-            )
-            # carry out the subsequent actions
-            super().handle(ctx)
+            ):
+                # carry out the subsequent actions
+                super().handle(ctx)
             # break if finish
             if current + 1 >= total:
                 break
@@ -217,9 +215,9 @@ class BackwardHandler(Handler):
             (ctx.run_ctx.loss_reduction(ctx) / grad_acc).backward()
 
 
-class OptimizerHandler(HandlerContainer):
+class OptimizerContainer(HandlerContainer):
     
-    @CallDebug(module_name='OptimizerHandler')
+    @CallDebug(module_name='OptimizerContainer')
     def handle(self, ctx: BaseContext):
         # backward handler
         super().handle(ctx)
@@ -229,9 +227,9 @@ class OptimizerHandler(HandlerContainer):
             ctx.run_ctx.optimizer.zero_grad()
 
 
-class MetricsHandler(Handler):
+class MetricHandler(Handler):
     
-    @CallDebug(module_name='MetricsHandler')
+    @CallDebug(module_name='MetricHandler')
     def handle(self, ctx: BaseContext):
         # context check
         ctx.ctx_check('step_ctx', silent=False)
@@ -310,15 +308,15 @@ class DisplayHandler(Handler):
 
         with Cursor.cursor_invisible():
             eta_color = Cursor.single_color('b')
-            eta_content = eta_format(ctx.step_ctx.time, total - current - 1)
+            # eta_content = eta_format(ctx.step_ctx.time, total - current - 1)
             reset_color = Cursor.reset_style()
             
             Cursor.refresh_print(
                 str(ctx.hook_ctx.state),
                 # progress bar
-                progress_format(ctx.step_ctx.progress, newline=False),
+                progress_format((ctx.step_ctx.current, ctx.step_ctx.total), newline=False),
                 # eta with color blue
-                f'{eta_color}ETA: {eta_content}{reset_color}',
+                # f'{eta_color}ETA: {eta_content}{reset_color}',
                 # loss and metrics output
                 data,
                 # print new line if progress end
@@ -332,3 +330,9 @@ class LRDecayHandler(Handler):
     def handle(self, ctx: BaseContext):
         if ctx.ctx_check(['run_ctx.lr_decay']) is True:
             ctx.run_ctx.lr_decay.step()
+
+
+class RootContainer(HandlerContainer):
+    
+    def handle(self, ctx: BaseContext) -> None:
+        return

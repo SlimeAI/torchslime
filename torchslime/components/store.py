@@ -86,10 +86,10 @@ _scoped_store_dict = {}
 @ItemAttrBinding
 @Singleton
 @RemoveOverload(checklist=[
-    'subscribe__',
-    'subscribe_attr__',
-    'unsubscribe__',
-    'unsubscribe_attr__',
+    'attach__',
+    'attach_attr__',
+    'detach__',
+    'detach_attr__',
     'assign__',
     'restore__'
 ])
@@ -139,13 +139,13 @@ class Store:
         return f'p{pid}-t{tid}'
     
     @overload
-    def subscribe__(self, __observer: "AttrObserver", *, init: bool = True) -> None: pass
+    def attach__(self, __observer: "AttrObserver", *, init: bool = True) -> None: pass
     @overload
-    def subscribe_attr__(self, __observer: "AttrObserver", __name: str, *, init: bool = True): pass
+    def attach_attr__(self, __observer: "AttrObserver", __name: str, *, init: bool = True): pass
     @overload
-    def unsubscribe__(self, __observer: "AttrObserver") -> None: pass
+    def detach__(self, __observer: "AttrObserver") -> None: pass
     @overload
-    def unsubscribe_attr__(self, __observer: "AttrObserver", __name: str) -> None: pass
+    def detach_attr__(self, __observer: "AttrObserver", __name: str) -> None: pass
     @overload
     def assign__(self, **kwargs) -> "ScopedAttrAssign": pass
     @overload
@@ -158,9 +158,10 @@ store = Store()
 #
 
 from torchslime.utils.bases import ScopedAttrAssign
+_T_ScopedStore = TypeVar('_T_ScopedStore', bound=ScopedStore)
 
 @RemoveOverload(checklist=['m__'])
-class StoreAssign(ScopedAttrAssign[Union[ScopedStore, _T]], directly_new_allowed=True):
+class StoreAssign(ScopedAttrAssign[_T_ScopedStore], directly_new_allowed=True):
     
     def m_init__(
         self,
@@ -179,8 +180,10 @@ class StoreAssign(ScopedAttrAssign[Union[ScopedStore, _T]], directly_new_allowed
     ) -> Type[_T]: pass
 
 
+_T_BuiltinScopedStore = TypeVar('_T_BuiltinScopedStore', bound=BuiltinScopedStore)
+
 @RemoveOverload(checklist=['m__'])
-class BuiltinStoreAssign(StoreAssign[Union[BuiltinScopedStore, _T]]):
+class BuiltinStoreAssign(StoreAssign[_T_BuiltinScopedStore]):
     
     def m_init__(
         self,

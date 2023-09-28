@@ -121,7 +121,7 @@ class SlimeFormatterObserver(AttrObserver):
 
 slime_formatter_observer = SlimeFormatterObserver()
 # set ``init`` to False. ``logger`` instance has not been created here
-store.builtin__().subscribe__(slime_formatter_observer, init=False)
+store.builtin__().attach__(slime_formatter_observer, init=False)
 
 #
 # initialize logger

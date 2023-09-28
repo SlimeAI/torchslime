@@ -117,7 +117,7 @@ class Launcher(AttrObserver):
     ) -> None:
         if launch is MISSING:
             from torchslime.components.store import store
-            store.builtin__().subscribe_attr__(self, 'launch')
+            store.builtin__().attach_attr__(self, 'launch')
         else:
             self.set_launch__(launch)
         

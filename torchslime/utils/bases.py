@@ -23,7 +23,9 @@ from .typing import (
     Pass,
     PASS,
     is_none_or_nothing,
-    Set
+    Set,
+    Missing,
+    MISSING
 )
 from functools import partial
 from types import TracebackType
@@ -35,6 +37,9 @@ _T1 = TypeVar('_T1')
 _KT = TypeVar('_KT')
 _VT = TypeVar('_VT')
 
+#
+# Scoped Attribute
+#
 
 class ScopedAttr:
     
@@ -44,6 +49,9 @@ class ScopedAttr:
     def restore__(self, *attrs: str) -> "ScopedAttrRestore":
         return ScopedAttrRestore.m__(self)(*attrs)
 
+#
+# Base
+#
 
 class Base(ScopedAttr):
     """
@@ -127,6 +135,9 @@ class Base(ScopedAttr):
         _dict=dict_to_key_value_str(self.__dict__)
         return f'{classname}<{_id}>({_dict})'
 
+#
+# Base List
+#
 
 class BaseList(MutableSequence[_T], Generic[_T]):
 
@@ -212,6 +223,93 @@ class BaseList(MutableSequence[_T], Generic[_T]):
         _list=str(self.__list)
         return f'{classname}<{_id}>({_list})'
 
+#
+# Bidirectional List
+#
+
+class BiListItem:
+    
+    def __init__(self) -> None:
+        self.__parent = NOTHING
+    
+    def set_parent__(self, parent) -> None:
+        prev_parent = self.get_parent__()
+        if not is_none_or_nothing(prev_parent) and parent is not prev_parent:
+            # duplicate parent
+            from torchslime.logging.logger import logger
+            logger.warning(
+                f'BiListItem ``{str(self)}`` has already had a parent, but another parent is set. '
+                'This may be because you add a single BiListItem object to multiple BiLists '
+                'and may cause some inconsistent problems.'
+            )
+        self.__parent = parent
+    
+    def get_parent__(self) -> Union["BiList", Nothing]:
+        return self.__parent if hasattr(self, '_BiListItem__parent') else NOTHING
+    
+    def del_parent__(self):
+        self.__parent = NOTHING
+
+
+_T_BiListItem = TypeVar('_T_BiListItem', bound=BiListItem)
+
+class BiList(BaseList[_T_BiListItem]):
+    
+    def set_list__(self, __list: List[_T_BiListItem]) -> None:
+        prev_list = self.get_list__()
+        
+        for prev_item in prev_list:
+            prev_item.del_parent__()
+        
+        for item in __list:
+            item.set_parent__(self)
+        
+        return super().set_list__(__list)
+
+    @overload
+    def __setitem__(self, __key: SupportsIndex, __value: _T_BiListItem) -> None: pass
+    @overload
+    def __setitem__(self, __key: slice, __value: Iterable[_T_BiListItem]) -> None: pass
+    
+    def __setitem__(
+        self,
+        __key: Union[SupportsIndex, slice],
+        __value: Union[_T_BiListItem, Iterable[_T_BiListItem]]
+    ) -> None:
+        # delete parents of the replaced items and set parents to the replacing items
+        if isinstance(__key, slice):
+            for replaced_item in self[__key]:
+                replaced_item.del_parent__()
+            
+            for item in __value:
+                item: _T_BiListItem
+                item.set_parent__(self)
+        else:
+            self[__key].del_parent__()
+            __value: _T_BiListItem
+            __value.set_parent__(self)
+        return super().__setitem__(__key, __value)
+    
+    @overload
+    def __delitem__(self, __key: SupportsIndex) -> None: pass
+    @overload
+    def __delitem__(self, __key: slice) -> None: pass
+    
+    def __delitem__(self, __key: Union[SupportsIndex, slice]) -> None:
+        if isinstance(__key, slice):
+            for item in self[__key]:
+                item.del_parent__()
+        else:
+            self[__key].del_parent__()
+        return super().__delitem__(__key)
+    
+    def insert(self, __index: SupportsIndex, __item: _T_BiListItem) -> None:
+        __item.set_parent__(self)
+        return super().insert(__index, __item)
+
+#
+# Base Dict
+#
 
 class BaseDict(MutableMapping[_KT, _VT], Generic[_KT, _VT]):
 
@@ -325,6 +423,60 @@ class BaseGenerator(
         except (StopIteration, GeneratorExit):
             self.exit = True
 
+#
+# Composite Structure
+#
+
+class CompositeStructure:
+    
+    def composite_iterable__(self) -> Union[Iterable["CompositeStructure"], Nothing]: pass
+
+
+_T_CompositeStructure = TypeVar('_T_CompositeStructure', bound=CompositeStructure)
+
+def CompositeDFT(
+    __item: _T_CompositeStructure,
+    __func: Callable[[_T_CompositeStructure], None]
+) -> None:
+    from queue import LifoQueue
+    q = LifoQueue()
+    
+    q.put((__item, MISSING))
+    while q.qsize() > 0:
+        item: Tuple[_T_CompositeStructure, Union[Iterator[_T_CompositeStructure], Nothing, Missing]] = q.get()
+        searcher, iterator = item
+    
+        if iterator is MISSING:
+            # create children iterator
+            iterator = iter(searcher.composite_iterable__())
+            # visit the parent node
+            __func(searcher)
+        
+        try:
+            child = next(iterator)
+        except StopIteration:
+            continue
+        # put the parent and the corresponding children
+        q.put((searcher, iterator))
+        q.put((child, MISSING))
+
+
+def CompositeDFS(
+    __item: _T_CompositeStructure,
+    __func: Callable[[_T_CompositeStructure], bool]
+) -> List[_T_CompositeStructure]:
+    results = []
+    
+    def _search(item):
+        if __func(item):
+            results.append(item)
+    
+    CompositeDFT(__item, _search)
+    return results
+
+#
+# Attr Proxy
+#
 
 class AttrProxy(Generic[_T]):
     
@@ -377,7 +529,7 @@ class AttrObservable:
         # observer id to observe attr names
         self.__observe_attrs: Dict[str, Set[str]] = {}
     
-    def subscribe__(self, __observer: AttrObserver, *, init: bool = True) -> None:
+    def attach__(self, __observer: AttrObserver, *, init: bool = True) -> None:
         observer_id = self.get_observer_id__(__observer)
         names = __observer.observe_inspect__()
         
@@ -387,9 +539,9 @@ class AttrObservable:
             names = names - set(self.__observe_attrs[observer_id])
         
         for name in names:
-            self.subscribe_attr__(__observer, name, init=init)
+            self.attach_attr__(__observer, name, init=init)
     
-    def subscribe_attr__(self, __observer: AttrObserver, __name: str, *, init: bool = True):
+    def attach_attr__(self, __observer: AttrObserver, __name: str, *, init: bool = True):
         observer_id = self.get_observer_id__(__observer)
         if observer_id not in self.__observe_attrs:
             self.__observe_attrs[observer_id] = set()
@@ -402,18 +554,18 @@ class AttrObservable:
         
         if init:
             value = getattr(self, __name, NOTHING)
-            self.publish__(__observer, __name, value, NOTHING)
+            self.notify__(__observer, __name, value, NOTHING)
     
-    def unsubscribe__(self, __observer: AttrObserver) -> None:
+    def detach__(self, __observer: AttrObserver) -> None:
         observer_id = self.get_observer_id__(__observer)
         if observer_id not in self.__observe_attrs:
             return
         
         # use a copy of observe attrs to avoid value change during iteration
         for name in list(self.__observe_attrs[observer_id]):
-            self.unsubscribe_attr__(__observer, name)
+            self.detach_attr__(__observer, name)
     
-    def unsubscribe_attr__(self, __observer: AttrObserver, __name: str) -> None:
+    def detach_attr__(self, __observer: AttrObserver, __name: str) -> None:
         observer_id = self.get_observer_id__(__observer)
         if observer_id in self.__observe_attrs:
             names = self.__observe_attrs[observer_id]
@@ -429,7 +581,7 @@ class AttrObservable:
             if len(observers) < 1:
                 del self.__observe[__name]
     
-    def publish__(self, __observer: AttrObserver, __name: str, __new_value: Any, __old_value: Any) -> None:
+    def notify__(self, __observer: AttrObserver, __name: str, __new_value: Any, __old_value: Any) -> None:
         func: Callable[[Any, Any], None] = getattr(__observer, f'{__name}{OBSERVE_FUNC_SUFFIX}')
         return func(__new_value, __old_value)
     
@@ -447,7 +599,7 @@ class AttrObservable:
             # observer is called only when the new value is different from the old value
             if __value is not old_value:
                 for observer in self.__observe[__name]:
-                    self.publish__(observer, __name, __value, old_value)
+                    self.notify__(observer, __name, __value, old_value)
 
 
 from .decorators import ContextDecoratorBinding, DecoratorCall, RemoveOverload

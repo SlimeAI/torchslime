@@ -26,8 +26,8 @@ from functools import partial
 __all__ = [
     'HandlerWrapper',
     'HandlerWrapperContainer',
-    'StateHandler',
-    'ConditionHandler'
+    'StateWrapper',
+    'ConditionWrapper'
 ]
 _T = TypeVar('_T')
 _YieldT_co = TypeVar('_YieldT_co', covariant=True)
@@ -98,9 +98,11 @@ class HandlerWrapper(HandlerWrapperMeta, Handler):
     def gen(self, ctx: BaseContext) -> HandlerWrapperGenerator: return HandlerWrapperGenerator(self, ctx)
 
 
-class HandlerWrapperContainer(HandlerWrapperMeta, HandlerContainer[Union[HandlerWrapper, _T]]):
+_T_HandlerWrapper = TypeVar('_T_HandlerWrapper', bound=HandlerWrapper)
+
+class HandlerWrapperContainer(HandlerWrapperMeta, HandlerContainer[_T_HandlerWrapper]):
     
-    def __init__(self, wrappers: List[HandlerWrapper]):
+    def __init__(self, wrappers: List[_T_HandlerWrapper]):
         super().__init__(wrappers)
     
     def handle(self, ctx: BaseContext, wrapped: Handler):
@@ -130,7 +132,7 @@ class HandlerWrapperContainer(HandlerWrapperMeta, HandlerContainer[Union[Handler
 # StateHandler
 #
 
-class StateHandler(HandlerWrapper):
+class StateWrapper(HandlerWrapper):
     
     def __init__(
         self,
@@ -176,7 +178,7 @@ class StateHandler(HandlerWrapper):
 # Condition Handler
 #
 
-class ConditionHandler(HandlerWrapper):
+class ConditionWrapper(HandlerWrapper):
     
     def __init__(self, condition: Callable[[BaseContext], bool]):
         super().__init__()

@@ -8,7 +8,6 @@ from torchslime.utils.typing import (
     Callable,
     Iterable,
     Tuple,
-    SupportsIndex,
     is_none_or_nothing,
     overload,
     TypeVar,
@@ -20,6 +19,10 @@ from torchslime.utils import Count, cli as Cursor
 from torchslime.core.context.base import BaseContext
 from torchslime.logging.logger import logger
 from torchslime.utils.bases import (
+    CompositeStructure,
+    CompositeDFS,
+    BiListItem,
+    BiList,
     BaseList
 )
 from torchslime.utils.meta import Meta
@@ -110,14 +113,14 @@ class HandlerMeta(Meta):
         }
 
 
-class Handler(HandlerMeta):
+class Handler(HandlerMeta, CompositeStructure, BiListItem):
     """Base class for all handlers.
     """
     
     def __init__(self):
-        super().__init__()
-        # parent initialized to NOTHING
-        self.__parent: Union[HandlerContainer, Nothing] = NOTHING
+        HandlerMeta.__init__(self)
+        CompositeStructure.__init__(self)
+        BiListItem.__init__(self)
 
     def handle(self, ctx: BaseContext) -> None: pass
 
@@ -159,10 +162,14 @@ class Handler(HandlerMeta):
         except Exception as e:
             raise HandlerException(exception_handler=self, exception=e)
     
+    #
+    # Handler Container Operations
+    #
+    
     def replace_self(self, handler: 'Handler') -> bool:
         if not self._verify_parent():
             return False
-        parent = self.get_parent()
+        parent = self.get_parent__()
         index = parent.index(self)
         parent[index] = handler
         return True
@@ -170,7 +177,7 @@ class Handler(HandlerMeta):
     def insert_before_self(self, handler: 'Handler') -> bool:
         if not self._verify_parent():
             return False
-        parent = self.get_parent()
+        parent = self.get_parent__()
         index = parent.index(self)
         parent.insert(index, handler)
         return True
@@ -178,7 +185,7 @@ class Handler(HandlerMeta):
     def insert_after_self(self, handler: 'Handler') -> bool:
         if not self._verify_parent():
             return False
-        parent = self.get_parent()
+        parent = self.get_parent__()
         index = parent.index(self)
         parent.insert(index + 1, handler)
         return True
@@ -186,71 +193,35 @@ class Handler(HandlerMeta):
     def remove_self(self) -> bool:
         if not self._verify_parent():
             return False
-        parent = self.get_parent()
+        parent = self.get_parent__()
         parent.remove(self)
         return True
     
     def _verify_parent(self) -> bool:
-        if self.get_parent() is NOTHING or self not in self.get_parent():
-            # root node, wild pointer or unmatched parent
-            logger.warning('')
-            self.del_parent()
+        if self.get_parent__() is NOTHING or self not in self.get_parent__():
+            # root node or unmatched parent
+            logger.warning(f'Handler ``{str(self)}`` does not have a parent or it is not contained in its parent.')
+            self.del_parent__()
             return False
         return True
     
-    def get_by_id(self, _id: str, result: Union[list, NoneOrNothing] = NOTHING) -> 'Handler':
-        # initialize
-        result = [] if is_none_or_nothing(result) else result
-        
-        if self.get_id() == _id:
-            self._append_search_result(self, result, allow_multiple=False)
-        return NOTHING if len(result) < 1 else result[0]
+    #
+    # Handler Search Operations
+    #
     
-    def get_by_class(self, __class: Union[type, Tuple[type]], result: Union[list, NoneOrNothing] = NOTHING) -> List['Handler']:
-        # initialize
-        result = [] if is_none_or_nothing(result) else result
-        
-        if isinstance(self, __class):
-            self._append_search_result(self, result)
-        return result
+    def composite_iterable__(self) -> Nothing: return NOTHING
     
-    def get_by_filter(self, __function: Callable, result: Union[list, NoneOrNothing] = NOTHING) -> List['Handler']:
-        # initialize
-        result = [] if is_none_or_nothing(result) else result
-        
-        if __function(self):
-            self._append_search_result(self, result)
-        return result
+    def get_by_id(self, __id: str) -> 'Handler':
+        results = CompositeDFS(self, lambda handler: handler.get_id() == __id)
+        if len(results) > 1:
+            logger.warning(f'Duplicate id found in the Handler: {str(self)}.')
+        return NOTHING if len(results) < 1 else results[0]
     
-    def _append_search_result(
-        self,
-        item,
-        result: list,
-        allow_duplicate: bool = False,
-        allow_multiple: bool = True
-    ):
-        if item in result and allow_duplicate is False:
-            # duplicate node
-            logger.warning('')
-            return
-        # append matched item
-        result.append(item)
-        # ``len(result) == 2``: warn only once
-        if allow_multiple is False and len(result) == 2:
-            # multiple matched nodes
-            logger.warning('')
+    def get_by_class(self, __class: Union[type, Tuple[type]]) -> List['Handler']:
+        return CompositeDFS(self, lambda handler: isinstance(handler, __class))
     
-    def get_parent(self):
-        return self.__parent
-
-    def set_parent(self, _parent):
-        if not is_none_or_nothing(self.__parent):
-            # duplicate parent
-            logger.warning('')
-        self.__parent = _parent
-    
-    def del_parent(self):
-        self.__parent = NOTHING
+    def get_by_filter(self, __func: Callable[["Handler"], bool]) -> List['Handler']:
+        return CompositeDFS(self, __func)
     
     def get_display_str(
         self,
@@ -330,19 +301,21 @@ def _terminate_wrap(item: str, handler: Handler) -> str:
     return '\n'.join(items)
 
 
-class HandlerContainer(Handler, BaseList[Union[Handler, _T]]):
+_T_Handler = TypeVar('_T_Handler', bound=Handler)
+
+class HandlerContainer(Handler, BiList[_T_Handler]):
 
     def __init__(
         self,
-        handlers: Union[Iterable[Handler], NoneOrNothing] = None,
+        handlers: Union[Iterable[_T_Handler], NoneOrNothing] = NOTHING,
     ):
         Handler.__init__(self)
         # remove ``None`` and ``NOTHING`` in ``handlers``
-        handlers: List[Handler] = list(filter(
+        handlers = filter(
             lambda item: not is_none_or_nothing(item),
-            handlers if isinstance(handlers, Iterable) and not is_none_or_nothing(handlers) else []
-        ))
-        BaseList.__init__(
+            BaseList(handlers)
+        )
+        BiList[_T_Handler].__init__(
             self,
             handlers
         )
@@ -362,77 +335,7 @@ class HandlerContainer(Handler, BaseList[Union[Handler, _T]]):
             # break out of the container
             pass
     
-    def get_by_id(self, _id: str, result: Union[list, NoneOrNothing] = NOTHING) -> 'Handler':
-        # initialize
-        result = [] if is_none_or_nothing(result) else result
-        
-        super().get_by_id(_id, result)
-        for handler in self:
-            handler.get_by_id(_id, result)
-        return NOTHING if len(result) < 1 else result[0]
-    
-    def get_by_class(self, __class: Union[type, Tuple[type]], result: Union[list, NoneOrNothing] = NOTHING) -> List['Handler']:
-        # initialize
-        result = [] if is_none_or_nothing(result) else result
-        
-        super().get_by_class(__class, result)
-        for handler in self:
-            handler.get_by_class(__class, result)
-        return result
-
-    def get_by_filter(self, __function: Callable, result: Union[list, NoneOrNothing] = NOTHING) -> List['Handler']:
-        # initialize
-        result = [] if is_none_or_nothing(result) else result
-        
-        super().get_by_filter(__function, result)
-        for handler in self:
-            handler.get_by_filter(__function, result)
-        return result
-    
-    def set_list__(self, __list: list[Union[Handler, _T]]) -> None:
-        prev_list = self.get_list__()
-        super().set_list__(__list)
-        
-        for prev_handler in prev_list:
-            prev_handler.del_parent()
-        
-        for handler in __list:
-            handler.set_parent(self)
-    
-    def __setitem__(
-        self,
-        __key: Union[SupportsIndex, slice],
-        __value: Union[Handler, Iterable[Handler]]
-    ) -> None:
-        replaced = self[__key]
-        result = super().__setitem__(__key, __value)
-        # delete parents of the replaced handlers and set parents to the replacing handlers
-        if isinstance(__key, slice):
-            for _replaced in replaced:
-                _replaced.del_parent()
-            
-            for _handler in __value:
-                _handler.set_parent(self)
-        else:
-            replaced.del_parent()
-            __value.set_parent(self)
-        return result
-    
-    def __delitem__(
-        self,
-        __key: Union[SupportsIndex, slice]
-    ) -> None:
-        __value = self[__key]
-        if isinstance(__key, slice):
-            for _handler in __value:
-                _handler.del_parent()
-        else:
-            __value.del_parent()
-        return super().__delitem__(__key)
-    
-    def insert(self, __index: SupportsIndex, __handler: Handler) -> None:
-        __handler.set_parent(self)
-        return super().insert(__index, __handler)
+    def composite_iterable__(self) -> Iterable[_T_Handler]: return self
     
     def get_display_str(
         self,

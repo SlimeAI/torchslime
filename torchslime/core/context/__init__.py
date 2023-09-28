@@ -16,6 +16,7 @@ from torchslime.logging.logger import logger
 from torchslime.utils.typing import NOTHING
 from torchslime.utils.decorators import CallDebug, MethodChaining
 from torchslime.utils.typing import NUMBER
+from torchslime.utils.bases import AttrObserver, AttrObserve
 from torchslime.core.context.base import BaseContext
 from torchslime.core.hooks.build import BuildHook, build_registry
 from torchslime.core.hooks.launch import LaunchHook, launch_registry
@@ -28,7 +29,7 @@ from torch import Tensor
 DATASET = Union[DataLoader, DataProvider]
 
 
-class Context(BaseContext):
+class Context(BaseContext, AttrObserver):
 
     def __init__(
         self,
@@ -265,6 +266,10 @@ class Context(BaseContext):
             self.hook_ctx.build = build_hook
         else:
             logger.warning('Build hook type unsupported.')
+    
+    @AttrObserve
+    def launch_observe__(self, new_value, old_value):
+        pass
     
     @CallDebug(module_name='Context.compile_launch_hook')
     @MethodChaining

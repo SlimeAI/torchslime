@@ -184,29 +184,32 @@ class HandlerContext(TempContext):
         self.Handler = handlers.Handler
         self.Container = handlers.HandlerContainer
         
-        # common handlers
         from torchslime.core.handlers import common
-        self.EpochIteration = common.EpochIterationHandler
-        self.Iteration = common.IterationHandler
-        self.StepIteration = common.StepIterationHandler
-        self.Forward = common.ForwardHandler
-        self.Loss = common.LossHandler
-        self.Backward = common.BackwardHandler
-        self.Optimizer = common.OptimizerHandler
-        self.Metrics = common.MetricsHandler
-        self.MeterInit = common.MeterInitHandler
-        self.Meter = common.MeterHandler
-        self.GatherAverage = common.GatherAverageHandler
-        self.Display = common.DisplayHandler
-        self.LRDecay = common.LRDecayHandler
-        self.Lambda = common.LambdaHandler
+        # the root container, should be used only once in a single container structure
+        self.RootContainer = common.RootContainer
+        # common handlers
+        self.EmptyHandler = common.EmptyHandler
+        self.EpochIterationContainer = common.EpochIterationContainer
+        self.IterationContainer = common.IterationContainer
+        self.StepIterationContainer = common.StepIterationContainer
+        self.ForwardHandler = common.ForwardHandler
+        self.LossHandler = common.LossHandler
+        self.BackwardHandler = common.BackwardHandler
+        self.OptimizerContainer = common.OptimizerContainer
+        self.MetricHandler = common.MetricHandler
+        self.MeterInitHandler = common.MeterInitHandler
+        self.MeterHandler = common.MeterHandler
+        self.GatherAverageHandler = common.GatherAverageHandler
+        self.DisplayHandler = common.DisplayHandler
+        self.LRDecayHandler = common.LRDecayHandler
+        self.FuncHandler = common.FuncHandler
         
         # handler wrappers
         from torchslime.core.handlers import wrappers
         self.Wrapper = wrappers.HandlerWrapper
         self.WrapperContainer = wrappers.HandlerWrapperContainer
-        self.State = wrappers.StateHandler
-        self.Condition = wrappers.ConditionHandler
+        self.StateWrapper = wrappers.StateWrapper
+        self.ConditionWrapper = wrappers.ConditionWrapper
 
 
 class CustomContext(TempContext):
@@ -230,3 +233,6 @@ class HookContext(TempContext):
         self.build: BuildHook = NOTHING
         from torchslime.core.hooks.state import StateHook
         self.state: StateHook = NOTHING
+
+
+# TODO: Display Context

@@ -5,7 +5,8 @@ from .typing import (
     NoneOrNothing,
     Sequence,
     Union,
-    is_none_or_nothing
+    is_none_or_nothing,
+    Any
 )
 
 #
@@ -50,3 +51,12 @@ def concat_format(
     # format concat
     concat_sep = break_line_sep if break_line else ''
     return concat_sep.join([__left, __content, __right])
+
+
+def iterable(__obj: Any) -> bool:
+    try:
+        iter(__obj)
+    except Exception:
+        return False
+    else:
+        return True

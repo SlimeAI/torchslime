@@ -89,9 +89,11 @@ class SlimeProgress(Launcher, AttrObserver):
             exec_ranks = [0]
         
         super().__init__(launch, exec_ranks)
-        self.progress = progress
+        self.progress = progress if progress is not MISSING else Progress(
+            
+        )
         
-        store.builtin__().subscribe__(self)
+        store.builtin__().attach__(self)
     
     def set__(self, progress: Union[Progress, NoneOrNothing]) -> None:
         self.progress = progress
