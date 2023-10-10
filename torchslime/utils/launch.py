@@ -17,10 +17,13 @@ from .typing import (
     Type,
     Iterable,
     Missing,
-    MISSING
+    MISSING,
+    overload
 )
 from . import is_torch_distributed_ready
 from .bases import BaseList, AttrObserver, AttrObserve
+from .meta import Meta
+from .decorators import RemoveOverload
 
 _T = TypeVar('_T')
 launch_util_registry = Registry[Type['LaunchUtil']]('launch_util_registry')
@@ -108,12 +111,13 @@ class DistributedLaunchUtil(LaunchUtil):
         return dist.get_world_size(group=group)
 
 
-class Launcher(AttrObserver):
+@RemoveOverload(checklist=['m__'])
+class Launcher(AttrObserver, Meta):
     
-    def __init__(
+    def m_init__(
         self,
         launch: Union[str, LaunchUtil, Missing] = MISSING,
-        exec_ranks: Union[Iterable[int], NoneOrNothing, Pass] = PASS,
+        exec_ranks: Union[Iterable[int], NoneOrNothing, Pass, Missing] = MISSING
     ) -> None:
         if launch is MISSING:
             from torchslime.components.store import store
@@ -121,14 +125,24 @@ class Launcher(AttrObserver):
         else:
             self.set_launch__(launch)
         
+        if exec_ranks is MISSING:
+            exec_ranks = [0]
         self.set_exec_ranks__(exec_ranks)
+    
+    @overload
+    @classmethod
+    def m__(
+        cls: Type[_T],
+        launch: Union[str, LaunchUtil, Missing] = MISSING,
+        exec_ranks: Union[Iterable[int], NoneOrNothing, Pass, Missing] = MISSING
+    ) -> Type[_T]: pass
     
     def set_launch__(self, launch: Union[str, LaunchUtil]):
         if isinstance(launch, str):
             launch = launch_util_registry.get(launch)()
         self.launch__ = launch
     
-    @AttrObserve
+    @AttrObserve(attach=False, detach=False)
     def launch_observe__(self, new_value, old_value):
         self.set_launch__(new_value)
     

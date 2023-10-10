@@ -1,29 +1,32 @@
-from torchslime.core.handlers.wrappers import HandlerWrapper
 from torchslime.utils.typing import (
-    NOTHING,
     Dict,
     List,
     Callable,
     Iterable,
     Mapping,
-    NoneOrNothing,
     TypeVar,
-    Union,
+    Tuple,
     is_none_or_nothing,
-    overload
+    NoneOrNothing,
+    Any,
+    Sequence,
+    Union
 )
 from torchslime.utils import (
-    cli as Cursor,
     type_cast,
     get_len
 )
-from torchslime.utils.bases import BaseList, Pass
+from torchslime.utils.bases import BaseList
 from torchslime.components.metric import MeterDict
-from torchslime.utils.decorators import CallDebug, RemoveOverload
-from torchslime.utils.formatter import progress_format
+from torchslime.components.store import store
+from torchslime.utils.decorators import CallDebug
+from torchslime.utils.common import dict_to_key_value_str
 from torchslime.core.context.base import BaseContext
 from torchslime.core.handlers import Handler, HandlerContainer
+from torchslime.core.hooks.state import state_registry, StateHook
 from torchslime.logging.logger import logger
+from torchslime.logging.rich import HandlerProgress, SlimeLiveLauncher, SlimeGroup, SlimeProgressLauncher
+from contextlib import contextmanager
 from torch import set_grad_enabled
 from functools import wraps
 from itertools import cycle
@@ -43,7 +46,6 @@ __all__ = [
     'GatherAverageHandler',
     'MeterInitHandler',
     'MeterHandler',
-    'DisplayHandler',
     'LRDecayHandler'
 ]
 
@@ -87,7 +89,31 @@ class FuncHandler(Handler, BaseList[Callable[[BaseContext], None]]):
             func(ctx)
 
 
-class EpochIterationContainer(HandlerContainer):
+class ProgressInterface:
+    
+    def create_progress__(self, ctx: BaseContext) -> Tuple[Any, Any]: pass
+    def progress_update__(self, ctx: BaseContext) -> None: pass
+    
+    def add_progress__(self, ctx: BaseContext) -> None:
+        display_ctx = ctx.display_ctx
+        display_ctx.live_group.append(display_ctx.handler_progress)
+    
+    def remove_progress__(self, ctx: BaseContext) -> None:
+        ctx.display_ctx.handler_progress.remove_self__()
+    
+    @contextmanager
+    def progress_context__(self, ctx: BaseContext):
+        progress, task_id = self.create_progress__(ctx)
+        with ctx.display_ctx.assign__(
+            handler_progress=progress,
+            progress_task_id=task_id
+        ):
+            self.add_progress__(ctx)
+            yield
+            self.remove_progress__(ctx)
+
+
+class EpochIterationContainer(HandlerContainer, ProgressInterface):
     """
     Train Only
     """
@@ -96,16 +122,58 @@ class EpochIterationContainer(HandlerContainer):
     def handle(self, ctx: BaseContext):
         # context check
         ctx.ctx_check('iteration_ctx.total', silent=False)
-        # epoch loops
-        for current in range(ctx.iteration_ctx.start, ctx.iteration_ctx.total):
-            # set current epoch to the context
-            ctx.iteration_ctx.current = current
-            # output epoch info.
-            logger.info(f'Epoch {ctx.iteration_ctx.current + 1} begins.')
-            super().handle(ctx)
+        
+        with self.progress_context__(ctx):
+            # epoch iteration
+            for current in range(
+                ctx.iteration_ctx.start,
+                ctx.iteration_ctx.total
+            ):
+                # set current epoch to the context
+                with ctx.iteration_ctx.assign__(
+                    current=current
+                ):
+                    # output epoch info.
+                    logger.info(f'Epoch {ctx.iteration_ctx.current + 1} begins.')
+                    super().handle(ctx)
+                    # update progress
+                    self.progress_update__(ctx)
+    
+    def create_progress__(self, ctx: BaseContext) -> Tuple[Any, Any]:
+        progress = SlimeProgressLauncher.create__()
+        task_id = progress.add_task('EpochIteration', total=ctx.iteration_ctx.total, completed=ctx.iteration_ctx.start)
+        return progress, task_id
+    
+    def progress_update__(self, ctx: BaseContext) -> None:
+        ctx.display_ctx.handler_progress.advance(
+            task_id=ctx.display_ctx.progress_task_id,
+            advance=1
+        )
+    
+    def remove_progress__(self, ctx: BaseContext) -> None:
+        super().remove_progress__(ctx)
+        # detach observer
+        store.builtin__().detach__(ctx.display_ctx.handler_progress)
 
 
-class IterationContainer(HandlerContainer):
+class ProfileProgressInterface(ProgressInterface):
+    
+    def progress_update__(self, ctx: BaseContext) -> None:
+        ctx.display_ctx.handler_progress.progress.advance(
+            task_id=ctx.display_ctx.progress_task_id,
+            advance=1
+        )
+        ctx.display_ctx.handler_progress.set_text__(
+            f'{ctx.hook_ctx.profiler.meter_profile(ctx)}'
+        )
+    
+    def remove_progress__(self, ctx: BaseContext) -> None:
+        super().remove_progress__(ctx)
+        # detach observer
+        store.builtin__().detach__(ctx.display_ctx.handler_progress.progress)
+
+
+class IterationContainer(HandlerContainer, ProfileProgressInterface):
 
     @CallDebug(module_name='IterationContainer')
     @TorchGrad
@@ -116,20 +184,34 @@ class IterationContainer(HandlerContainer):
             logger.warning('Got empty data loader.')
             return
         
-        # set total
         total = get_len(loader)
         
-        for current, batch in enumerate(loader):
-            with ctx.step_ctx.assign__(
-                batch=batch,  # original batch data of the dataset
-                current=current,  # the current step
-                total=total  # total steps
-            ):
-                # carry out the subsequent actions
-                super().handle(ctx)
+        with ctx.step_ctx.assign__(
+            total=total
+        ), self.progress_context__(ctx):
+            # data iteration
+            for current, batch in enumerate(loader):
+                with ctx.step_ctx.assign__(
+                    batch=batch,  # original batch data of the dataset
+                    current=current,  # the current step
+                ):
+                    # carry out the subsequent actions
+                    super().handle(ctx)
+                    self.progress_update__(ctx)
+    
+    def create_progress__(self, ctx: BaseContext) -> tuple[Any, Any]:
+        total = ctx.step_ctx.total
+        total=total if not is_none_or_nothing(total) else None
+        
+        handler_progress = HandlerProgress()
+        task_id = handler_progress.progress.add_task(
+            str(ctx.hook_ctx.state),
+            total=total
+        )
+        return handler_progress, task_id
 
 
-class StepIterationContainer(HandlerContainer):
+class StepIterationContainer(HandlerContainer, ProfileProgressInterface):
     """
     Train Only
     """
@@ -144,21 +226,31 @@ class StepIterationContainer(HandlerContainer):
             return
         
         total = ctx.iteration_ctx.total
+        start = ctx.iteration_ctx.start
         
-        for current, batch in enumerate(cycle(loader), start=ctx.iteration_ctx.start):
-            # current global step
-            ctx.iteration_ctx.current = current
-
-            with ctx.step_ctx.assign__(
-                batch=batch,  # original batch data of the dataset
-                current=current,  # the current step
-                total=total  # total steps
-            ):
-                # carry out the subsequent actions
-                super().handle(ctx)
-            # break if finish
-            if current + 1 >= total:
-                break
+        with self.progress_context__(ctx):
+            for current, batch in enumerate(cycle(loader), start=start):
+                with ctx.iteration_ctx.assign__(
+                    current=current  # current global step
+                ), ctx.step_ctx.assign__(
+                    batch=batch,  # original batch data of the dataset
+                    current=current,  # the current step
+                    total=total  # total steps
+                ):
+                    # carry out the subsequent actions
+                    super().handle(ctx)
+                    self.progress_update__(ctx)
+                # break if finish
+                if current + 1 >= total:
+                    break
+    
+    def create_progress__(self, ctx: BaseContext) -> tuple[Any, Any]:
+        handler_progress = HandlerProgress()
+        task_id = handler_progress.progress.add_task(
+            'StepIteration',
+            total=ctx.iteration_ctx.total
+        )
+        return handler_progress, task_id
 
 
 class ForwardHandler(Handler):
@@ -271,59 +363,6 @@ class MeterHandler(Handler):
         ctx.hook_ctx.state.update_meter(ctx, ctx.step_ctx.loss_values, ctx.step_ctx.metrics)
 
 
-@RemoveOverload(checklist=['m__'])
-class DisplayHandler(Handler):
-    
-    def m_init__(
-        self,
-        id=NOTHING,
-        exec_ranks=NOTHING,
-        wrappers=NOTHING,
-        lifecycle=NOTHING
-    ):
-        if exec_ranks is NOTHING:
-            exec_ranks = [0]
-        return super().m_init__(id, exec_ranks, wrappers, lifecycle)
-    
-    @overload
-    @classmethod
-    def m__(
-        cls: type[_T],
-        id: Union[str, NoneOrNothing] = NOTHING,
-        exec_ranks: Union[Iterable[int], NoneOrNothing, Pass] = NOTHING,
-        wrappers: Union[Iterable[HandlerWrapper], NoneOrNothing] = NOTHING,
-        lifecycle=NOTHING
-    ) -> type[_T]: pass
-    
-    @CallDebug(module_name='DisplayHandler')
-    def handle(self, ctx: BaseContext):
-        current = ctx.step_ctx.current
-        total = ctx.step_ctx.total
-
-        loss_values, metrics = ctx.hook_ctx.state.get_meter(ctx)
-        data = {**loss_values.get__('mean'), **metrics.get__('mean')}
-        data = ' - '.join(
-            list(map(lambda item: f'{item[0]}: {item[1]:.5f}', data.items()))
-        )
-
-        with Cursor.cursor_invisible():
-            eta_color = Cursor.single_color('b')
-            # eta_content = eta_format(ctx.step_ctx.time, total - current - 1)
-            reset_color = Cursor.reset_style()
-            
-            Cursor.refresh_print(
-                str(ctx.hook_ctx.state),
-                # progress bar
-                progress_format((ctx.step_ctx.current, ctx.step_ctx.total), newline=False),
-                # eta with color blue
-                # f'{eta_color}ETA: {eta_content}{reset_color}',
-                # loss and metrics output
-                data,
-                # print new line if progress end
-                end='\n' if current + 1 == total else ''
-            )
-
-
 class LRDecayHandler(Handler):
     
     @CallDebug(module_name='LRDecayHandler')
@@ -332,7 +371,42 @@ class LRDecayHandler(Handler):
             ctx.run_ctx.lr_decay.step()
 
 
+class LoggingHandler(Handler):
+    
+    def __init__(
+        self,
+        logging_states: Sequence[Union[str, StateHook]]
+    ) -> None:
+        super().__init__()
+        self.logging_states = logging_states
+    
+    def handle(self, ctx: BaseContext) -> None:
+        # get logging point (Epoch/Step, current, total)
+        profiler = ctx.hook_ctx.profiler
+        logging_point = profiler.logging_point_profile(ctx)
+        
+        for state in self.logging_states:
+            logger.info(
+                f'{logging_point} | {profiler.meter_profile(ctx, state)}'
+            )
+
+
 class RootContainer(HandlerContainer):
     
     def handle(self, ctx: BaseContext) -> None:
-        return
+        live_launcher, live_group = self.create_live__(ctx)
+        
+        with ctx.display_ctx.assign__(
+            live_launcher=live_launcher,
+            live_group=live_group
+        ), ctx.display_ctx.live_launcher.get__():
+            super().handle(ctx)
+            # refresh live
+            ctx.display_ctx.live_launcher.get__().refresh()
+        
+        store.builtin__().detach__(live_launcher)
+    
+    def create_live__(self, ctx: BaseContext) -> Tuple[Any, Any]:
+        live_group = SlimeGroup()
+        live_launcher = SlimeLiveLauncher(live_group, console=store.builtin__().console_launcher, transient=True)
+        return live_launcher, live_group

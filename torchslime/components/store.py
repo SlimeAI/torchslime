@@ -25,7 +25,8 @@ import threading
 import os
 # type hint only
 if TYPE_CHECKING:
-    from torchslime.logging.rich import SlimeConsole, SlimeAltConsole
+    from torchslime.logging.rich import SlimeConsoleLauncher, SlimeAltConsoleLauncher
+    from rich.console import Console
     from torchslime.utils.launch import LaunchUtil
     from torchslime.utils.bases import (
         AttrObserver,
@@ -71,8 +72,8 @@ class BuiltinScopedStore(ScopedStore):
         # launch
         self.launch: Union[str, "LaunchUtil"] = 'vanilla'
         # console
-        self.console: Union["SlimeConsole", Nothing, Missing] = MISSING
-        self.alt_console: Union["SlimeAltConsole", Nothing, Missing] = MISSING
+        self.console_launcher: Union["SlimeConsoleLauncher[Console]", Nothing, Missing] = MISSING
+        self.alt_console_launcher: Union["SlimeAltConsoleLauncher[Console]", Nothing, Missing] = MISSING
         self.alt_console_files: List[Union[TextIO, TextIOWrapper]] = []
 
 BUILTIN_SCOPED_STORE_KEY = 'builtin__'
@@ -98,10 +99,11 @@ class Store:
     def scope__(self, __key) -> Union[ScopedStore, BuiltinScopedStore]:
         if __key == BUILTIN_SCOPED_STORE_KEY:
             return _builtin_scoped_store
-        elif __key in _scoped_store_dict:
-            return _scoped_store_dict[__key]
-        else:
-            return _scoped_store_dict.setdefault(__key, ScopedStore())
+        
+        if __key not in _scoped_store_dict:
+            _scoped_store_dict[__key] = ScopedStore()
+        
+        return _scoped_store_dict[__key]
 
     def current__(self) -> ScopedStore:
         return self.scope__(self.get_current_key__())

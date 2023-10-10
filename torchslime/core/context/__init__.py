@@ -20,6 +20,7 @@ from torchslime.utils.bases import AttrObserver, AttrObserve
 from torchslime.core.context.base import BaseContext
 from torchslime.core.hooks.build import BuildHook, build_registry
 from torchslime.core.hooks.launch import LaunchHook, launch_registry
+from torchslime.core.hooks.profiler import ProfilerHook, profiler_registry
 from torchslime.core.hooks.plugin import PluginHook
 from torch.utils.data import DataLoader
 from torch.optim import Optimizer
@@ -36,7 +37,8 @@ class Context(BaseContext, AttrObserver):
         model,
         device=None,
         build_hook: Union[str, BuildHook] = 'vanilla',
-        launch_hook: Union[str, LaunchHook] = 'vanilla'
+        launch_hook: Union[str, LaunchHook] = 'vanilla',
+        profiler_hook: Union[str, ProfilerHook] = 'vanilla'
     ):
         # init context
         super().__init__()
@@ -47,6 +49,7 @@ class Context(BaseContext, AttrObserver):
         # build hooks
         self.compile_build_hook(build_hook)
         self.compile_launch_hook(launch_hook)
+        self.compile_profiler_hook(profiler_hook)
 
     @CallDebug(module_name='Context.train')
     @MethodChaining
@@ -278,6 +281,16 @@ class Context(BaseContext, AttrObserver):
             self.hook_ctx.launch = launch_registry.get(launch_hook)()
         elif isinstance(launch_hook, LaunchHook):
             self.hook_ctx.launch = launch_hook
+        else:
+            logger.warning('Launch hook type unsupported.')
+    
+    @CallDebug(module_name='Context.compile_profiler_hook')
+    @MethodChaining
+    def compile_profiler_hook(self, profiler_hook: Union[str, ProfilerHook]) -> 'Context':
+        if isinstance(profiler_hook, str):
+            self.hook_ctx.profiler = profiler_registry.get(profiler_hook)()
+        elif isinstance(profiler_hook, ProfilerHook):
+            self.hook_ctx.profiler = profiler_hook
         else:
             logger.warning('Launch hook type unsupported.')
 

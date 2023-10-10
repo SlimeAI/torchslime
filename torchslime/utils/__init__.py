@@ -56,24 +56,6 @@ def safe_divide(dividend, divisor, default=0):
     return dividend / divisor if divisor != 0 else default
 
 
-class Count:
-    """
-    Count times of variable-get.
-    """
-
-    def __init__(self):
-        super().__init__()
-        self.value = 0
-
-    def __set__(self, *_):
-        pass
-
-    def __get__(self, *_):
-        tmp = self.value
-        self.value += 1
-        return tmp
-
-
 def inf_range(start: int = 0, step: int = 1):
     value = start
     while True:

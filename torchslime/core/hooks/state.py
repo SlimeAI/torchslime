@@ -4,11 +4,11 @@ State Pattern for model state management.
 from torchslime.components.registry import Registry
 from torchslime.components.metric import MeterDict
 from torchslime.core.context.base import BaseContext
-from torchslime.utils.typing import Tuple, Mapping
+from torchslime.utils.typing import Tuple, Mapping, Type
 
 from torch.utils.data import DataLoader
 
-state_registry = Registry('state_registry')
+state_registry = Registry[Type["StateHook"]]('state_registry')
 
 
 class StateHook:
@@ -22,7 +22,7 @@ class StateHook:
     def get_meter(self, ctx: BaseContext) -> Tuple[MeterDict, MeterDict]: pass
 
     def __str__(self) -> str:
-        return 'BASE STATUS'
+        return 'BASE STATE'
 
 
 @state_registry(name='train')

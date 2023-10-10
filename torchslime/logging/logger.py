@@ -1,20 +1,14 @@
 import logging
 from logging import Formatter, Filter, Handler, LogRecord, Logger
-from rich.logging import RichHandler
 from torchslime.components.store import store
-from torchslime.utils.launch import LaunchUtil, Launcher
+from torchslime.utils.launch import Launcher
 from torchslime.utils.typing import (
     NOTHING,
-    Iterable,
-    Union,
-    NoneOrNothing,
-    Pass,
-    MISSING,
-    Missing,
     Any
 )
 from torchslime.utils.bases import BaseDict, AttrObserver, AttrObserve
 from torchslime.utils.decorators import Singleton
+from .rich import RichHandler, SlimeRichHandler
 import sys
 
 
@@ -29,18 +23,8 @@ store.builtin__().init__('log_dateformat', '%Y/%m/%d %H:%M:%S')
 
 class SlimeLogger(Logger, Launcher, AttrObserver):
     
-    def __init__(
-        self,
-        launch: Union[str, LaunchUtil, Missing] = MISSING,
-        exec_ranks: Union[Iterable[int], NoneOrNothing, Pass, Missing] = MISSING,
-        *args,
-        **kwargs
-    ) -> None:
-        if exec_ranks is MISSING:
-            exec_ranks = [0]
-        
+    def __init__(self, *args, **kwargs) -> None:
         Logger.__init__(self, *args, **kwargs)
-        Launcher.__init__(self, launch, exec_ranks)
         AttrObserver.__init__(self)
 
     def addHandler(self, handler: Handler) -> None:
@@ -130,6 +114,7 @@ store.builtin__().attach__(slime_formatter_observer, init=False)
 logger: SlimeLogger = SlimeLogger(name='builtin__', level=logging.INFO)
 logger.propagate = False
 logger.addFilter(SlimeFilter())
-logger.addHandler(RichHandler(
+logger.addHandler(SlimeRichHandler(
+    console=store.builtin__().console_launcher,
     rich_tracebacks=True
 ))

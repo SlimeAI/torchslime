@@ -96,10 +96,10 @@ class VanillaBuild(BuildHook):
                         # compute meter loss value and metrics
                         handler.MeterHandler.m__(id='meter_train')(),
                         # apply learning rate decay
-                        handler.LRDecayHandler.m__(id='lr_decay')(),
-                        # display in console or in log files
-                        handler.DisplayHandler.m__(id='display_train')()
-                    ])
+                        handler.LRDecayHandler.m__(id='lr_decay')()
+                    ]),
+                    # logging
+                    handler.LoggingHandler.m__(id='logging_train')(['train'])
                 ]),
                 # validation part
                 handler.Container.m__(
@@ -112,7 +112,7 @@ class VanillaBuild(BuildHook):
                     ]
                 )([
                     handler.FuncHandler.m__(
-                        id='print_val_start',
+                        id='logging_val_start',
                         exec_ranks=[0]
                     )([lambda _: logger.info('Validation starts.')]),
                     # init meter setting
@@ -126,15 +126,13 @@ class VanillaBuild(BuildHook):
                         # metrics
                         handler.MetricHandler.m__(id='metrics_val')(),
                         # compute meter loss value and metrics
-                        handler.MeterHandler.m__(id='meter_val')(),
-                        # display in console or in log files
-                        handler.DisplayHandler.m__(id='display_val')()
-                    ])
+                        handler.MeterHandler.m__(id='meter_val')()
+                    ]),
+                    # logging
+                    handler.LoggingHandler.m__(id='logging_val')(['val'])
                 ])
             ])
         ])
-        
-        # TODO: decay mode
 
     def build_eval(self, ctx: BaseContext):
         # get handler classes from context
@@ -158,10 +156,10 @@ class VanillaBuild(BuildHook):
                     # compute metrics
                     handler.MetricHandler.m__(id='metrics_eval')(),
                     # compute meter metrics
-                    handler.MeterHandler.m__(id='meter_eval')(),
-                    # display
-                    handler.DisplayHandler.m__(id='display_eval')()
-                ])
+                    handler.MeterHandler.m__(id='meter_eval')()
+                ]),
+                # logging
+                handler.LoggingHandler.m__(id='logging_eval')(['eval'])
             ])
         ])
     
@@ -179,12 +177,13 @@ class VanillaBuild(BuildHook):
                 # dataset iteration
                 handler.IterationContainer.m__(id='iteration_predict')([
                     # forward
-                    handler.ForwardHandler.m__(id='forward_predict')(),
-                    # display
-                    handler.DisplayHandler.m__(id='display_predict')()
+                    handler.ForwardHandler.m__(id='forward_predict')()
                 ])
             ])
         ])
+    
+    def __str__(self) -> str:
+        return 'Epoch'
 
 
 @build_registry(name='step')
@@ -220,8 +219,6 @@ class StepBuild(VanillaBuild):
                     handler.MeterHandler.m__(id='meter_train')(),
                     # apply learning rate decay
                     handler.LRDecayHandler.m__(id='lr_decay')(),
-                    # display in console or in log files
-                    handler.DisplayHandler.m__(id='display_train')(),
                     # validation
                     handler.Container.m__(
                         id='container_val',
@@ -231,7 +228,7 @@ class StepBuild(VanillaBuild):
                         ]
                     )([
                         handler.FuncHandler.m__(
-                            id='print_val_start',
+                            id='logging_val_start',
                             exec_ranks=[0]
                         )([lambda _: logger.info('Validation starts.')]),
                         # init meter setting
@@ -245,10 +242,10 @@ class StepBuild(VanillaBuild):
                             # metrics
                             handler.MetricHandler.m__(id='metrics_val')(),
                             # compute meter loss value and metrics
-                            handler.MeterHandler.m__(id='meter_val')(),
-                            # display in console or in log files
-                            handler.DisplayHandler.m__(id='display_val')()
+                            handler.MeterHandler.m__(id='meter_val')()
                         ]),
+                        # logging
+                        handler.LoggingHandler.m__(id='logging_train_val')(['train', 'val']),
                         # init train meter after validation
                         handler.MeterInitHandler.m__(
                             id='meter_init_train_after_val',
@@ -261,3 +258,6 @@ class StepBuild(VanillaBuild):
                 ])
             ])
         ])
+    
+    def __str__(self) -> str:
+        return 'Step'

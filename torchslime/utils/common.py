@@ -1,4 +1,6 @@
+import multiprocessing
 from textwrap import indent
+import threading
 from .typing import (
     NOTHING,
     Mapping,
@@ -60,3 +62,25 @@ def iterable(__obj: Any) -> bool:
         return False
     else:
         return True
+
+
+class Count:
+    """
+    Count times of variable-get.
+    """
+
+    __t_lock = threading.Lock()
+    __p_lock = multiprocessing.Lock()
+
+    def __init__(self):
+        super().__init__()
+        self.value = 0
+
+    def __set__(self, *_):
+        pass
+
+    def __get__(self, *_):
+        with self.__t_lock, self.__p_lock:
+            value = self.value
+            self.value += 1
+        return value

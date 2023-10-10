@@ -3,8 +3,24 @@ from torch import device, Tensor
 from torch.optim.optimizer import Optimizer
 from torchslime.utils.bases import Base
 from torchslime.utils.typing import NOTHING, NUMBER, Nothing
-from torchslime.utils.typing import Any, Sequence, Union, Dict, Tuple, Callable, List
+from torchslime.utils.typing import (
+    Any,
+    Sequence,
+    Union,
+    Dict,
+    Callable,
+    List,
+    TYPE_CHECKING
+)
 from torchslime.logging.logger import logger, LoggerKwargs
+
+if TYPE_CHECKING:
+    from torchslime.logging.rich import (
+        SlimeLiveLauncher,
+        SlimeGroup,
+        HandlerProgress,
+        SlimeProgressLauncher
+    )
 
 
 class BaseContext(Base):
@@ -35,6 +51,8 @@ class BaseContext(Base):
         self.custom_ctx: CustomContext = CustomContext()
         # hook context
         self.hook_ctx: HookContext = HookContext()
+        # display context
+        self.display_ctx: DisplayContext = DisplayContext()
 
     @property
     def model(self):
@@ -171,9 +189,6 @@ class RunContext(TempContext):
         # loss reduction func
         from torchslime.components.metric import LossReductionFactory
         self.loss_reduction: Callable[[BaseContext], Tensor] = LossReductionFactory.get('mean')
-        # progress
-        from torchslime.logging.rich import SlimeProgress
-        self.progress: Union[SlimeProgress, Nothing] = NOTHING
 
 
 class HandlerContext(TempContext):
@@ -200,7 +215,7 @@ class HandlerContext(TempContext):
         self.MeterInitHandler = common.MeterInitHandler
         self.MeterHandler = common.MeterHandler
         self.GatherAverageHandler = common.GatherAverageHandler
-        self.DisplayHandler = common.DisplayHandler
+        self.LoggingHandler = common.LoggingHandler
         self.LRDecayHandler = common.LRDecayHandler
         self.FuncHandler = common.FuncHandler
         
@@ -222,17 +237,27 @@ class CustomContext(TempContext):
 class HookContext(TempContext):
 
     def initialize(self):
-        self.lr_decay_mode = 'step'
-        
         # hooks
         from torchslime.core.hooks.plugin import PluginContainer
         self.plugins: PluginContainer = PluginContainer()
+        
         from torchslime.core.hooks.launch import LaunchHook
         self.launch: LaunchHook = NOTHING
+        
         from torchslime.core.hooks.build import BuildHook
         self.build: BuildHook = NOTHING
+        
         from torchslime.core.hooks.state import StateHook
         self.state: StateHook = NOTHING
+        
+        from torchslime.core.hooks.profiler import ProfilerHook
+        self.profiler: ProfilerHook = NOTHING
 
 
-# TODO: Display Context
+class DisplayContext(TempContext):
+    
+    def initialize(self):
+        self.live_launcher: Union["SlimeLiveLauncher", Nothing] = NOTHING
+        self.live_group: Union["SlimeGroup", Nothing] = NOTHING
+        self.handler_progress: Union["HandlerProgress", "SlimeProgressLauncher", Nothing] = NOTHING
+        self.progress_task_id: Union[int, Nothing] = NOTHING

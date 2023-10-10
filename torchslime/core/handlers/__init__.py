@@ -1,4 +1,8 @@
-from torchslime.utils.common import dict_to_key_value_str_list
+from torchslime.utils.common import (
+    Count,
+    dict_to_key_value_str_list,
+    concat_format
+)
 from torchslime.utils.typing import (
     NOTHING,
     Nothing,
@@ -15,13 +19,13 @@ from torchslime.utils.typing import (
     Pass,
     PASS
 )
-from torchslime.utils import Count, cli as Cursor
+from torchslime.utils import cli as Cursor
 from torchslime.core.context.base import BaseContext
 from torchslime.logging.logger import logger
 from torchslime.utils.bases import (
     CompositeStructure,
     CompositeDFS,
-    BiListItem,
+    MutableBiListItem,
     BiList,
     BaseList
 )
@@ -35,7 +39,6 @@ from torchslime.components.exception import (
     HandlerContinue,
     HandlerWrapperException
 )
-from torchslime.utils.common import concat_format
 from functools import partial
 
 _T = TypeVar('_T')
@@ -51,9 +54,9 @@ class HandlerMeta(Meta):
     
     def m_init__(
         self,
-        id=NOTHING,
-        exec_ranks=PASS,
-        wrappers=NOTHING,
+        id: Union[str, NoneOrNothing] = NOTHING,
+        exec_ranks: Union[Iterable[int], NoneOrNothing, Pass] = PASS,
+        wrappers: Union[Iterable['HandlerWrapper'], NoneOrNothing] = NOTHING,
         lifecycle=NOTHING
     ):
         self.set_id(id)
@@ -78,7 +81,6 @@ class HandlerMeta(Meta):
 
     def set_id(self, __id: Union[str, NoneOrNothing]) -> None:
         if is_none_or_nothing(__id):
-            # TODO: thread-safe and process-safe
             self.__id = f'handler_{self._handler_id_gen}'
         else:
             self.__id = __id
@@ -113,14 +115,14 @@ class HandlerMeta(Meta):
         }
 
 
-class Handler(HandlerMeta, CompositeStructure, BiListItem):
+class Handler(HandlerMeta, CompositeStructure, MutableBiListItem):
     """Base class for all handlers.
     """
     
     def __init__(self):
         HandlerMeta.__init__(self)
         CompositeStructure.__init__(self)
-        BiListItem.__init__(self)
+        MutableBiListItem.__init__(self)
 
     def handle(self, ctx: BaseContext) -> None: pass
 
@@ -161,49 +163,6 @@ class Handler(HandlerMeta, CompositeStructure, BiListItem):
         #
         except Exception as e:
             raise HandlerException(exception_handler=self, exception=e)
-    
-    #
-    # Handler Container Operations
-    #
-    
-    def replace_self(self, handler: 'Handler') -> bool:
-        if not self._verify_parent():
-            return False
-        parent = self.get_parent__()
-        index = parent.index(self)
-        parent[index] = handler
-        return True
-    
-    def insert_before_self(self, handler: 'Handler') -> bool:
-        if not self._verify_parent():
-            return False
-        parent = self.get_parent__()
-        index = parent.index(self)
-        parent.insert(index, handler)
-        return True
-    
-    def insert_after_self(self, handler: 'Handler') -> bool:
-        if not self._verify_parent():
-            return False
-        parent = self.get_parent__()
-        index = parent.index(self)
-        parent.insert(index + 1, handler)
-        return True
-    
-    def remove_self(self) -> bool:
-        if not self._verify_parent():
-            return False
-        parent = self.get_parent__()
-        parent.remove(self)
-        return True
-    
-    def _verify_parent(self) -> bool:
-        if self.get_parent__() is NOTHING or self not in self.get_parent__():
-            # root node or unmatched parent
-            logger.warning(f'Handler ``{str(self)}`` does not have a parent or it is not contained in its parent.')
-            self.del_parent__()
-            return False
-        return True
     
     #
     # Handler Search Operations
