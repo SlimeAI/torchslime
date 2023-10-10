@@ -7,16 +7,13 @@ from torchslime.utils.typing import (
     Iterable,
     Missing,
     NoneOrNothing,
-    is_none_or_nothing,
     Pass,
     Union,
     Nothing,
     NOTHING,
     TypeVar,
     overload,
-    Type,
-    TYPE_CHECKING,
-    Callable
+    Type
 )
 from torchslime.utils.launch import LaunchUtil, Launcher
 from torchslime.utils.decorators import RemoveOverload
@@ -25,9 +22,7 @@ from torchslime.utils.bases import (
     AttrObserve,
     ScopedAttrRestore,
     BiList,
-    MutableBiListItem,
-    CompositeBFT,
-    BaseList
+    MutableBiListItem
 )
 from torchslime.utils.meta import Meta
 import rich
@@ -268,137 +263,6 @@ class ProfileProgress(SlimeGroup[_T_RichRenderable]):
         self.text = __text
 
 
-if TYPE_CHECKING:
-    from torchslime.core.handlers import Handler
-
-class HandlerTreeProfiler:
-    
-    def handler_profile(
-        self,
-        handler: "Handler",
-        display_meta: bool = True,
-        display_attr: bool = True,
-        target_handlers: Union[Iterable["Handler"], NoneOrNothing] = NOTHING,
-        wrap_func: Union[str, Callable[[Group, "Handler"], Group], NoneOrNothing] = NOTHING
-    ) -> Group:
-        renderables = [
-            Text(handler.get_class_name(), style='bold blue')
-        ]
-        if display_meta:
-            meta = handler.get_meta_dict()
-            if len(meta) >= 1:
-                meta_table = Table()
-                meta_table.add_column('Meta', style='cyan')
-                meta_table.add_column('Value', style='green')
-                
-                for key, value in meta.items():
-                    meta_table.add_row(
-                        parse_renderable(key),
-                        parse_renderable(value)
-                    )
-                
-                renderables.append(meta_table)
-        
-        if display_attr:
-            attr = handler.get_attr_dict()
-            if len(attr) >= 1:
-                attr_table = Table()
-                attr_table.add_column('Attr', style='cyan')
-                attr_table.add_column('Value', style='green')
-                
-                for key, value in attr.items():
-                    attr_table.add_row(
-                        parse_renderable(key),
-                        parse_renderable(value)
-                    )
-                
-                renderables.append(attr_table)
-        
-        group = Group(*renderables)
-        if not self.check_target_handler(handler, target_handlers):
-            return group
-        
-        wrap_func = self.get_handler_profile_wrap_func(wrap_func)
-        if is_none_or_nothing(wrap_func):
-            from torchslime.logging.logger import logger
-            logger.warning(
-                'Handler profile wrap func is ``None`` or ``NOTHING``, '
-                'and it will do nothing during display.'
-            )
-            return group
-        return wrap_func(group, handler)
-    
-    def profile(
-        self,
-        handler: "Handler",
-        display_meta: bool = True,
-        display_attr: bool = True,
-        target_handlers: Union[Iterable["Handler"], NoneOrNothing] = NOTHING,
-        wrap_func: Union[str, Callable[[Group, "Handler"], Group], NoneOrNothing] = NOTHING
-    ) -> Tree:
-        root = Tree(self.handler_profile(handler))
-        queue = [
-            root
-        ]
-        
-        def visit(node: "Handler"):
-            tree = queue.pop(0)
-            for child in node.composite_iterable__():
-                new_tree = tree.add(self.handler_profile(
-                    child,
-                    display_meta=display_meta,
-                    display_attr=display_attr,
-                    target_handlers=target_handlers,
-                    wrap_func=wrap_func
-                ))
-                queue.append(new_tree)
-        
-        CompositeBFT(handler, visit)
-        return root
-    
-    def check_target_handler(
-        self,
-        handler: "Handler",
-        target_handlers: Union[Iterable["Handler"], NoneOrNothing] = NOTHING
-    ) -> bool:
-        return handler in BaseList.create__(
-            target_handlers,
-            return_none=False,
-            return_nothing=False,
-            return_pass=False
-        )
-    
-    def get_handler_profile_wrap_func(
-        self,
-        wrap_func: Union[str, Callable[[Group, "Handler"], Group], NoneOrNothing] = NOTHING
-    ) -> Union[Callable[[Group, "Handler"], Group], NoneOrNothing]:
-        if isinstance(wrap_func, str):
-            return handler_profile_wrap_func.get(wrap_func, NOTHING)
-        return wrap_func
-
-
-from torchslime.components.registry import Registry
-handler_profile_wrap_func = Registry[Callable[[Group, "Handler"], Group]]('handler_profile_wrap_func')
-
-@handler_profile_wrap_func(name='exception')
-def _exception_wrap(group: Group, handler: "Handler") -> Group:
-    _separator_len = 10
-    # ×  <---------- EXCEPTION Here ----------
-    _exception_indicator = f' {chr(0x00D7)}  <{"-" * _separator_len} EXCEPTION Here {"-" * _separator_len}'
-    original_text = group.renderables[0]
-    group.renderables[0] = Text.assemble(original_text, Text(_exception_indicator, style='bold red'))
-    return group
-
-@handler_profile_wrap_func(name='terminate')
-def _terminate_wrap(group: Group, handler: "Handler") -> Group:
-    _separator_len = 10
-    # ||---------- Handler TERMINATE Here ----------||
-    _terminate_indicator = f' ||{"-" * _separator_len} Handler TERMINATE Here {"-" * _separator_len}||'
-    original_text = group.renderables[0]
-    group.renderables[0] = Text.assemble(original_text, Text(_terminate_indicator, style='bold green'))
-    return group
-
-
 class RenderInterface:
     def render__(self) -> RenderableType: pass
 
@@ -419,37 +283,3 @@ def parse_renderable(item) -> RenderableType:
         return item
     else:
         return str(item)
-
-
-if TYPE_CHECKING:
-    from torchslime.core.handlers.wrappers import HandlerWrapper, HandlerWrapperContainer
-
-class HandlerWrapperContainerProfiler:
-    
-    def wrapper_profile(
-        self,
-        wrapper: Union["HandlerWrapper", "HandlerWrapperContainer"]
-    ) -> str:
-        from torchslime.utils.common import dict_to_key_value_str_list, concat_format
-        
-        class_name = wrapper.get_class_name()
-        
-        meta_display_list = dict_to_key_value_str_list(wrapper.get_meta_dict())
-        meta = concat_format('[', meta_display_list, ']', item_sep=', ')
-        
-        attr_display_list = dict_to_key_value_str_list(wrapper.get_attr_dict())
-        attr = concat_format('(', attr_display_list, ')', item_sep=', ')
-        
-        return f'{class_name}{meta}{attr}'
-    
-    def profile(self, handler_wrapper_container: "HandlerWrapperContainer") -> RenderableType:
-        table = Table(show_lines=True)        
-        table.add_column('index')
-        table.add_column('wrapper/container')
-
-        table.add_row('[bold]Container', f'[bold]{self.wrapper_profile(handler_wrapper_container)}')
-
-        for index, handler_wrapper in enumerate(handler_wrapper_container):
-            table.add_row(str(index), self.wrapper_profile(handler_wrapper))
-        
-        return table

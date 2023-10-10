@@ -25,8 +25,7 @@ import threading
 import os
 # type hint only
 if TYPE_CHECKING:
-    from torchslime.logging.rich import SlimeConsoleLauncher, SlimeAltConsoleLauncher
-    from rich.console import Console
+    from torchslime.logging.rich import SlimeConsoleLauncher, SlimeAltConsoleLauncher, Console
     from torchslime.utils.launch import LaunchUtil
     from torchslime.utils.bases import (
         AttrObserver,

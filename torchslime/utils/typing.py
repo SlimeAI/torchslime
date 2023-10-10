@@ -8,6 +8,9 @@ import sys
 import threading
 from types import FunctionType, MethodType
 from typing import *
+from typing import (
+    TextIO
+)
 
 if sys.version_info < (3, 8):
     try:

@@ -1,3 +1,4 @@
+from torchslime.core.handlers.riching import HandlerTreeProfiler
 from torchslime.utils.common import (
     Count,
     dict_to_key_value_str_list,
@@ -23,8 +24,7 @@ from torchslime.utils.typing import (
 from torchslime.core.context.base import BaseContext
 from torchslime.logging.logger import logger
 from torchslime.logging.rich import (
-    yield_console,
-    HandlerTreeProfiler
+    yield_console
 )
 from torchslime.utils.bases import (
     CompositeStructure,

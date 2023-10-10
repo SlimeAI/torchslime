@@ -1,4 +1,5 @@
 from torchslime.core.context.base import BaseContext
+from .riching import HandlerWrapperContainerProfiler
 from . import Handler, HandlerContainer, HandlerMeta
 from torchslime.core.hooks.state import state_registry
 from torchslime.utils.bases import BaseGenerator
@@ -21,7 +22,7 @@ from torchslime.components.exception import (
 )
 from torchslime.utils.decorators import RemoveOverload
 from torchslime.logging.logger import logger
-from torchslime.logging.rich import RenderInterface, RenderableType, HandlerWrapperContainerProfiler
+from torchslime.logging.rich import RenderInterface, RenderableType
 from functools import partial
 
 __all__ = [
