@@ -172,7 +172,10 @@ class BaseList(MutableSequence[_T], Generic[_T]):
             # return the item itself
             __list_like: Union[NoneOrNothing, Pass]
             return __list_like
-        elif isinstance(__list_like, Iterable) or is_none_or_nothing(__list_like):
+        # NOTE: ``isinstance(NOTHING, Iterable)`` will raise TypeError, 
+        # because ``NOTHING.__class__`` will still return ``NOTHING`` instance, 
+        # and it will fail in the ``issubclass`` function.
+        elif is_none_or_nothing(__list_like) or isinstance(__list_like, Iterable):
             return cls(__list_like)
         
         if strict:

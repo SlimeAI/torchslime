@@ -17,11 +17,15 @@ from torchslime.utils.typing import (
     TypeVar,
     Type,
     Pass,
-    PASS
+    PASS,
+    TYPE_CHECKING
 )
-from torchslime.utils import cli as Cursor
 from torchslime.core.context.base import BaseContext
 from torchslime.logging.logger import logger
+from torchslime.logging.rich import (
+    yield_console,
+    HandlerTreeProfiler
+)
 from torchslime.utils.bases import (
     CompositeStructure,
     CompositeDFS,
@@ -31,7 +35,6 @@ from torchslime.utils.bases import (
 )
 from torchslime.utils.meta import Meta
 from torchslime.utils.decorators import RemoveOverload
-from torchslime.components.registry import Registry
 from torchslime.components.exception import (
     HandlerException,
     HandlerTerminate,
@@ -40,6 +43,9 @@ from torchslime.components.exception import (
     HandlerWrapperException
 )
 from functools import partial
+
+if TYPE_CHECKING:
+    from torchslime.logging.rich import Group
 
 _T = TypeVar('_T')
 
@@ -106,7 +112,7 @@ class HandlerMeta(Meta):
     def set_lifecycle(self):
         pass
     
-    def _get_meta_dict(self) -> dict:
+    def get_meta_dict(self) -> dict:
         return {
             'id': self.get_id(),
             'exec_ranks': self.get_exec_ranks(),
@@ -182,82 +188,48 @@ class Handler(HandlerMeta, CompositeStructure, MutableBiListItem):
     def get_by_filter(self, __func: Callable[["Handler"], bool]) -> List['Handler']:
         return CompositeDFS(self, __func)
     
-    def get_display_str(
+    def display(
         self,
-        target_handlers: Union[List['Handler'], NoneOrNothing] = NOTHING,
-        wrap_func: Union[Callable[[str, 'Handler'], str], NoneOrNothing] = NOTHING
-    ) -> str:
-        display_str = str(self)
-        
-        if not is_none_or_nothing(wrap_func) and self._is_target_handler(target_handlers):
-            return wrap_func(display_str, target_handlers)
-        else:
-            return display_str
-    
-    def display(self):
-        logger.info(f'Handler Structure:\n{self.get_display_str()}')
-
-    def display_traceback(
-        self,
-        target_handlers: Union[List['Handler'], NoneOrNothing] = NOTHING,
-        wrap_func: Union[str, Callable] = 'exception',
-        level: str = 'error'
+        display_meta: bool = True,
+        display_attr: bool = True,
+        target_handlers: Union[Iterable["Handler"], NoneOrNothing] = NOTHING,
+        wrap_func: Union[str, Callable[["Group", "Handler"], "Group"], NoneOrNothing] = NOTHING,
+        enable_console: bool = True,
+        enable_alt_console: bool = False,
+        handler_tree_profiler: Union[HandlerTreeProfiler, NoneOrNothing] = NOTHING
     ):
-        wrap_func = wrap_func if callable(wrap_func) else display_wrap_func.get(wrap_func)
-
-        content = self.get_display_str(target_handlers=target_handlers, wrap_func=wrap_func)
-        getattr(logger, level, logger.error)(f'Handler Traceback:\n{Cursor.single_color("w")}{content}')
-
-    def _is_target_handler(
-        self,
-        target_handlers: Union[List['Handler'], NoneOrNothing] = NOTHING
-    ):
-        return self in BaseList.create__(
-            target_handlers,
-            return_none=False,
-            return_nothing=False,
-            return_pass=False
+        if is_none_or_nothing(handler_tree_profiler):
+            handler_tree_profiler = HandlerTreeProfiler()
+        root = handler_tree_profiler.profile(
+            self,
+            display_meta=display_meta,
+            display_attr=display_attr,
+            target_handlers=target_handlers,
+            wrap_func=wrap_func
         )
-
+        for console in yield_console(
+            enable_console=enable_console,
+            enable_alt_console=enable_alt_console
+        ):
+            console.print('[bold]Handler Tree Profile: [/bold]')
+            console.print(root)
+    
     def __str__(self) -> str:
-        class_name = self._get_class_name()
+        class_name = self.get_class_name()
         
-        meta_display_list = dict_to_key_value_str_list(self._get_meta_dict())
+        meta_display_list = dict_to_key_value_str_list(self.get_meta_dict())
         meta = concat_format('[', meta_display_list, ']', break_line=False, item_sep=', ')
         
-        attr_display_list = dict_to_key_value_str_list(self._get_attr_dict())
+        attr_display_list = dict_to_key_value_str_list(self.get_attr_dict())
         attr = concat_format('(', attr_display_list, ')', break_line=False, item_sep=', ')
         
         return f'{class_name}{meta}{attr}'
     
-    def _get_class_name(self) -> str:
+    def get_class_name(self) -> str:
         return type(self).__name__
 
-    def _get_attr_dict(self) -> dict:
+    def get_attr_dict(self) -> dict:
         return {}
-
-
-display_wrap_func = Registry('display_wrap_func')
-
-
-@display_wrap_func(name='exception')
-def _exception_wrap(item: str, handler: Handler) -> str:
-    _separator_len = 10
-    # ×  <---------- EXCEPTION Here ----------
-    _exception_indicator = chr(0x00D7) + '  ' + '<' + '-' * _separator_len + ' EXCEPTION Here ' + '-' * _separator_len
-    items = item.split('\n')
-    items[0] = Cursor.single_color('r') + items[0] + '  ' + _exception_indicator + Cursor.single_color('w')
-    return '\n'.join(items)
-
-
-@display_wrap_func(name='terminate')
-def _terminate_wrap(item: str, handler: Handler) -> str:
-    _separator_len = 10
-    # ||---------- Handler TERMINATE ----------||
-    _terminate_indicator = '||' + '-' * _separator_len + ' Handler TERMINATE ' + '-' * _separator_len + '||'
-    items = item.split('\n')
-    items[0] = Cursor.single_color('g') + items[0] + '  ' + _terminate_indicator + Cursor.single_color('w')
-    return '\n'.join(items)
 
 
 _T_Handler = TypeVar('_T_Handler', bound=Handler)
@@ -295,27 +267,6 @@ class HandlerContainer(Handler, BiList[_T_Handler]):
             pass
     
     def composite_iterable__(self) -> Iterable[_T_Handler]: return self
-    
-    def get_display_str(
-        self,
-        target_handlers: Union[List['Handler'], NoneOrNothing] = NOTHING,
-        wrap_func: Union[Callable[[str, 'Handler'], str], NoneOrNothing] = NOTHING
-    ) -> str:
-        class_name = self._get_class_name()
-        
-        meta_display_list = dict_to_key_value_str_list(self._get_meta_dict())
-        meta = concat_format('[', meta_display_list, ']', break_line=False, item_sep=', ')
-        
-        handlers = concat_format('([', [handler.get_display_str(target_handlers, wrap_func) for handler in self], '])')
-        attr_display_list = dict_to_key_value_str_list(self._get_attr_dict())
-        attr = concat_format('(', attr_display_list, ')', break_line=False, item_sep=', ')
-        
-        display_str = f'{class_name}{meta}{handlers}{attr}'
-        
-        if not is_none_or_nothing(wrap_func) and self._is_target_handler(target_handlers):
-            return wrap_func(display_str, target_handlers)
-        else:
-            return display_str
 
 
 from .common import *

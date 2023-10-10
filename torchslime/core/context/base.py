@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from torchslime.logging.rich import (
         SlimeLiveLauncher,
         SlimeGroup,
-        HandlerProgress,
+        ProfileProgress,
         SlimeProgressLauncher
     )
 
@@ -155,9 +155,9 @@ class RunContext(TempContext):
     def initialize(self):
         # handler containers that define the process of training, evaluating and predicting.
         from torchslime.core.handlers import HandlerContainer
-        self.train: Union[HandlerContainer, Nothing] = NOTHING
-        self.eval: Union[HandlerContainer, Nothing] = NOTHING
-        self.predict: Union[HandlerContainer, Nothing] = NOTHING
+        self.train_container: Union[HandlerContainer, Nothing] = NOTHING
+        self.eval_container: Union[HandlerContainer, Nothing] = NOTHING
+        self.predict_container: Union[HandlerContainer, Nothing] = NOTHING
         
         # data loader
         self.train_loader = NOTHING
@@ -259,5 +259,5 @@ class DisplayContext(TempContext):
     def initialize(self):
         self.live_launcher: Union["SlimeLiveLauncher", Nothing] = NOTHING
         self.live_group: Union["SlimeGroup", Nothing] = NOTHING
-        self.handler_progress: Union["HandlerProgress", "SlimeProgressLauncher", Nothing] = NOTHING
+        self.handler_progress: Union["ProfileProgress", "SlimeProgressLauncher", Nothing] = NOTHING
         self.progress_task_id: Union[int, Nothing] = NOTHING

@@ -4,10 +4,8 @@ from torchslime.utils.typing import (
     Callable,
     Iterable,
     Mapping,
-    TypeVar,
     Tuple,
     is_none_or_nothing,
-    NoneOrNothing,
     Any,
     Sequence,
     Union
@@ -20,12 +18,11 @@ from torchslime.utils.bases import BaseList
 from torchslime.components.metric import MeterDict
 from torchslime.components.store import store
 from torchslime.utils.decorators import CallDebug
-from torchslime.utils.common import dict_to_key_value_str
 from torchslime.core.context.base import BaseContext
 from torchslime.core.handlers import Handler, HandlerContainer
-from torchslime.core.hooks.state import state_registry, StateHook
+from torchslime.core.hooks.state import StateHook
 from torchslime.logging.logger import logger
-from torchslime.logging.rich import HandlerProgress, SlimeLiveLauncher, SlimeGroup, SlimeProgressLauncher
+from torchslime.logging.rich import ProfileProgress, SlimeLiveLauncher, SlimeGroup, SlimeProgressLauncher
 from contextlib import contextmanager
 from torch import set_grad_enabled
 from functools import wraps
@@ -48,8 +45,6 @@ __all__ = [
     'MeterHandler',
     'LRDecayHandler'
 ]
-
-_T = TypeVar('_T')
 
 
 def TorchGrad(func):
@@ -203,7 +198,7 @@ class IterationContainer(HandlerContainer, ProfileProgressInterface):
         total = ctx.step_ctx.total
         total=total if not is_none_or_nothing(total) else None
         
-        handler_progress = HandlerProgress()
+        handler_progress = ProfileProgress()
         task_id = handler_progress.progress.add_task(
             str(ctx.hook_ctx.state),
             total=total
@@ -245,7 +240,7 @@ class StepIterationContainer(HandlerContainer, ProfileProgressInterface):
                     break
     
     def create_progress__(self, ctx: BaseContext) -> tuple[Any, Any]:
-        handler_progress = HandlerProgress()
+        handler_progress = ProfileProgress()
         task_id = handler_progress.progress.add_task(
             'StepIteration',
             total=ctx.iteration_ctx.total

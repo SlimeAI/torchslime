@@ -62,7 +62,7 @@ class Context(BaseContext, AttrObserver):
         valid_freq: Union[int, List[int], Callable[[BaseContext], bool]] = 1,
         train_start: int = 0
     ) -> 'Context':
-        if is_none_or_nothing(self.run_ctx.train):
+        if is_none_or_nothing(self.run_ctx.train_container):
             logger.error('``train`` called before train handlers are built. Call ``build_train`` first.')
             raise APIMisused('train')
         
@@ -75,7 +75,7 @@ class Context(BaseContext, AttrObserver):
 
         logger.info(self.hook_ctx.launch.get_device_info(self))
 
-        _handler_call(self.run_ctx.train, self)
+        _handler_call(self.run_ctx.train_container, self)
 
     @CallDebug(module_name='Context.build_train')
     @MethodChaining
@@ -84,10 +84,11 @@ class Context(BaseContext, AttrObserver):
     
     @CallDebug(module_name='Context.display_train')
     @MethodChaining
-    def display_train(self) -> 'Context':
-        if is_none_or_nothing(self.run_ctx.train):
+    def display_train(
+        self) -> 'Context':
+        if is_none_or_nothing(self.run_ctx.train_container):
             logger.warning('``display_train`` called before train handlers are built.')
-        self.run_ctx.train.display()
+        self.run_ctx.train_container.display()
 
     @CallDebug(module_name='Context.eval')
     @MethodChaining
@@ -95,7 +96,7 @@ class Context(BaseContext, AttrObserver):
         self,
         dataset: DATASET
     ) -> 'Context':
-        if is_none_or_nothing(self.run_ctx.eval):
+        if is_none_or_nothing(self.run_ctx.eval_container):
             logger.error('``eval`` called before eval handlers are built. Call ``build_eval`` first.')
             raise APIMisused('eval')
         
@@ -103,7 +104,7 @@ class Context(BaseContext, AttrObserver):
 
         logger.info(self.hook_ctx.launch.get_device_info(self))
         
-        _handler_call(self.run_ctx.eval, self)
+        _handler_call(self.run_ctx.eval_container, self)
 
     @CallDebug(module_name='Context.build_eval')
     @MethodChaining
@@ -113,9 +114,9 @@ class Context(BaseContext, AttrObserver):
     @CallDebug(module_name='Context.display_eval')
     @MethodChaining
     def display_eval(self) -> 'Context':
-        if is_none_or_nothing(self.run_ctx.eval):
+        if is_none_or_nothing(self.run_ctx.eval_container):
             logger.warning('``display_eval`` called before eval handlers are built.')
-        self.run_ctx.eval.display()
+        self.run_ctx.eval_container.display()
 
     @CallDebug(module_name='Context.predict')
     @MethodChaining
@@ -123,7 +124,7 @@ class Context(BaseContext, AttrObserver):
         self,
         dataset: DATASET
     ) -> 'Context':
-        if is_none_or_nothing(self.run_ctx.predict):
+        if is_none_or_nothing(self.run_ctx.predict_container):
             logger.error('``predict`` called before predict handlers are built. Call ``build_predict`` first.')
             raise APIMisused('predict')
         
@@ -131,7 +132,7 @@ class Context(BaseContext, AttrObserver):
 
         logger.info(self.hook_ctx.launch.get_device_info(self))
         
-        _handler_call(self.run_ctx.predict, self)
+        _handler_call(self.run_ctx.predict_container, self)
 
     @CallDebug(module_name='Context.build_predict')
     @MethodChaining
@@ -141,9 +142,9 @@ class Context(BaseContext, AttrObserver):
     @CallDebug(module_name='Context.display_predict')
     @MethodChaining
     def display_predict(self) -> 'Context':
-        if is_none_or_nothing(self.run_ctx.predict):
+        if is_none_or_nothing(self.run_ctx.predict_container):
             logger.warning('``display_predict`` called before predict handlers are built.')
-        self.run_ctx.predict.display()
+        self.run_ctx.predict_container.display()
 
     @CallDebug(module_name='Context.summary')
     @MethodChaining
@@ -310,8 +311,8 @@ def _handler_call(handler: Handler, ctx: Context):
     try:
         handler(ctx)
     except HandlerTerminate as ht:
-        handler.display_traceback(target_handlers=[ht.raise_handler], wrap_func='terminate', level='info')
+        handler.display(target_handlers=[ht.raise_handler], wrap_func='terminate')
         logger.info(f'Handler terminated with message: {ht.msg}')
     except HandlerException as he:
-        handler.display_traceback(target_handlers=[he.exception_handler])
+        handler.display(target_handlers=[he.exception_handler], wrap_func='exception')
         raise he.exception

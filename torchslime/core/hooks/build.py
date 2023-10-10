@@ -68,7 +68,7 @@ class VanillaBuild(BuildHook):
         # get handler classes from context
         handler = ctx.handler_ctx
         # build training process using handlers
-        ctx.run_ctx.train = handler.RootContainer.m__(id='container')([
+        ctx.run_ctx.train_container = handler.RootContainer.m__(id='container')([
             # epoch iter
             handler.EpochIterationContainer.m__(id='epoch_iteration')([
                 # train part
@@ -138,7 +138,7 @@ class VanillaBuild(BuildHook):
         # get handler classes from context
         handler = ctx.handler_ctx
         # build evaluating process using handlers
-        ctx.run_ctx.eval = handler.RootContainer.m__(id='container')([
+        ctx.run_ctx.eval_container = handler.RootContainer.m__(id='container')([
             handler.Container.m__(
                 id='container_eval',
                 wrappers=[
@@ -167,7 +167,7 @@ class VanillaBuild(BuildHook):
         # get handler classes from context
         handler = ctx.handler_ctx
         # build predicting process using handlers
-        ctx.run_ctx.predict = handler.RootContainer.m__(id='container')([
+        ctx.run_ctx.predict_container = handler.RootContainer.m__(id='container')([
             handler.Container.m__(
                 id='container_predict',
                 wrappers=[
@@ -193,7 +193,7 @@ class StepBuild(VanillaBuild):
         # get handler classes from context
         handler = ctx.handler_ctx
         # build training process using handlers
-        ctx.run_ctx.train = handler.RootContainer.m__(id='container')([
+        ctx.run_ctx.train_container = handler.RootContainer.m__(id='container')([
             # train
             handler.Container.m__(
                 id='container_train',

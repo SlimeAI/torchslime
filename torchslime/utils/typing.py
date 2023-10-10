@@ -10,11 +10,20 @@ from types import FunctionType, MethodType
 from typing import *
 
 if sys.version_info < (3, 8):
-    from typing_extensions import (
-        SupportsIndex,
-        TypedDict,
-        Literal
-    )
+    try:
+        from typing_extensions import (
+            SupportsIndex,
+            TypedDict,
+            Literal,
+            Protocol,
+            runtime_checkable
+        )
+    except Exception as e:
+        print(
+            'Loading ``typing_extensions`` module failed. '
+            'Please make sure you have installed it correctly.'
+        )
+        raise e
 
 if sys.version_info >= (3, 9):
     Dict = dict

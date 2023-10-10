@@ -21,6 +21,7 @@ from torchslime.components.exception import (
 )
 from torchslime.utils.decorators import RemoveOverload
 from torchslime.logging.logger import logger
+from torchslime.logging.rich import RenderInterface, RenderableType, HandlerWrapperContainerProfiler
 from functools import partial
 
 __all__ = [
@@ -79,7 +80,7 @@ class HandlerWrapperMeta(HandlerMeta):
     def m_init__(self, id=NOTHING):
         self.set_id(id)
     
-    def _get_meta_dict(self) -> dict:
+    def get_meta_dict(self) -> dict:
         return {
             'id': self.get_id()
         }
@@ -100,10 +101,11 @@ class HandlerWrapper(HandlerWrapperMeta, Handler):
 
 _T_HandlerWrapper = TypeVar('_T_HandlerWrapper', bound=HandlerWrapper)
 
-class HandlerWrapperContainer(HandlerWrapperMeta, HandlerContainer[_T_HandlerWrapper]):
+class HandlerWrapperContainer(HandlerWrapperMeta, HandlerContainer[_T_HandlerWrapper], RenderInterface):
     
     def __init__(self, wrappers: List[_T_HandlerWrapper]):
         super().__init__(wrappers)
+        self.profiler = HandlerWrapperContainerProfiler()
     
     def handle(self, ctx: BaseContext, wrapped: Handler):
         # the original generator list
@@ -125,8 +127,8 @@ class HandlerWrapperContainer(HandlerWrapperMeta, HandlerContainer[_T_HandlerWra
         for gen in reversed(exec_list):
             gen.send(wrapped)
     
-    def __str__(self) -> str:
-        return self.get_display_str()
+    def render__(self) -> RenderableType:
+        return self.profiler.profile(self)
 
 #
 # StateHandler
@@ -164,13 +166,13 @@ class StateWrapper(HandlerWrapper):
             # destroy cached state
             del self.restore_state
     
-    def _get_attr_dict(self) -> dict:
+    def get_attr_dict(self) -> dict:
         custom_attrs = {
             'state': self.state,
             'restore': self.restore
         }
         return {
-            **super()._get_attr_dict(),
+            **super().get_attr_dict(),
             **custom_attrs
         }
 
