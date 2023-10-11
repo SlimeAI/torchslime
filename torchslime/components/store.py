@@ -135,7 +135,7 @@ class Store:
     
     @staticmethod
     def get_current_key__() -> str:
-        pid = os.getpid(),
+        pid = os.getpid()
         tid = threading.get_ident()
         return f'p{pid}-t{tid}'
     

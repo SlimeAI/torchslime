@@ -2,7 +2,10 @@ from torchslime.core.context.base import BaseContext
 from .riching import HandlerWrapperContainerProfiler
 from . import Handler, HandlerContainer, HandlerMeta
 from torchslime.core.hooks.state import state_registry
-from torchslime.utils.bases import BaseGenerator
+from torchslime.utils.bases import (
+    BaseGenerator,
+    GeneratorQueue
+)
 from torchslime.utils.typing import (
     NOTHING,
     NoneOrNothing,
@@ -13,7 +16,8 @@ from torchslime.utils.typing import (
     Generator,
     TypeVar,
     overload,
-    Type
+    Type,
+    NoReturn
 )
 from torchslime.components.exception import (
     APIMisused,
@@ -47,7 +51,7 @@ class HandlerWrapperGenerator(BaseGenerator[_YieldT_co, _SendT_contra, _ReturnT_
         exit_allowed: bool = True
     ) -> None:
         self.handler = __handler
-        __gen = __handler.handle(__ctx)
+        __gen = __handler.handle_yield(__ctx)
         super().__init__(__gen, exit_allowed=exit_allowed)
     
     def send(self, __value: _SendT_contra) -> _YieldT_co:
@@ -96,8 +100,13 @@ class HandlerWrapperMeta(HandlerMeta):
 
 class HandlerWrapper(HandlerWrapperMeta, Handler):
     
-    def handle(self, ctx: BaseContext) -> Generator: pass
-    def gen(self, ctx: BaseContext) -> HandlerWrapperGenerator: return HandlerWrapperGenerator(self, ctx)
+    def handle(self, ctx: BaseContext) -> NoReturn:
+        raise APIMisused(
+            '``HandlerWrapper`` does not support ``handle``. Please use ``handle_yield`` instead.'
+        )
+    
+    def handle_yield(self, ctx: BaseContext) -> Generator: yield True
+    def gen__(self, ctx: BaseContext) -> HandlerWrapperGenerator: return HandlerWrapperGenerator(self, ctx)
 
 
 _T_HandlerWrapper = TypeVar('_T_HandlerWrapper', bound=HandlerWrapper)
@@ -108,25 +117,29 @@ class HandlerWrapperContainer(HandlerWrapperMeta, HandlerContainer[_T_HandlerWra
         super().__init__(wrappers)
         self.profiler = HandlerWrapperContainerProfiler()
     
-    def handle(self, ctx: BaseContext, wrapped: Handler):
+    def handle(self, ctx: BaseContext, wrapped: Handler) -> None:
         # the original generator list
-        gen_list: List[HandlerWrapperGenerator] = [wrapper.gen(ctx) for wrapper in self]
-        # wrapper exec list according to yield states
-        exec_list: List[HandlerWrapperGenerator] = []
-        # yield state controlling wrapper exec
-        state = True
-        # before handle
-        for gen in gen_list:
-            state = gen()
-            exec_list.append(gen)
-            if not state:
-                break
-        # handle
-        if state:
-            wrapped.handle(ctx)
+        gen_list: List[HandlerWrapperGenerator] = [wrapper.gen__(ctx) for wrapper in self]
+        # generator stack
+        stack = GeneratorQueue[HandlerWrapperGenerator](reverse=True)
+        
+        with stack:
+            # yield state controlling wrapper exec
+            state = True
+            # before handle
+            for gen in gen_list:
+                state = gen()
+                stack.append(gen)
+                if not state:
+                    break
+            # handle
+            if state:
+                wrapped.handle(ctx)
+        
         # after handle
-        for gen in reversed(exec_list):
-            gen.send(wrapped)
+        for gen in stack.pop_gen__():
+            with stack:
+                gen.send(wrapped)
     
     def render__(self) -> RenderableType:
         return self.profiler.profile(self)
@@ -151,7 +164,7 @@ class StateWrapper(HandlerWrapper):
         self.state = state
         self.restore = restore
     
-    def handle(self, ctx: BaseContext):
+    def handle_yield(self, ctx: BaseContext):
         # cache the state before state set
         self.restore_state: Union[StateHook, Nothing] = ctx.hook_ctx.state
         ctx.hook_ctx.state: StateHook = state_registry.get(self.state)()
@@ -187,7 +200,7 @@ class ConditionWrapper(HandlerWrapper):
         super().__init__()
         self.condition = condition
     
-    def handle(self, ctx: BaseContext):
+    def handle_yield(self, ctx: BaseContext):
         yield self.condition(ctx)
 
 #

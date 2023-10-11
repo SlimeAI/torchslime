@@ -43,6 +43,8 @@ from rich.panel import Panel
 from rich.logging import RichHandler
 from rich.table import Table
 from rich.protocol import is_renderable
+# NOTE: import rich api for compatibility
+from rich.markup import escape
 import threading
 import multiprocessing
 

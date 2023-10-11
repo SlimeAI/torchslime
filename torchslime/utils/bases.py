@@ -401,6 +401,9 @@ class BaseDict(MutableMapping[_KT, _VT], Generic[_KT, _VT]):
         _dict=str(self.__dict)
         return f'{classname}<{_id}>({_dict})'
 
+#
+# Base Generator
+#
 
 # Type Vars
 _YieldT_co = TypeVar('_YieldT_co', covariant=True)
@@ -460,6 +463,56 @@ class BaseGenerator(
             return __caller()
         except (StopIteration, GeneratorExit):
             self.exit = True
+
+
+_GeneratorT = TypeVar('_GeneratorT', bound=Generator)
+
+class GeneratorQueue(BaseList[_GeneratorT]):
+    
+    def __init__(
+        self,
+        __generators: Union[Iterable[_GeneratorT], NoneOrNothing] = None,
+        *,
+        reverse: bool = False
+    ):
+        super().__init__(__generators)
+        self.reverse = reverse
+    
+    def pop_gen__(self):
+        while len(self) > 0:
+            yield self.pop(
+                -1 if self.reverse else 0
+            )
+    
+    def __enter__(self):
+        return self
+    
+    def __exit__(self, __type, __val, __tb):
+        if not __type and not __val and not __tb:
+            return True
+        
+        exception = (__type, __val, __tb)
+        for gen in self.pop_gen__():
+            try:
+                gen.throw(*exception)
+            except Exception as e:
+                exception = (
+                    e.__class__,
+                    e,
+                    e.__traceback__
+                )
+            else:
+                exception = NOTHING
+                break
+        
+        if is_none_or_nothing(exception):
+            return True
+        elif exception[0] is __type and \
+                exception[1] is __val and \
+                exception[2] is __tb:
+            return False
+        else:
+            raise exception[1]
 
 #
 # Composite Structure

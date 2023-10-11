@@ -15,7 +15,8 @@ from torchslime.logging.rich import (
     Table,
     Text,
     Tree,
-    parse_renderable
+    parse_renderable,
+    escape
 )
 from torchslime.utils.bases import (
     BaseList,
@@ -226,7 +227,7 @@ class HandlerWrapperContainerProfiler:
         attr_display_list = dict_to_key_value_str_list(wrapper.get_attr_dict())
         attr = concat_format('(', attr_display_list, ')', item_sep=', ')
 
-        return f'{class_name}{meta}{attr}'
+        return escape(f'{class_name}{meta}{attr}')
 
     def profile(self, handler_wrapper_container: "HandlerWrapperContainer") -> RenderableType:
         table = Table(show_lines=True)

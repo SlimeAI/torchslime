@@ -343,6 +343,12 @@ class LoggingHandler(Handler):
             logger.info(
                 f'{logging_point} | {profiler.meter_profile(ctx, state)}'
             )
+    
+    def get_attr_dict(self) -> dict:
+        return {
+            **super().get_attr_dict(),
+            'logging_states': self.logging_states
+        }
 
 
 class RootContainer(HandlerContainer):

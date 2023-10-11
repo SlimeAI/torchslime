@@ -2,6 +2,12 @@ from torchslime.core.context import BaseContext
 from torchslime.components.registry import Registry
 from torchslime.core.handlers.wrappers import validation_check
 from torchslime.logging.logger import logger
+from torchslime.utils.typing import (
+    Generator
+)
+from torchslime.utils.bases import (
+    BaseGenerator
+)
 
 build_registry = Registry('build_registry')
 
@@ -18,11 +24,15 @@ class BuildHook:
         Launch -> Plugin -> Build -> Launch -> Plugin
         """
         h = ctx.hook_ctx
-        h.launch.before_build_train(ctx)
-        h.plugins.before_build_train(ctx)
+        
+        launch_gen = BaseGenerator(h.launch.build_train_yield(ctx))
+        plugin_gen = BaseGenerator(h.plugins.build_train_yield(ctx))
+        
+        launch_gen()
+        plugin_gen()
         h.build.build_train(ctx)
-        h.launch.after_build_train(ctx)
-        h.plugins.after_build_train(ctx)
+        launch_gen()
+        plugin_gen()
     
     def _build_eval(self, ctx: BaseContext):
         """
@@ -30,11 +40,15 @@ class BuildHook:
         Launch -> Plugin -> Build -> Launch -> Plugin
         """
         h = ctx.hook_ctx
-        h.launch.before_build_eval(ctx)
-        h.plugins.before_build_eval(ctx)
+        
+        launch_gen = BaseGenerator(h.launch.build_eval_yield(ctx))
+        plugin_gen = BaseGenerator(h.plugins.build_eval_yield(ctx))
+        
+        launch_gen()
+        plugin_gen()
         h.build.build_eval(ctx)
-        h.launch.after_build_eval(ctx)
-        h.plugins.after_build_eval(ctx)
+        launch_gen()
+        plugin_gen()
 
     def _build_predict(self, ctx: BaseContext):
         """
@@ -42,23 +56,24 @@ class BuildHook:
         Launch -> Plugin -> Build -> Launch -> Plugin
         """
         h = ctx.hook_ctx
-        h.launch.before_build_predict(ctx)
-        h.plugins.before_build_predict(ctx)
+
+        launch_gen = BaseGenerator(h.launch.build_predict_yield(ctx))
+        plugin_gen = BaseGenerator(h.plugins.build_predict_yield(ctx))
+        
+        launch_gen()
+        plugin_gen()
         h.build.build_predict(ctx)
-        h.launch.after_build_predict(ctx)
-        h.plugins.after_build_predict(ctx)
+        launch_gen()
+        plugin_gen()
 
 
-class _BuildInterface:
+class BuildInterface:
     """
     Interface for building handlers.
     """
-    def before_build_train(self, ctx: BaseContext) -> None: pass
-    def after_build_train(self, ctx: BaseContext) -> None: pass
-    def before_build_eval(self, ctx: BaseContext) -> None: pass
-    def after_build_eval(self, ctx: BaseContext) -> None: pass
-    def before_build_predict(self, ctx: BaseContext) -> None: pass
-    def after_build_predict(self, ctx: BaseContext) -> None: pass
+    def build_train_yield(self, ctx: BaseContext) -> Generator: yield
+    def build_eval_yield(self, ctx: BaseContext) -> Generator: yield
+    def build_predict_yield(self, ctx: BaseContext) -> Generator: yield
 
 
 @build_registry(name='vanilla')
