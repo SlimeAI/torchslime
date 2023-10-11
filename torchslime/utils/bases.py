@@ -507,9 +507,7 @@ class GeneratorQueue(BaseList[_GeneratorT]):
         
         if is_none_or_nothing(exception):
             return True
-        elif exception[0] is __type and \
-                exception[1] is __val and \
-                exception[2] is __tb:
+        elif exception[1] is __val:
             return False
         else:
             raise exception[1]
