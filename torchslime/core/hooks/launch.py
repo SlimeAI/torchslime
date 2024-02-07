@@ -33,7 +33,7 @@ class DistributedLaunch(LaunchHook, DistributedLaunchUtil):
         average_handlers = ctx.run_ctx.train_container.get_by_class(handler.MeterHandler)
         for a_handler in average_handlers:
             state = a_handler.get_id().split('_')[-1]
-            a_handler.insert_before_self__(handler.GatherAverageHandler.m__(id=f'gather_average_{state}')())
+            a_handler.insert_before_self__(handler.GatherAverageHandler(id=f'gather_average_{state}'))
 
     def build_eval_yield(self, ctx: BaseContext) -> Generator:
         yield
@@ -41,7 +41,7 @@ class DistributedLaunch(LaunchHook, DistributedLaunchUtil):
         average_handlers = ctx.run_ctx.eval_container.get_by_class(handler.MeterHandler)
         for a_handler in average_handlers:
             state = a_handler.get_id().split('_')[-1]
-            a_handler.insert_before_self__(handler.GatherAverageHandler.m__(id=f'gather_average_{state}')())
+            a_handler.insert_before_self__(handler.GatherAverageHandler(id=f'gather_average_{state}'))
     
     def get_device_info(self, ctx: BaseContext):
         return super().get_device_info(ctx)

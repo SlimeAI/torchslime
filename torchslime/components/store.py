@@ -1,7 +1,7 @@
 from torchslime.utils.typing import (
     NOTHING,
     Any,
-    Type,
+    Dict,
     TypeVar,
     is_none_or_nothing,
     overload,
@@ -33,8 +33,6 @@ if TYPE_CHECKING:
         ScopedAttrRestore
     )
 
-_T = TypeVar('_T')
-
 #
 # Scoped Store
 #
@@ -42,7 +40,8 @@ _T = TypeVar('_T')
 class ScopedStore(Base, AttrObservable):
     
     def __init__(self) -> None:
-        super().__init__()
+        Base.__init__(self)
+        AttrObservable.__init__(self)
     
     def init__(self, __name: str, __value: Any):
         """
@@ -161,40 +160,23 @@ store = Store()
 from torchslime.utils.bases import ScopedAttrAssign
 _T_ScopedStore = TypeVar('_T_ScopedStore', bound=ScopedStore)
 
-@RemoveOverload(checklist=['m__'])
-class StoreAssign(ScopedAttrAssign[_T_ScopedStore], directly_new_allowed=True):
+class StoreAssign(ScopedAttrAssign[_T_ScopedStore]):
     
-    def m_init__(
+    def __init__(
         self,
-        key: Union[str, NoneOrNothing] = NOTHING,
-        restore: bool = True
+        attr_assign: Dict[str, Any],
+        key: Union[str, NoneOrNothing] = NOTHING
     ) -> None:
         self.key = store.get_current_key__() if is_none_or_nothing(key) else key
-        super().m_init__(store.scope__(self.key), restore)
-    
-    @overload
-    @classmethod
-    def m__(
-        cls: Type[_T],
-        key: Union[str, NoneOrNothing] = NOTHING,
-        restore: bool = True
-    ) -> Type[_T]: pass
+        super().__init__(store.scope__(self.key), attr_assign)
 
 
 _T_BuiltinScopedStore = TypeVar('_T_BuiltinScopedStore', bound=BuiltinScopedStore)
 
-@RemoveOverload(checklist=['m__'])
 class BuiltinStoreAssign(StoreAssign[_T_BuiltinScopedStore]):
     
-    def m_init__(
+    def __init__(
         self,
-        restore: bool = True
+        attr_assign: dict[str, Any]
     ) -> None:
-        super().m_init__(BUILTIN_SCOPED_STORE_KEY, restore)
-    
-    @overload
-    @classmethod
-    def m__(
-        cls: Type[_T],
-        restore: bool = True
-    ) -> Type[_T]: pass
+        super().__init__(attr_assign, BUILTIN_SCOPED_STORE_KEY)

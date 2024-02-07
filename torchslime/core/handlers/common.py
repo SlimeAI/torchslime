@@ -8,7 +8,14 @@ from torchslime.utils.typing import (
     is_none_or_nothing,
     Any,
     Sequence,
-    Union
+    Union,
+    NoneOrNothing,
+    NOTHING,
+    PASS,
+    Pass,
+    TYPE_CHECKING,
+    MISSING,
+    Missing
 )
 from torchslime.utils import (
     type_cast,
@@ -27,6 +34,9 @@ from .riching import ProgressInterface, ProfileProgressInterface
 from torch import set_grad_enabled
 from functools import wraps
 from itertools import cycle
+
+if TYPE_CHECKING:
+    from .wrappers import HandlerWrapper
 
 __all__ = [
     'TorchGrad',
@@ -74,9 +84,17 @@ class EmptyHandler(Handler):
 
 class FuncHandler(Handler, BaseList[Callable[[BaseContext], None]]):
     
-    def __init__(self, __func_list: Iterable[Callable[[BaseContext], None]]):
-        Handler.__init__(self)
-        BaseList.__init__(self, __func_list)
+    def __init__(
+        self,
+        func_list: Iterable[Callable[[BaseContext], None]],
+        *,
+        id: Union[str, NoneOrNothing] = NOTHING,
+        exec_ranks: Union[Iterable[int], NoneOrNothing, Pass] = PASS,
+        wrappers: Union[Iterable['HandlerWrapper'], NoneOrNothing] = NOTHING,
+        lifecycle=NOTHING
+    ):
+        Handler.__init__(self, id=id, exec_ranks=exec_ranks, wrappers=wrappers, lifecycle=lifecycle)
+        BaseList.__init__(self, func_list)
     
     def handle(self, ctx: BaseContext):
         # execute lambda functions
@@ -329,9 +347,19 @@ class LoggingHandler(Handler):
     
     def __init__(
         self,
-        logging_states: Sequence[Union[str, StateHook]]
+        logging_states: Sequence[Union[str, StateHook]],
+        *,
+        id: Union[str, NoneOrNothing] = NOTHING,
+        exec_ranks: Union[Iterable[int], NoneOrNothing, Pass, Missing] = MISSING,
+        wrappers: Union[Iterable['HandlerWrapper'], NoneOrNothing] = NOTHING,
+        lifecycle=NOTHING
     ) -> None:
-        super().__init__()
+        super().__init__(
+            id=id,
+            exec_ranks=exec_ranks if exec_ranks is not MISSING else [0],
+            wrappers=wrappers,
+            lifecycle=lifecycle
+        )
         self.logging_states = logging_states
     
     def handle(self, ctx: BaseContext) -> None:
@@ -344,9 +372,9 @@ class LoggingHandler(Handler):
                 f'{logging_point} | {profiler.meter_profile(ctx, state)}'
             )
     
-    def get_attr_dict(self) -> dict:
+    def get_display_attr_dict(self) -> dict:
         return {
-            **super().get_attr_dict(),
+            **super().get_display_attr_dict(),
             'logging_states': self.logging_states
         }
 
@@ -368,5 +396,13 @@ class RootContainer(HandlerContainer):
     
     def create_live__(self, ctx: BaseContext) -> Tuple[Any, Any]:
         live_group = SlimeGroup()
-        live_launcher = SlimeLiveLauncher(live_group, console=store.builtin__().console_launcher, transient=True)
+        live_launcher = SlimeLiveLauncher(
+            # ``launch`` and ``exec_ranks`` args
+            MISSING,
+            MISSING,
+            # ``Live`` args
+            live_group,
+            console=store.builtin__().console_launcher,
+            transient=True
+        )
         return live_launcher, live_group

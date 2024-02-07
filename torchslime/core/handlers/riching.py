@@ -83,7 +83,6 @@ class HandlerTreeProfiler:
     def handler_profile(
         self,
         handler: "Handler",
-        display_meta: bool = True,
         display_attr: bool = True,
         target_handlers: Union[Iterable["Handler"], NoneOrNothing] = NOTHING,
         wrap_func: Union[str, Callable[[Group, "Handler"], Group], NoneOrNothing] = NOTHING
@@ -91,23 +90,9 @@ class HandlerTreeProfiler:
         renderables = [
             Text(handler.get_class_name(), style='bold blue')
         ]
-        if display_meta:
-            meta = handler.get_meta_dict()
-            if len(meta) >= 1:
-                meta_table = Table()
-                meta_table.add_column('Meta', style='cyan')
-                meta_table.add_column('Value', style='green')
-
-                for key, value in meta.items():
-                    meta_table.add_row(
-                        parse_renderable(key),
-                        parse_renderable(value)
-                    )
-
-                renderables.append(meta_table)
 
         if display_attr:
-            attr = handler.get_attr_dict()
+            attr = handler.get_display_attr_dict()
             if len(attr) >= 1:
                 attr_table = Table()
                 attr_table.add_column('Attr', style='cyan')
@@ -138,7 +123,6 @@ class HandlerTreeProfiler:
     def profile(
         self,
         handler: "Handler",
-        display_meta: bool = True,
         display_attr: bool = True,
         target_handlers: Union[Iterable["Handler"], NoneOrNothing] = NOTHING,
         wrap_func: Union[str, Callable[[Group, "Handler"], Group], NoneOrNothing] = NOTHING
@@ -153,7 +137,6 @@ class HandlerTreeProfiler:
             for child in node.composite_iterable__():
                 new_tree = tree.add(self.handler_profile(
                     child,
-                    display_meta=display_meta,
                     display_attr=display_attr,
                     target_handlers=target_handlers,
                     wrap_func=wrap_func
@@ -221,13 +204,10 @@ class HandlerWrapperContainerProfiler:
 
         class_name = wrapper.get_class_name()
 
-        meta_display_list = dict_to_key_value_str_list(wrapper.get_meta_dict())
-        meta = concat_format('[', meta_display_list, ']', item_sep=', ')
+        display_attr_list = dict_to_key_value_str_list(wrapper.get_display_attr_dict())
+        attr = concat_format('(', display_attr_list, ')', item_sep=', ')
 
-        attr_display_list = dict_to_key_value_str_list(wrapper.get_attr_dict())
-        attr = concat_format('(', attr_display_list, ')', item_sep=', ')
-
-        return escape(f'{class_name}{meta}{attr}')
+        return escape(f'{class_name}{attr}')
 
     def profile(self, handler_wrapper_container: "HandlerWrapperContainer") -> RenderableType:
         table = Table(show_lines=True)

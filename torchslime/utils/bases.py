@@ -1,5 +1,4 @@
 import traceback
-from .meta import Meta
 from .typing import (
     Any,
     Dict,
@@ -41,11 +40,13 @@ _VT = TypeVar('_VT')
 
 class ScopedAttr:
     
-    def assign__(self, **kwargs) -> "ScopedAttrAssign":
-        return ScopedAttrAssign.m__(self)(**kwargs)
+    def __init__(self) -> None: pass
+    
+    def assign__(self, **attr_assign) -> "ScopedAttrAssign":
+        return ScopedAttrAssign(self, attr_assign)
     
     def restore__(self, *attrs: str) -> "ScopedAttrRestore":
-        return ScopedAttrRestore.m__(self)(*attrs)
+        return ScopedAttrRestore(self, attrs)
 
 #
 # Base
@@ -57,6 +58,9 @@ class Base(ScopedAttr):
     Return 'Nothing' if the object does not have the property being retrieved, without throwing Errors.
     What's more, it allows its subclasses assign properties using a dict.
     """
+
+    def __init__(self) -> None:
+        super().__init__()
 
     def from_kwargs__(self, **kwargs):
         self.from_dict__(kwargs)
@@ -254,11 +258,11 @@ class BiListItem:
         parent = self.get_parent__()
         if parent is NOTHING:
             # root node
-            logger.warning(f'MutableBiListItem ``{str(self)}`` does not have a parent.')
+            logger.warning(f'BiListItem ``{str(self)}`` does not have a parent.')
             return NOTHING
         if self not in parent:
             # unmatched parent
-            logger.warning(f'MutableBiListItem ``{str(self)}`` is not contained in its specified parent.')
+            logger.warning(f'BiListItem ``{str(self)}`` is not contained in its specified parent.')
             self.del_parent__()
             return NOTHING
         return parent
@@ -624,6 +628,8 @@ ObserveFuncType = Callable[[Any, Any], None]
 
 class AttrObserver:
     
+    def __init__(self) -> None: pass
+    
     def detach_inspect__(self) -> Set[str]:
         return self.observe_inspect__(
             lambda func_name: getattr(_unwrap(getattr(self, func_name)), OBSERVE_DETACH, NOTHING)
@@ -810,30 +816,18 @@ def AttrObserve(
 
 @ContextDecoratorBinding
 @RemoveOverload(checklist=[
-    'm__',
     '__call__'
 ])
-class ScopedAttrRestore(Meta, Generic[_T], directly_new_allowed=False):
+class ScopedAttrRestore(Generic[_T]):
 
-    def __init__(self, *attrs: str) -> None:
-        self.attrs: Tuple[str, ...] = attrs
-        self.prev_value_dict: Dict[str, Any] = {}
-
-    def m_init__(
+    def __init__(
         self,
         obj: _T,
-        restore: bool = True
+        attrs: Iterable[str]
     ) -> None:
-        self.obj: _T = obj
-        self.restore = restore
-
-    @overload
-    @classmethod
-    def m__(
-        cls: Type[_T1],
-        obj: Any,
-        restore: bool = True
-    ) -> Type[_T1]: pass
+        self.obj = obj
+        self.attrs = list(attrs)
+        self.prev_value_dict: Dict[str, Any] = {}
 
     # just for type hint
     @overload
@@ -841,32 +835,48 @@ class ScopedAttrRestore(Meta, Generic[_T], directly_new_allowed=False):
 
     def __enter__(self) -> "ScopedAttrRestore":
         for attr in self.attrs:
-            self.prev_value_dict[attr] = getattr(self.obj, attr, NOTHING)
+            # Only cache existing attributes of ``obj``.
+            if hasattr(self.obj, attr):
+                self.prev_value_dict[attr] = getattr(self.obj, attr, NOTHING)
         return self
 
     def __exit__(self, *args, **kwargs):
-        if self.restore:
-            for attr, value in self.prev_value_dict.items():
-                try:
-                    setattr(self.obj, attr, value)
-                except Exception as e:
-                    from torchslime.logging.logger import logger
-                    logger.error(f'Restoring scoped attribute failed. Object: {str(self.obj)}, attribute: {attr}. {str(e.__class__.__name__)}: {str(e)}')
+        for attr in self.attrs:
+            try:
+                if attr in self.prev_value_dict:
+                    # Restore previously existing attributes before the scope.
+                    setattr(self.obj, attr, self.prev_value_dict[attr])
+                elif hasattr(self.obj, attr):
+                    # Remove previously non-existing attributes before the scope.
+                    delattr(self.obj, attr)
+            except Exception as e:
+                from torchslime.logging.logger import logger
+                logger.error(
+                    f'Restoring scoped attribute failed. Object: {str(self.obj)}, '
+                    f'attribute: {attr}. {str(e.__class__.__name__)}: {str(e)}'
+                )
 
 
-@RemoveOverload(checklist=['m__'])
 class ScopedAttrAssign(ScopedAttrRestore[_T]):
 
-    def __init__(self, **kwargs) -> None:
-        super().__init__(*kwargs.keys())
-        self.attr_dict: Dict[str, Any] = kwargs
+    def __init__(
+        self,
+        obj: _T,
+        attr_assign: Dict[str, Any]
+    ) -> None:
+        super().__init__(obj, attr_assign.keys())
+        self.attr_assign = attr_assign
 
     def __enter__(self) -> "ScopedAttrAssign":
         # backup previous values
-        super().__enter__()
-        for attr, value in self.attr_dict.items():
+        ret = super().__enter__()
+        for attr, value in self.attr_assign.items():
             try:
                 setattr(self.obj, attr, value)
             except Exception as e:
                 from torchslime.logging.logger import logger
-                logger.error(f'Assigning scoped attribute failed. Object: {str(self.obj)}, attribute: {attr}. {str(e.__class__.__name__)}: {str(e)}')
+                logger.error(
+                    f'Assigning scoped attribute failed. Object: {str(self.obj)}, '
+                    f'attribute: {attr}. {str(e.__class__.__name__)}: {str(e)}'
+                )
+        return ret

@@ -12,11 +12,9 @@ from torchslime.utils.typing import (
     Nothing,
     NOTHING,
     TypeVar,
-    overload,
     Type
 )
 from torchslime.utils.launch import LaunchUtil, Launcher
-from torchslime.utils.decorators import RemoveOverload
 from torchslime.utils.bases import (
     AttrObserver,
     AttrObserve,
@@ -24,7 +22,6 @@ from torchslime.utils.bases import (
     BiList,
     MutableBiListItem
 )
-from torchslime.utils.meta import Meta
 import rich
 from rich.progress import (
     Progress,
@@ -61,7 +58,18 @@ class RichLauncher(Launcher):
 # Rich Console Adapter
 #
 
-class SlimeConsoleLauncher(Console, RichLauncher): pass
+class SlimeConsoleLauncher(Console, RichLauncher):
+    
+    def __init__(
+        self,
+        launch: Union[str, LaunchUtil, Missing] = MISSING,
+        exec_ranks: Union[Iterable[int], NoneOrNothing, Pass, Missing] = MISSING,
+        *args,
+        **kwargs
+    ):
+        Console.__init__(self, *args, **kwargs)
+        RichLauncher.__init__(self, launch, exec_ranks)
+
 store.builtin__().init__('console_launcher', SlimeConsoleLauncher())
 # set rich default console
 rich._console = store.builtin__().console_launcher
@@ -79,7 +87,7 @@ class SlimeAltConsoleLauncher(SlimeConsoleLauncher):
             # use ``yield from`` rather than ``yield`` to create an empty generator
             yield from NOTHING
         else:
-            with self.__t_lock, self.__p_lock, ScopedAttrRestore.m__(console)('file'):
+            with self.__t_lock, self.__p_lock, ScopedAttrRestore(console, ['file']):
                 # set files to the alt console
                 for file in store.builtin__().alt_console_files:
                     console.file = file
@@ -108,16 +116,12 @@ def yield_console(
 # Console Observer
 #
 
-@RemoveOverload(checklist=['m__'])
-class SlimeConsoleObserver(AttrObserver, Meta):
+class SlimeConsoleObserver(AttrObserver):
     
-    def m_init__(self) -> None:
+    def __init__(self) -> None:
+        super().__init__()
         # auto attach observer
-        store.builtin__().attach__(self)
-    
-    @overload
-    @classmethod
-    def m__(cls: Type[_T]) -> Type[_T]: pass
+        store.builtin__().attach__(self)    
     
     def set_console__(self, __console: Union[Console, NoneOrNothing]) -> None: pass
     
@@ -129,24 +133,18 @@ class SlimeConsoleObserver(AttrObserver, Meta):
 # Rich Live Adapter
 #
 
-@RemoveOverload(checklist=['m__'])
 class SlimeLiveLauncher(Live, RichLauncher, SlimeConsoleObserver):
     
-    def m_init__(
+    def __init__(
         self,
         launch: Union[str, LaunchUtil, Missing] = MISSING,
-        exec_ranks: Union[Iterable[int], NoneOrNothing, Pass, Missing] = MISSING
+        exec_ranks: Union[Iterable[int], NoneOrNothing, Pass, Missing] = MISSING,
+        *args,
+        **kwargs
     ) -> None:
-        RichLauncher.m_init__(self, launch, exec_ranks)
-        SlimeConsoleObserver.m_init__(self)
-    
-    @overload
-    @classmethod
-    def m__(
-        cls: Type[_T],
-        launch: Union[str, LaunchUtil, Missing] = MISSING,
-        exec_ranks: Union[Iterable[int], NoneOrNothing, Pass, Missing] = MISSING
-    ) -> Type[_T]: pass
+        Live.__init__(self, *args, **kwargs)
+        RichLauncher.__init__(self, launch, exec_ranks)
+        SlimeConsoleObserver.__init__(self)
     
     def set_console__(self, __console: Union[Console, NoneOrNothing]) -> None:
         self.console = __console
@@ -164,7 +162,11 @@ class SlimeLiveLauncher(Live, RichLauncher, SlimeConsoleObserver):
 # Rich Logging Adapter
 #
 
-class SlimeRichHandler(RichHandler, SlimeConsoleObserver): pass
+class SlimeRichHandler(RichHandler, SlimeConsoleObserver):
+    
+    def __init__(self, *args, **kwargs):
+        RichHandler.__init__(self, *args, **kwargs)
+        SlimeConsoleObserver.__init__(self)
 
 #
 # Renderable Adapter
@@ -172,9 +174,25 @@ class SlimeRichHandler(RichHandler, SlimeConsoleObserver): pass
 
 class SlimeProgressLauncher(Progress, MutableBiListItem, RichLauncher, SlimeConsoleObserver):
 
+    def __init__(
+        self,
+        launch: Union[str, LaunchUtil, Missing] = MISSING,
+        exec_ranks: Union[Iterable[int], NoneOrNothing, Pass, Missing] = MISSING,
+        *args,
+        **kwargs
+    ) -> None:
+        Progress.__init__(self, *args, **kwargs)
+        MutableBiListItem.__init__(self)
+        RichLauncher.__init__(self, launch, exec_ranks)
+        SlimeConsoleObserver.__init__(self)
+
     @classmethod
     def create__(cls: Type[_T]) -> _T:
         return cls(
+            # ``launch`` and ``exec_ranks`` args
+            MISSING,
+            MISSING,
+            # rich.progress.Progress args
             TextColumn('[progress.description]{task.description}'),
             BarColumn(),
             MofNCompleteColumn(),
@@ -196,13 +214,32 @@ class SlimeProgressLauncher(Progress, MutableBiListItem, RichLauncher, SlimeCons
         return result
 
 
-class SlimeText(Text, MutableBiListItem): pass
+class SlimeText(Text, MutableBiListItem):
+    
+    def __init__(self, *args, **kwargs):
+        Text.__init__(self, *args, **kwargs)
+        MutableBiListItem.__init__(self)
+    
 
-class SlimeTree(Tree, MutableBiListItem): pass
+class SlimeTree(Tree, MutableBiListItem):
+    
+    def __init__(self, *args, **kwargs):
+        Tree.__init__(self, *args, **kwargs)
+        MutableBiListItem.__init__(self)
 
-class SlimePanel(Panel, MutableBiListItem): pass
 
-class SlimeTable(Table, MutableBiListItem): pass
+class SlimePanel(Panel, MutableBiListItem):
+    
+    def __init__(self, *args, **kwargs):
+        Panel.__init__(self, *args, **kwargs)
+        MutableBiListItem.__init__(self)
+
+
+class SlimeTable(Table, MutableBiListItem):
+    
+    def __init__(self, *args, **kwargs):
+        Table.__init__(self, *args, **kwargs)
+        MutableBiListItem.__init__(self)
 
 
 _T_RichRenderable = TypeVar('_T_RichRenderable', bound=Union[RenderableType, MutableBiListItem])
@@ -211,6 +248,7 @@ class SlimeGroup(Group, MutableBiListItem, BiList[_T_RichRenderable]):
     
     def __init__(self, *renderables: RenderableType, fit: bool = True) -> None:
         Group.__init__(self, *renderables, fit=fit)
+        MutableBiListItem.__init__(self)
         BiList[_T_RichRenderable].__init__(self)
         self.set_list__(self.renderables)
 

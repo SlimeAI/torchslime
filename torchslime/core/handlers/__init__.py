@@ -14,9 +14,7 @@ from torchslime.utils.typing import (
     Iterable,
     Tuple,
     is_none_or_nothing,
-    overload,
     TypeVar,
-    Type,
     Pass,
     PASS,
     TYPE_CHECKING
@@ -33,8 +31,6 @@ from torchslime.utils.bases import (
     BiList,
     BaseList
 )
-from torchslime.utils.meta import Meta
-from torchslime.utils.decorators import RemoveOverload
 from torchslime.components.exception import (
     HandlerException,
     HandlerTerminate,
@@ -47,88 +43,30 @@ from functools import partial
 if TYPE_CHECKING:
     from torchslime.logging.rich import Group
 
-_T = TypeVar('_T')
 
-
-@RemoveOverload(checklist=['m__'])
-class HandlerMeta(Meta):
+class Handler(CompositeStructure, MutableBiListItem):
     """
-    Meta initialization and operations
+    Base class for all handlers.
     """
     # for generating unique id
     _handler_id_gen = Count()
     
-    def m_init__(
+    def __init__(
         self,
+        *,
         id: Union[str, NoneOrNothing] = NOTHING,
         exec_ranks: Union[Iterable[int], NoneOrNothing, Pass] = PASS,
         wrappers: Union[Iterable['HandlerWrapper'], NoneOrNothing] = NOTHING,
         lifecycle=NOTHING
     ):
+        CompositeStructure.__init__(self)
+        MutableBiListItem.__init__(self)
+        
         self.set_id(id)
         self.set_exec_ranks(exec_ranks)
         self.set_wrappers(wrappers)
         # TODO: lifecycle
         # self.set_lifecycle()
-    
-    # just for type hint
-    @overload
-    @classmethod
-    def m__(
-        cls: Type[_T],
-        id: Union[str, NoneOrNothing] = NOTHING,
-        exec_ranks: Union[Iterable[int], NoneOrNothing, Pass] = PASS,
-        wrappers: Union[Iterable['HandlerWrapper'], NoneOrNothing] = NOTHING,
-        lifecycle=NOTHING
-    ) -> Type[_T]: pass
-    
-    def get_id(self) -> Union[str, Nothing]:
-        return self.__id
-
-    def set_id(self, __id: Union[str, NoneOrNothing]) -> None:
-        if is_none_or_nothing(__id):
-            self.__id = f'handler_{self._handler_id_gen}'
-        else:
-            self.__id = __id
-    
-    def get_exec_ranks(self) -> Union[Iterable[int], NoneOrNothing, Pass]:
-        return self.__exec_ranks
-    
-    def set_exec_ranks(self, exec_ranks: Union[Iterable[int], NoneOrNothing, Pass]) -> None:
-        self.__exec_ranks = BaseList.create__(exec_ranks)
-
-    def get_wrappers(self) -> Union['HandlerWrapperContainer', NoneOrNothing]:
-        return self.__wrappers
-    
-    def set_wrappers(self, wrappers: Union[Iterable['HandlerWrapper'], NoneOrNothing]) -> None:
-        if is_none_or_nothing(wrappers):
-            self.__wrappers = NOTHING
-        else:
-            self.__wrappers = HandlerWrapperContainer(wrappers)
-    
-    def get_lifecycle(self):
-        pass
-    
-    def set_lifecycle(self):
-        pass
-    
-    def get_meta_dict(self) -> dict:
-        return {
-            'id': self.get_id(),
-            'exec_ranks': self.get_exec_ranks(),
-            'wrappers': self.get_wrappers(),
-            'lifecycle': self.get_lifecycle()
-        }
-
-
-class Handler(HandlerMeta, CompositeStructure, MutableBiListItem):
-    """Base class for all handlers.
-    """
-    
-    def __init__(self):
-        HandlerMeta.__init__(self)
-        CompositeStructure.__init__(self)
-        MutableBiListItem.__init__(self)
 
     def handle(self, ctx: BaseContext) -> None: pass
 
@@ -190,7 +128,6 @@ class Handler(HandlerMeta, CompositeStructure, MutableBiListItem):
     
     def display(
         self,
-        display_meta: bool = True,
         display_attr: bool = True,
         target_handlers: Union[Iterable["Handler"], NoneOrNothing] = NOTHING,
         wrap_func: Union[str, Callable[["Group", "Handler"], "Group"], NoneOrNothing] = NOTHING,
@@ -202,7 +139,6 @@ class Handler(HandlerMeta, CompositeStructure, MutableBiListItem):
             handler_tree_profiler = HandlerTreeProfiler()
         root = handler_tree_profiler.profile(
             self,
-            display_meta=display_meta,
             display_attr=display_attr,
             target_handlers=target_handlers,
             wrap_func=wrap_func
@@ -217,19 +153,51 @@ class Handler(HandlerMeta, CompositeStructure, MutableBiListItem):
     def __str__(self) -> str:
         class_name = self.get_class_name()
         
-        meta_display_list = dict_to_key_value_str_list(self.get_meta_dict())
-        meta = concat_format('[', meta_display_list, ']', break_line=False, item_sep=', ')
+        display_attr_list = dict_to_key_value_str_list(self.get_display_attr_dict())
+        attr = concat_format('(', display_attr_list, ')', break_line=False, item_sep=', ')
         
-        attr_display_list = dict_to_key_value_str_list(self.get_attr_dict())
-        attr = concat_format('(', attr_display_list, ')', break_line=False, item_sep=', ')
-        
-        return f'{class_name}{meta}{attr}'
+        return f'{class_name}{attr}'
     
     def get_class_name(self) -> str:
         return type(self).__name__
 
-    def get_attr_dict(self) -> dict:
-        return {}
+    def get_id(self) -> Union[str, Nothing]:
+        return self.__id
+
+    def set_id(self, __id: Union[str, NoneOrNothing]) -> None:
+        if is_none_or_nothing(__id):
+            self.__id = f'handler_{self._handler_id_gen}'
+        else:
+            self.__id = __id
+    
+    def get_exec_ranks(self) -> Union[Iterable[int], NoneOrNothing, Pass]:
+        return self.__exec_ranks
+    
+    def set_exec_ranks(self, exec_ranks: Union[Iterable[int], NoneOrNothing, Pass]) -> None:
+        self.__exec_ranks = BaseList.create__(exec_ranks)
+
+    def get_wrappers(self) -> Union['HandlerWrapperContainer', NoneOrNothing]:
+        return self.__wrappers
+    
+    def set_wrappers(self, wrappers: Union[Iterable['HandlerWrapper'], NoneOrNothing]) -> None:
+        if is_none_or_nothing(wrappers):
+            self.__wrappers = NOTHING
+        else:
+            self.__wrappers = HandlerWrapperContainer(wrappers)
+    
+    def get_lifecycle(self):
+        pass
+    
+    def set_lifecycle(self):
+        pass
+    
+    def get_display_attr_dict(self) -> dict:
+        return {
+            'id': self.get_id(),
+            'exec_ranks': self.get_exec_ranks(),
+            'wrappers': self.get_wrappers(),
+            'lifecycle': self.get_lifecycle()
+        }
 
 
 _T_Handler = TypeVar('_T_Handler', bound=Handler)
@@ -239,8 +207,19 @@ class HandlerContainer(Handler, BiList[_T_Handler]):
     def __init__(
         self,
         handlers: Union[Iterable[_T_Handler], NoneOrNothing] = NOTHING,
+        *,
+        id: Union[str, NoneOrNothing] = NOTHING,
+        exec_ranks: Union[Iterable[int], NoneOrNothing, Pass] = PASS,
+        wrappers: Union[Iterable['HandlerWrapper'], NoneOrNothing] = NOTHING,
+        lifecycle=NOTHING
     ):
-        Handler.__init__(self)
+        Handler.__init__(
+            self,
+            id=id,
+            exec_ranks=exec_ranks,
+            wrappers=wrappers,
+            lifecycle=lifecycle
+        )
         # remove ``None`` and ``NOTHING`` in ``handlers``
         handlers = filter(
             lambda item: not is_none_or_nothing(item),
