@@ -220,12 +220,24 @@ def Singleton(cls: _T) -> _T:
 
 # type hint
 @overload
-def CallDebug(_func: NoneOrNothing = NOTHING, *, module_name=NOTHING) -> Callable[[_T], _T]: pass
+def CallDebug(
+    _func: NoneOrNothing = NOTHING,
+    *,
+    module_name: Union[str, NoneOrNothing] = NOTHING,
+) -> Callable[[_T], _T]: pass
 @overload
-def CallDebug(_func: _T, *, module_name=NOTHING) -> _T: pass
+def CallDebug(
+    _func: _T,
+    *,
+    module_name: Union[str, NoneOrNothing] = NOTHING,
+) -> _T: pass
 
 @DecoratorCall(index=0, keyword='_func')
-def CallDebug(_func: _T = NOTHING, *, module_name=NOTHING):
+def CallDebug(
+    _func: _T = NOTHING,
+    *,
+    module_name: Union[str, NoneOrNothing] = NOTHING
+):
     """
     [func, level-2]
     A decorator that output debug information before and after a method is called.
@@ -235,34 +247,38 @@ def CallDebug(_func: _T = NOTHING, *, module_name=NOTHING):
     from . import get_exec_info
     
     def decorator(func: _T) -> _T:
-        from torchslime.logging.logger import logger
+        from torchslime.logging.logger import logger, LoggerKwargs
         from torchslime.components.store import store
-        from time import time
 
-        func_id = f'{str(id(func))}_{str(time())}'
-
+        # Inspect ``module_name``
         nonlocal module_name
-
-        if is_none_or_nothing(module_name) is True:
+        if is_none_or_nothing(module_name):
+            module_name = getattr(func, '__qualname__', NOTHING)
+        if is_none_or_nothing(module_name):
             module_name = getattr(func, '__name__', NOTHING)
+
+        _exec_info = get_exec_info(func)
 
         @wraps(func)
         def wrapper(*args, **kwargs):
             # do not use debug
             if not store.builtin__().call_debug:
                 return func(*args, **kwargs)
-
-            # cache debug info
-            call_debug_cache = store.builtin__().call_debug_cache
-            _exec_info = call_debug_cache[func_id]
-            if is_none_or_nothing(_exec_info):
-                _exec_info = get_exec_info(func)
-                call_debug_cache[func_id] = _exec_info
-
-            # TODO logger format
-            logger.debug(f'{module_name} begins.')
+            
+            exec_name = _exec_info["full_exec_name"] if \
+                store.builtin__().call_debug_full_exec_name else \
+                _exec_info["exec_name"]
+            exec_info = f'Module definition -> {exec_name}:{_exec_info["lineno"]}'
+            
+            logger.debug(
+                f'{module_name} begins. | {exec_info}',
+                **LoggerKwargs(stacklevel=2)
+            )
             result = func(*args, **kwargs)
-            logger.debug(f'{module_name} ends.')
+            logger.debug(
+                f'{module_name} ends. | {exec_info}',
+                **LoggerKwargs(stacklevel=2)
+            )
             return result
         return wrapper
     return decorator

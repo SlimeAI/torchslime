@@ -16,15 +16,14 @@ from torchslime.utils.typing import (
     Pass
 )
 from torchslime.utils.bases import BaseDict, AttrObserver, AttrObserve
-from torchslime.utils.decorators import Singleton
 from .rich import RichHandler, SlimeRichHandler
 import sys
 
-
-# initialize log template
-store.builtin__().init__('log_template', '{prefix__} - {asctime} - "{filename}:{lineno}" - {message}')
-store.builtin__().init__('log_rich_template', '{message}')
-store.builtin__().init__('log_dateformat', '%Y/%m/%d %H:%M:%S')
+# Rich Handler Type
+RICH_HANDLER_TYPE = (
+    RichHandler,
+    SlimeRichHandler
+)
 
 #
 # Slime Logger
@@ -42,14 +41,36 @@ class SlimeLogger(Logger, Launcher, AttrObserver):
         Logger.__init__(self, *args, **kwargs)
         Launcher.__init__(self, launch, exec_ranks)
         AttrObserver.__init__(self)
+        # observe store attrs
+        store.builtin__().attach__(self)
 
     def addHandler(self, handler: Handler) -> None:
         if not handler.formatter:
-            if isinstance(handler, RichHandler):
+            if isinstance(handler, RICH_HANDLER_TYPE):
                 handler.setFormatter(SlimeRichFormatter())
             else:
                 handler.setFormatter(SlimeFormatter())
         super().addHandler(handler)
+
+    @AttrObserve
+    def log_template_observe__(self, new_value, old_value) -> None:
+        for handler in self.handlers:
+            if isinstance(handler.formatter, SlimeFormatter):
+                handler.setFormatter(SlimeFormatter())
+    
+    @AttrObserve
+    def log_rich_template_observe__(self, new_value, old_value) -> None:
+        for handler in self.handlers:
+            if isinstance(handler.formatter, SlimeRichFormatter):
+                handler.setFormatter((SlimeRichFormatter()))
+    
+    @AttrObserve
+    def log_dateformat_observe__(self, new_value, old_value) -> None:
+        for handler in self.handlers:
+            if isinstance(handler.formatter, SlimeFormatter):
+                handler.setFormatter(SlimeFormatter())
+            if isinstance(handler.formatter, SlimeRichFormatter):
+                handler.setFormatter((SlimeRichFormatter()))
 
 #
 # Logger Func Arg Adapter
@@ -95,33 +116,6 @@ class SlimeRichFormatter(Formatter):
             store.builtin__().log_dateformat,
             style='{'
         )
-
-@Singleton
-class SlimeFormatterObserver(AttrObserver):
-    
-    @AttrObserve
-    def log_template_observe__(self, new_value, old_value) -> None:
-        for handler in logger.handlers:
-            if isinstance(handler.formatter, SlimeFormatter):
-                handler.setFormatter(SlimeFormatter())
-    
-    @AttrObserve
-    def log_rich_template_observe__(self, new_value, old_value) -> None:
-        for handler in logger.handlers:
-            if isinstance(handler.formatter, SlimeRichFormatter):
-                handler.setFormatter((SlimeRichFormatter()))
-    
-    @AttrObserve
-    def log_dateformat_observe__(self, new_value, old_value) -> None:
-        for handler in logger.handlers:
-            if isinstance(handler.formatter, SlimeFormatter):
-                handler.setFormatter(SlimeFormatter())
-            if isinstance(handler.formatter, SlimeRichFormatter):
-                handler.setFormatter((SlimeRichFormatter()))
-
-slime_formatter_observer = SlimeFormatterObserver()
-# set ``init`` to False. ``logger`` instance has not been created here
-store.builtin__().attach__(slime_formatter_observer, init=False)
 
 #
 # initialize logger

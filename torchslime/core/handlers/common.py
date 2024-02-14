@@ -53,7 +53,7 @@ __all__ = [
     'GatherAverageHandler',
     'MeterInitHandler',
     'MeterHandler',
-    'LRDecayHandler'
+    'LRScheduleHandler'
 ]
 
 
@@ -335,12 +335,12 @@ class MeterHandler(Handler):
         ctx.hook_ctx.state.update_meter(ctx, ctx.step_ctx.loss_values, ctx.step_ctx.metrics)
 
 
-class LRDecayHandler(Handler):
+class LRScheduleHandler(Handler):
     
-    @CallDebug(module_name='LRDecayHandler')
+    @CallDebug(module_name='LRScheduleHandler')
     def handle(self, ctx: BaseContext):
-        if ctx.ctx_check(['run_ctx.lr_decay']) is True:
-            ctx.run_ctx.lr_decay.step()
+        if ctx.ctx_check(['run_ctx.lr_scheduler']) is True:
+            ctx.run_ctx.lr_scheduler.step()
 
 
 class LoggingHandler(Handler):

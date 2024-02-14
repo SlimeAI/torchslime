@@ -1,7 +1,6 @@
 from torchslime.core.context.base import BaseContext
 from .riching import HandlerWrapperContainerProfiler
 from . import Handler, HandlerContainer
-from torchslime.core.hooks.state import state_registry
 from torchslime.utils.bases import (
     BaseGenerator,
     GeneratorQueue
@@ -15,7 +14,8 @@ from torchslime.utils.typing import (
     Callable,
     Generator,
     TypeVar,
-    NoReturn
+    NoReturn,
+    TYPE_CHECKING
 )
 from torchslime.components.exception import (
     APIMisused,
@@ -24,7 +24,8 @@ from torchslime.components.exception import (
 )
 from torchslime.logging.logger import logger
 from torchslime.logging.rich import RenderInterface, RenderableType
-from functools import partial
+if TYPE_CHECKING:
+    from torchslime.core.hooks.state import StateHook
 
 __all__ = [
     'HandlerWrapper',
@@ -132,32 +133,32 @@ class StateWrapper(HandlerWrapper):
     
     def __init__(
         self,
-        state: str = 'train',
+        state: Union[str, "StateHook"] = 'train',
         restore: bool = True,
         *,
         id: Union[str, NoneOrNothing] = NOTHING
     ):
         super().__init__(id=id)
         # get state supported
-        from torchslime.core.hooks.state import state_registry
-        mode_supported = list(state_registry.keys())
-        if state not in mode_supported:
-            logger.warning('An unsupported state is set, this may cause some problems.')
+        from torchslime.core.hooks.state import StateHook, state_registry
+        registered_states = list(state_registry.keys())
+        if not isinstance(state, StateHook) and state not in registered_states:
+            logger.warning(
+                'An unregistered state is set, this may cause some problems. '
+                f'Registered states: {registered_states} - Specified state: {state}.'
+            )
         self.state = state
         self.restore = restore
     
     def handle_yield(self, ctx: BaseContext):
         # cache the state before state set
-        self.restore_state: Union[StateHook, Nothing] = ctx.hook_ctx.state
-        ctx.hook_ctx.state: StateHook = state_registry.get(self.state)()
-        ctx.hook_ctx.state.set_model_mode(ctx)
+        self.restore_state: Union["StateHook", Nothing] = ctx.hook_ctx.state
+        ctx.compile.state_hook_compile__(self.state)
         # call wrapped handler
         yield True
         # restore
         if self.restore:
-            from torchslime.core.hooks.state import StateHook
-            ctx.hook_ctx.state: StateHook = self.restore_state
-            ctx.hook_ctx.state.set_model_mode(ctx)
+            ctx.compile.state_hook_compile__(self.restore_state)
         if hasattr(self, 'restore_state'):
             # destroy cached state
             del self.restore_state

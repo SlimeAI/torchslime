@@ -22,7 +22,6 @@ from torchslime.utils.bases import (
     BiList,
     MutableBiListItem
 )
-import rich
 from rich.progress import (
     Progress,
     TextColumn,
@@ -40,10 +39,12 @@ from rich.panel import Panel
 from rich.logging import RichHandler
 from rich.table import Table
 from rich.protocol import is_renderable
-# NOTE: import rich api for compatibility
-from rich.markup import escape
 import threading
 import multiprocessing
+
+# NOTE: import rich api for compatibility
+import rich
+from rich.markup import escape
 
 _T = TypeVar('_T')
 
@@ -70,10 +71,6 @@ class SlimeConsoleLauncher(Console, RichLauncher):
         Console.__init__(self, *args, **kwargs)
         RichLauncher.__init__(self, launch, exec_ranks)
 
-store.builtin__().init__('console_launcher', SlimeConsoleLauncher())
-# set rich default console
-rich._console = store.builtin__().console_launcher
-
 
 class SlimeAltConsoleLauncher(SlimeConsoleLauncher):
     
@@ -92,13 +89,6 @@ class SlimeAltConsoleLauncher(SlimeConsoleLauncher):
                 for file in store.builtin__().alt_console_files:
                     console.file = file
                     yield console
-
-store.builtin__().init__('alt_console_launcher', SlimeAltConsoleLauncher(
-    color_system=None,
-    force_terminal=False,
-    force_jupyter=False,
-    force_interactive=False
-))
 
 
 def yield_console(

@@ -69,12 +69,11 @@ class Count:
     Count times of variable-get.
     """
 
-    __t_lock = threading.Lock()
-    __p_lock = multiprocessing.Lock()
-
     def __init__(self):
         super().__init__()
         self.value = 0
+        self.__t_lock = threading.Lock()
+        self.__p_lock = multiprocessing.Lock()
 
     def __set__(self, *_):
         pass

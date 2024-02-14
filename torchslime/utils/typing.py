@@ -172,6 +172,10 @@ def is_none_or_nothing(obj) -> bool:
 
 from torch import Tensor
 from torch.nn import Module
+try:
+    from torch.optim.lr_scheduler import LRScheduler
+except Exception:
+    from torch.optim.lr_scheduler import _LRScheduler as LRScheduler
 
 # tensor or module
 T_M = Union[Tensor, Module]

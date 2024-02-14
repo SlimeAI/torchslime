@@ -11,7 +11,6 @@ from torchslime.utils.typing import (
     Nothing,
     MISSING,
     TYPE_CHECKING,
-    Missing,
     TextIO,
     NoneOrNothing
 )
@@ -25,7 +24,6 @@ import threading
 import os
 # type hint only
 if TYPE_CHECKING:
-    from torchslime.logging.rich import SlimeConsoleLauncher, SlimeAltConsoleLauncher, Console
     from torchslime.utils.launch import LaunchUtil
     from torchslime.utils.bases import (
         AttrObserver,
@@ -59,20 +57,40 @@ class BuiltinScopedStore(ScopedStore):
         set ``builtin__`` store config
         """
         super().__init__()
-        # whether to use call debug
+        # call debug config
         self.call_debug = False
+        self.call_debug_full_exec_name = False
         # indent str for CLI display
         self.indent_str = ' ' * 4  # default is 4 spaces
         # log template
-        self.log_template: Union[str, Missing] = MISSING
-        self.log_rich_template: Union[str, Missing] = MISSING
-        self.log_dateformat: Union[str, Missing] = MISSING
+        self.log_template: str = '{prefix__} - {asctime} - "{filename}:{lineno}" - {message}'
+        self.log_rich_template: str = '{message}'
+        self.log_dateformat: str = '%Y/%m/%d %H:%M:%S'
         # launch
         self.launch: Union[str, "LaunchUtil"] = 'vanilla'
+    
+    def delay_init__(self) -> None:
+        """
+        Delay initialization.
+        Initialization of some items should be delayed due to circular import.
+        This method should be called after creation of ``torchslime.components.store.store``.
+        """
         # console
-        self.console_launcher: Union["SlimeConsoleLauncher[Console]", Nothing, Missing] = MISSING
-        self.alt_console_launcher: Union["SlimeAltConsoleLauncher[Console]", Nothing, Missing] = MISSING
+        from torchslime.logging.rich import (
+            SlimeConsoleLauncher,
+            SlimeAltConsoleLauncher,
+            rich
+        )
+        self.console_launcher: Union[SlimeConsoleLauncher, Nothing] = SlimeConsoleLauncher()
+        self.alt_console_launcher: Union[SlimeAltConsoleLauncher, Nothing] = SlimeAltConsoleLauncher(
+            color_system=None,
+            force_terminal=False,
+            force_jupyter=False,
+            force_interactive=False
+        )
         self.alt_console_files: List[Union[TextIO, TextIOWrapper]] = []
+        # set rich default console
+        rich._console = self.console_launcher
 
 BUILTIN_SCOPED_STORE_KEY = 'builtin__'
 _builtin_scoped_store = BuiltinScopedStore()
@@ -152,6 +170,8 @@ class Store:
     def restore__(self, *attrs: str) -> "ScopedAttrRestore": pass
 
 store = Store()
+# Builtin scoped store delay initialization.
+store.builtin__().delay_init__()
 
 #
 # Store Assign

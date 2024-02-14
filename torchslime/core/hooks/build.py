@@ -119,8 +119,8 @@ class VanillaBuild(BuildHook):
                                         handler.MetricHandler(id='metrics_train'),
                                         # compute meter loss value and metrics
                                         handler.MeterHandler(id='meter_train'),
-                                        # apply learning rate decay
-                                        handler.LRDecayHandler(id='lr_decay')
+                                        # apply learning rate schedule
+                                        handler.LRScheduleHandler(id='lr_schedule')
                                     ]
                                 ),
                                 # logging
@@ -276,8 +276,8 @@ class StepBuild(VanillaBuild):
                                 handler.MetricHandler(id='metrics_train'),
                                 # compute meter loss value and metrics
                                 handler.MeterHandler(id='meter_train'),
-                                # apply learning rate decay
-                                handler.LRDecayHandler(id='lr_decay'),
+                                # apply learning rate schedule
+                                handler.LRScheduleHandler(id='lr_schedule'),
                                 # validation
                                 handler.Container(
                                     id='container_val',

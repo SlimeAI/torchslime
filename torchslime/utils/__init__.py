@@ -7,7 +7,7 @@ from .typing import (
     Iterator,
     Iterable,
     Any,
-    TypeVar,
+    TypeVar
 )
 from torch import Tensor
 from torch.nn import Module

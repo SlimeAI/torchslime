@@ -2,7 +2,6 @@ from torch.nn import Module
 from torch import device, Tensor
 from torch.optim.optimizer import Optimizer
 from torchslime.utils.bases import Base
-from torchslime.utils.typing import NOTHING, NUMBER, Nothing
 from torchslime.utils.typing import (
     Any,
     Sequence,
@@ -10,8 +9,13 @@ from torchslime.utils.typing import (
     Dict,
     Callable,
     List,
-    TYPE_CHECKING
+    TYPE_CHECKING,
+    NOTHING,
+    NUMBER,
+    Nothing,
+    is_none_or_nothing
 )
+from torchslime.components.exception import APIMisused
 from torchslime.logging.logger import logger, LoggerKwargs
 
 if TYPE_CHECKING:
@@ -21,6 +25,8 @@ if TYPE_CHECKING:
         ProfileProgress,
         SlimeProgressLauncher
     )
+    from .compile import Compile
+    from torchslime.utils.typing import LRScheduler
 
 
 class BaseContext(Base):
@@ -61,6 +67,47 @@ class BaseContext(Base):
     @model.setter
     def model(self, value):
         self.__model = value
+
+    #
+    # ``compile`` property
+    #
+
+    @property
+    def compile(self) -> "Compile":
+        from .compile import Compile
+        
+        if not self.hasattr__('_BaseContext__compile'):
+            logger.warning(
+                'Property ``compile`` has not been bound to an object yet.'
+            )
+        compile = self.__compile
+        if not isinstance(compile, Compile):
+            logger.warning(
+                f'Property ``compile`` is not set to a ``Compile`` instance, but {compile}. This may '
+                'cause some unknown problems.'
+            )
+        elif compile.ctx is not self:
+            raise APIMisused(
+                f'Bindings between ``compile`` and ``Context`` mismatch. ``compile`` is bound to {compile.ctx}, '
+                f'while ``Context`` is {self}.'
+            )
+        return compile
+
+    @compile.setter
+    def compile(self, value: "Compile") -> None:
+        if not is_none_or_nothing(value.ctx) and \
+                value.ctx is not self:
+            raise APIMisused(
+                f'The property ``compile`` ({value}) being set has already been bound to another ``Context`` object ({value.ctx}). '
+                f'You should unbind it from the other ``Context`` ({value.ctx}) using ``del`` first.'
+            )
+        value.ctx = self
+        self.__compile = value
+
+    @compile.deleter
+    def compile(self) -> None:
+        self.compile.ctx = NOTHING
+        del self.__compile
 
     def ctx_check(self, items: Union[str, Sequence[str]], silent: bool = True):
         # check single item
@@ -173,8 +220,8 @@ class RunContext(TempContext):
         self.grad_acc: int = 1
         # learning rate
         self.lr: NUMBER = NOTHING
-        # learning rate decay
-        self.lr_decay: Any = NOTHING
+        # learning rate scheduler
+        self.lr_scheduler: "LRScheduler" = NOTHING
         # data provider
         from torchslime.components.data import DataProvider
         self.train_provider: DataProvider = NOTHING
@@ -216,7 +263,7 @@ class HandlerContext(TempContext):
         self.MeterHandler = common.MeterHandler
         self.GatherAverageHandler = common.GatherAverageHandler
         self.LoggingHandler = common.LoggingHandler
-        self.LRDecayHandler = common.LRDecayHandler
+        self.LRScheduleHandler = common.LRScheduleHandler
         self.FuncHandler = common.FuncHandler
         
         # handler wrappers
@@ -242,16 +289,16 @@ class HookContext(TempContext):
         self.plugins: PluginContainer = PluginContainer()
         
         from torchslime.core.hooks.launch import LaunchHook
-        self.launch: LaunchHook = NOTHING
+        self.launch: Union[LaunchHook, Nothing] = NOTHING
         
         from torchslime.core.hooks.build import BuildHook
-        self.build: BuildHook = NOTHING
+        self.build: Union[BuildHook, Nothing] = NOTHING
         
         from torchslime.core.hooks.state import StateHook
-        self.state: StateHook = NOTHING
+        self.state: Union[StateHook, Nothing] = NOTHING
         
         from torchslime.core.hooks.profiler import ProfilerHook
-        self.profiler: ProfilerHook = NOTHING
+        self.profiler: Union[ProfilerHook, Nothing] = NOTHING
 
 
 class DisplayContext(TempContext):

@@ -1,7 +1,6 @@
 from torchslime.utils.typing import (
     NOTHING,
     Mapping,
-    Nothing,
     NoneOrNothing,
     Union,
     Dict,
@@ -63,7 +62,11 @@ class LossFunc(Metric):
 
 class SimpleLossFunc(LossFunc):
     
-    def __init__(self, loss_func: Callable[[Any, Any], Union[Dict, Tensor]], name: Union[str, NoneOrNothing] = None):
+    def __init__(
+        self,
+        loss_func: Callable[[Any, Any], Union[Dict, Tensor]],
+        name: Union[str, NoneOrNothing] = None
+    ):
         super().__init__(name)
         self.loss_func = loss_func
     
@@ -115,9 +118,11 @@ def _mean_loss_reduction(ctx: BaseContext):
     tensor_len = len(loss_tensors)
     result = sum(map(lambda loss_tensor: safe_divide(loss_tensor, tensor_len, NOTHING), loss_tensors))
     if result is NOTHING:
-        logger.warning('Mean loss reduction got NOTHING. This may be caused by one of the following reasons:\n'
+        logger.warning(
+            'Mean loss reduction got NOTHING. This may be caused by one of the following reasons:\n'
             '1. Values returned by the loss func contain NOTHING.\n'
-            '2. Length of loss values is 0.')
+            '2. Length of loss values is 0.'
+        )
     return result
 
 
@@ -126,9 +131,11 @@ def _sum_loss_reduction(ctx: BaseContext):
     loss_tensors = ctx.step_ctx.loss.values()
     result = sum(loss_tensors) if len(loss_tensors) > 0 else NOTHING
     if result is NOTHING:
-        logger.warning('Sum loss reduction got NOTHING. This may be caused by one of the following reasons:\n'
+        logger.warning(
+            'Sum loss reduction got NOTHING. This may be caused by one of the following reasons:\n'
             '1. Values returned by the loss func contain NOTHING.\n'
-            '2. Length of loss values is 0.')
+            '2. Length of loss values is 0.'
+        )
     return result
 
 
@@ -146,10 +153,12 @@ def _weighted_loss_reduction(weight: dict):
             if key in loss_dict:
                 result += _weight[key] * loss_dict[key]
         if result is NOTHING:
-            logger.warning('Weighted loss reduction got NOTHING. This may be caused by one of the following reasons:\n'
+            logger.warning(
+                'Weighted loss reduction got NOTHING. This may be caused by one of the following reasons:\n'
                 '1. Values returned by the loss func contain NOTHING.\n'
                 '2. Weight values contain NOTHING.\n'
-                '3. There are no matched keys between loss keys and weight keys.')
+                '3. There are no matched keys between loss keys and weight keys.'
+            )
         return result
     return _reduction
 
