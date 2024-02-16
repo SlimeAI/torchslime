@@ -239,7 +239,7 @@ class SlimeGroup(Group, MutableBiListItem, BiList[_T_RichRenderable]):
     def __init__(self, *renderables: RenderableType, fit: bool = True) -> None:
         Group.__init__(self, *renderables, fit=fit)
         MutableBiListItem.__init__(self)
-        BiList[_T_RichRenderable].__init__(self)
+        BiList.__init__(self)
         self.set_list__(self.renderables)
 
 #

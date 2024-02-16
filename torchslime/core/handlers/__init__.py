@@ -225,7 +225,7 @@ class HandlerContainer(Handler, BiList[_T_Handler]):
             lambda item: not is_none_or_nothing(item),
             BaseList(handlers)
         )
-        BiList[_T_Handler].__init__(
+        BiList.__init__(
             self,
             handlers
         )

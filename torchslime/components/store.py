@@ -197,6 +197,6 @@ class BuiltinStoreAssign(StoreAssign[_T_BuiltinScopedStore]):
     
     def __init__(
         self,
-        attr_assign: dict[str, Any]
+        attr_assign: Dict[str, Any]
     ) -> None:
         super().__init__(attr_assign, BUILTIN_SCOPED_STORE_KEY)
