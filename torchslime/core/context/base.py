@@ -9,11 +9,18 @@ from torchslime.utils.typing import (
     TYPE_CHECKING,
     NOTHING,
     Nothing,
-    is_none_or_nothing
+    is_none_or_nothing,
+    TorchLRScheduler
 )
 from torchslime.components.exception import APIMisused
 from torchslime.logging.logger import logger, LoggerKwargs
-
+from torch import (
+    Tensor,
+    device
+)
+from torch.optim import Optimizer
+from torch.nn import Module
+# Type check only
 if TYPE_CHECKING:
     from torchslime.logging.rich import (
         SlimeLiveLauncher,
@@ -22,13 +29,6 @@ if TYPE_CHECKING:
         SlimeProgressLauncher
     )
     from .compile import Compile
-    from torchslime.utils.typing import (
-        TorchDevice,
-        TorchModule,
-        TorchTensor,
-        TorchOptimizer,
-        TorchLRScheduler
-    )
 
 
 class BaseContext(Base):
@@ -44,9 +44,9 @@ class BaseContext(Base):
         """
         # TODO model shard
         # device for pytorch
-        self.device: Union[str, "TorchDevice"] = NOTHING
+        self.device: Union[str, device] = NOTHING
         # model
-        self.model: "TorchModule" = NOTHING
+        self.model: Module = NOTHING
         # run context
         self.run_ctx: RunContext = RunContext()
         # information about iteration
@@ -164,7 +164,7 @@ class StepContext(TempContext):
         # metrics of the step
         self.metrics: Dict = NOTHING
         # loss tensor(s) of the step
-        self.loss: Union[Dict[str, "TorchTensor"], Nothing] = NOTHING
+        self.loss: Union[Dict[str, Tensor], Nothing] = NOTHING
         # loss value(s) of the step
         self.loss_values: Union[Dict[str, float], Nothing] = NOTHING
         # extra data passed to the context
@@ -214,14 +214,14 @@ class RunContext(TempContext):
         # validation freq
         self.valid_freq: Union[int, List[int], Callable[[BaseContext], bool]] = 1
         # optimizer
-        self.optimizer: "TorchOptimizer" = NOTHING
+        self.optimizer: Optimizer = NOTHING
         # loss_func
         from torchslime.components.metric import LossFuncContainer
         self.loss_func: Union[LossFuncContainer, Nothing] = NOTHING
         # gradient accumulation
         self.grad_acc: int = 1
         # learning rate scheduler
-        self.lr_scheduler: "TorchLRScheduler" = NOTHING
+        self.lr_scheduler: TorchLRScheduler = NOTHING
         # data provider
         from torchslime.components.data import DataProvider
         self.train_provider: DataProvider = NOTHING
@@ -235,7 +235,7 @@ class RunContext(TempContext):
         self.metrics: Union[MetricContainer, Nothing] = NOTHING
         # loss reduction func
         from torchslime.components.metric import LossReductionFactory
-        self.loss_reduction: Callable[[BaseContext], "TorchTensor"] = LossReductionFactory.get('mean')
+        self.loss_reduction: Callable[[BaseContext], Tensor] = LossReductionFactory.get('mean')
 
 
 class HandlerContext(TempContext):

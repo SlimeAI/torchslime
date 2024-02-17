@@ -10,7 +10,6 @@ from torchslime.utils.typing import (
     Sequence,
     is_none_or_nothing,
     TypeVar,
-    Type,
     overload,
     Callable
 )

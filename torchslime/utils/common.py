@@ -14,17 +14,10 @@ from .typing import (
     Dict,
     Iterator,
     TypeVar,
-    Any,
-    TYPE_CHECKING
+    Any
 )
-# Type check only
-if TYPE_CHECKING:
-    from .typing import (
-        TorchModule,
-        TorchTensor,
-        TorchTensorOrModule,
-        TorchTensorOrModuleOrSequence
-    )
+from torch.nn import Module
+from torch import Tensor
 
 _T = TypeVar('_T')
 
@@ -147,7 +140,7 @@ def inf_range(start: int = 0, step: int = 1):
         value += step
 
 
-def get_device(obj: "TorchTensorOrModule"):
+def get_device(obj: Union[Tensor, Module]):
     """Get the device of the model or tensor.
 
     Args:
@@ -156,9 +149,6 @@ def get_device(obj: "TorchTensorOrModule"):
     Returns:
         device: the device
     """
-    from torch.nn import Module
-    from torch import Tensor
-
     if isinstance(obj, Module):
         parameter = next(obj.parameters(), None)
         return parameter.device if parameter is not None else None
@@ -168,7 +158,7 @@ def get_device(obj: "TorchTensorOrModule"):
         return None
 
 
-def get_dtype(obj: "TorchTensorOrModule"):
+def get_dtype(obj: Union[Tensor, Module]):
     """Get the data type of the model or tensor
 
     Args:
@@ -177,9 +167,6 @@ def get_dtype(obj: "TorchTensorOrModule"):
     Returns:
         data type: the data type
     """
-    from torch.nn import Module
-    from torch import Tensor
-
     if isinstance(obj, Module):
         parameter = next(obj.parameters(), None)
         return parameter.dtype if parameter is not None else None
@@ -190,10 +177,10 @@ def get_dtype(obj: "TorchTensorOrModule"):
 
 
 def type_cast(
-    obj: "TorchTensorOrModuleOrSequence",
+    obj: Union[Tensor, Module, Sequence[Tensor], Sequence[Module]],
     device=None,
     dtype=None
-) -> Union[Tuple["TorchTensor", "TorchModule"], "TorchTensor", "TorchModule", None]:
+) -> Union[Tuple[Tensor, Module], Tensor, Module, None]:
     """Apply type cast to the model or tensor.
 
     Args:
@@ -204,9 +191,6 @@ def type_cast(
     Returns:
         Union[Tuple[Tensor, Module], Tensor, Module, None]: [description]
     """
-    from torch.nn import Module
-    from torch import Tensor
-
     obj = obj if isinstance(obj, (list, tuple)) else ((obj, ) if isinstance(obj, (Tensor, Module)) else obj)
     if isinstance(obj, (list, tuple)) is False:
         return obj
@@ -243,7 +227,7 @@ def list_take(list_like, index: Union[Sequence[int], int]):
         return tuple(list_like[i] if i < list_len else NOTHING for i in index)
 
 
-def count_params(model: "TorchModule", format: str = None, decimal: int = 2):
+def count_params(model: Module, format: str = None, decimal: int = 2):
     format_dict = {
         None: 1,
         'K': 1e3,
@@ -257,14 +241,6 @@ def count_params(model: "TorchModule", format: str = None, decimal: int = 2):
         num += param.numel()
     result = num / divisor
     return result if format is None else f'{result:.{decimal}f}{format}'
-
-
-def is_torch_distributed_ready():
-    """
-    Check whether the torch distributed settings are ready.
-    """
-    import torch.distributed as dist
-    return dist.is_available() and dist.is_initialized()
 
 
 class StrTemplate:

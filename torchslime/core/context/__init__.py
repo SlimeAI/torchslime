@@ -8,8 +8,7 @@ from torchslime.utils.typing import (
     is_none_or_nothing,
     NOTHING,
     Missing,
-    MISSING,
-    TYPE_CHECKING
+    MISSING
 )
 from torchslime.components.data import DataProvider
 from torchslime.components.exception import APIMisused
@@ -21,12 +20,9 @@ from torchslime.core.hooks.build import BuildHook
 from torchslime.core.hooks.launch import LaunchHook
 from torchslime.core.hooks.profiler import ProfilerHook
 from torchslime.core.hooks.plugin import PluginHook
-# Type check only
-if TYPE_CHECKING:
-    from torchslime.utils.typing import (
-        TorchDataLoader
-    )
-    AcceptableDataType = Union["TorchDataLoader", DataProvider]
+from torch.utils.data import DataLoader
+
+AcceptableDataType = Union[DataLoader, DataProvider]
 
 
 class Context(BaseContext, AttrObserver):

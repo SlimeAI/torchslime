@@ -15,16 +15,12 @@ from .typing import (
     Type,
     Iterable,
     Missing,
-    MISSING,
-    TYPE_CHECKING
+    MISSING
 )
-from .common import is_torch_distributed_ready
 from .bases import BaseList, AttrObserver, AttrObserve
-# Type check only
-if TYPE_CHECKING:
-    from .typing import (
-        TorchTensor
-    )
+import torch.distributed as dist
+from torch import Tensor
+import torch
 
 _T = TypeVar('_T')
 launch_util_registry = Registry[Type['LaunchUtil']]('launch_util_registry')
@@ -41,6 +37,13 @@ class LaunchUtil:
     def is_distributed_ready(self) -> bool: pass
     def get_rank(self, group=None) -> Union[int, NoneOrNothing]: pass
     def get_world_size(self, group=None) -> Union[int, NoneOrNothing]: pass
+
+
+def is_torch_distributed_ready():
+    """
+    Check whether the torch distributed settings are ready.
+    """
+    return dist.is_available() and dist.is_initialized()
 
 
 @launch_util_registry(name='vanilla')
@@ -104,11 +107,9 @@ class DistributedLaunchUtil(LaunchUtil):
         return ready
 
     def get_rank(self, group=None):
-        import torch.distributed as dist
         return dist.get_rank(group=group)
     
     def get_world_size(self, group=None):
-        import torch.distributed as dist
         return dist.get_world_size(group=group)
 
 
@@ -148,13 +149,13 @@ class Launcher(AttrObserver):
 
 class DistComm:
 
-    def gather(self, tensor: "TorchTensor", dst=0, group=None, async_op=False) -> None: pass
+    def gather(self, tensor: Tensor, dst=0, group=None, async_op=False) -> None: pass
     def gather_object(self, obj, dst=0, group=None) -> None: pass
-    def all_gather(self, tensor: "TorchTensor", group=None, async_op=False) -> None: pass
+    def all_gather(self, tensor: Tensor, group=None, async_op=False) -> None: pass
     def all_gather_object(self, obj, group=None) -> None: pass
-    def broadcast(self, tensor: "TorchTensor", src=0, group=None, async_op=False) -> None: pass
+    def broadcast(self, tensor: Tensor, src=0, group=None, async_op=False) -> None: pass
     def broadcast_object(self, obj, src=0, group=None) -> None: pass
-    def scatter(self, tensor: "TorchTensor", scatter_list=None, src=0, group=None, async_op=False) -> None: pass
+    def scatter(self, tensor: Tensor, scatter_list=None, src=0, group=None, async_op=False) -> None: pass
     def scatter_object(self, objs, src=0, group=None) -> None: pass
 
 
@@ -164,15 +165,14 @@ class TorchComm(DistComm):
         self._pickler = pickle.Pickler
         self._unpickler = pickle.Unpickler
 
-    def gather(self, tensor: "TorchTensor", dst=0, group=None, async_op=False):
-        import torch.distributed as dist
+    def gather(self, tensor: Tensor, dst=0, group=None, async_op=False):
         device = self._get_device(group=group)
         group_size = dist.get_world_size(group=group)
         # get GLOBAL RANK here
         rank = dist.get_rank()
         # get ``tensor_size``
         tensor_size = tuple(tensor.size())
-        tensor_list: List["TorchTensor"] = self._make_tensor_group_list(
+        tensor_list: List[Tensor] = self._make_tensor_group_list(
             tensor_size, group_size, tensor.dtype, device
         ) if rank == dst else None
         work = dist.gather(tensor.to(device), tensor_list, dst=dst, group=group, async_op=async_op)
@@ -182,9 +182,6 @@ class TorchComm(DistComm):
 
     def gather_object(self, obj, dst=0, group=None):
         # code modified from torch.distributed.gather_object in PyTorch 1.13
-        import torch
-        import torch.distributed as dist
-        
         device = self._get_device(group=group)
         object_tensor, local_size = self._object_to_tensor(obj, device)
         group_size = dist.get_world_size(group=group)
@@ -206,13 +203,12 @@ class TorchComm(DistComm):
             return
         return self._transfer_objects(output_tensors, object_size_list, group_size)
 
-    def all_gather(self, tensor: "TorchTensor", group=None, async_op=False):
-        import torch.distributed as dist
+    def all_gather(self, tensor: Tensor, group=None, async_op=False):
         device = self._get_device(group=group)
         group_size = dist.get_world_size(group=group)
         # get ``tensor_size``
         tensor_size = tuple(tensor.size())
-        tensor_list: List["TorchTensor"] = self._make_tensor_group_list(tensor_size, group_size, tensor.dtype, device)
+        tensor_list: List[Tensor] = self._make_tensor_group_list(tensor_size, group_size, tensor.dtype, device)
         work = dist.all_gather(tensor_list, tensor.to(device), group=group, async_op=async_op)
         if async_op is True:
             return tensor_list, work
@@ -220,9 +216,6 @@ class TorchComm(DistComm):
 
     def all_gather_object(self, obj, group=None):
         # code modified from torch.distributed.all_gather_object in PyTorch 1.13
-        import torch
-        import torch.distributed as dist
-        
         device = self._get_device(group=group)
         object_tensor, local_size = self._object_to_tensor(obj, device)
         group_size = dist.get_world_size(group=group)
@@ -240,16 +233,12 @@ class TorchComm(DistComm):
         dist.all_gather(output_tensors, object_tensor, group=group)
         return self._transfer_objects(output_tensors, object_size_list, group_size)
 
-    def broadcast(self, tensor: "TorchTensor", src=0, group=None, async_op=False):
+    def broadcast(self, tensor: Tensor, src=0, group=None, async_op=False):
         # this API is simple enough that does not need more adaptation
-        import torch.distributed as dist
         return dist.broadcast(tensor, src, group=group, async_op=async_op)
 
     def broadcast_object(self, obj, src=0, group=None):
         # code modified from torch.distributed.broadcast_object_list in PyTorch 1.13
-        import torch
-        import torch.distributed as dist
-        
         device = self._get_device(group=group)
         # get GLOBAL RANK here
         rank = dist.get_rank()
@@ -267,14 +256,10 @@ class TorchComm(DistComm):
 
     def scatter(self, tensor, scatter_list=None, src=0, group=None, async_op=False):
         # this API is simple enough that does not need more adaptation
-        import torch.distributed as dist
         return dist.scatter(tensor, scatter_list=scatter_list, src=src, group=group, async_op=async_op)
 
     def scatter_object(self, objs, src=0, group=None):
         # code modified from torch.distributed.scatter_object_list in PyTorch 1.13
-        import torch
-        import torch.distributed as dist
-        
         device = self._get_device(group=group)
         # get GLOBAL RANK here
         rank = dist.get_rank()
@@ -286,7 +271,7 @@ class TorchComm(DistComm):
 
         if rank == src:
             # get max object size
-            max_object_size: "TorchTensor" = max(local_sizes)
+            max_object_size: Tensor = max(local_sizes)
             for tensor in object_tensors:
                 tensor.resize_(int(max_object_size.item()))
         else:
@@ -310,10 +295,7 @@ class TorchComm(DistComm):
         )
         return self._tensor_to_object(object_tensor, local_size)
 
-    def _all_gather_size(self, size_tensor: "TorchTensor", group_size: int, device, group):
-        import torch
-        import torch.distributed as dist
-        
+    def _all_gather_size(self, size_tensor: Tensor, group_size: int, device, group):
         size_list = self._make_tensor_group_list(1, group_size, dtype=torch.long, device=device)
         # gather object sizes into ``object_size_list``
         dist.all_gather(size_list, size_tensor.type(torch.long).to(device), group=group)
@@ -327,16 +309,13 @@ class TorchComm(DistComm):
         return object_list
 
     def _object_to_tensor(self, obj, device):
-        import torch
-        
         f = io.BytesIO()
         self._pickler(f).dump(obj)
         byte_tensor = torch.ByteTensor(list(f.getvalue())).to(device)
         local_size = torch.LongTensor([byte_tensor.numel()]).to(device)
         return byte_tensor, local_size
 
-    def _tensor_to_object(self, tensor: "TorchTensor", tensor_size):
-        import torch
+    def _tensor_to_object(self, tensor: Tensor, tensor_size):
         # cast the object tensor into uint8 type and cpu device
         # cast the object uint8 list into bytes
         byte_data = bytes(tensor.type(torch.uint8).cpu().tolist()[:tensor_size])
@@ -350,8 +329,6 @@ class TorchComm(DistComm):
         device
     ):
         assert isinstance(size, (list, tuple, int)), f'size must be list, tuple or int, but not {type(size).__qualname__}'
-        
-        import torch
         tensor_size = (group_size,) + (
             tuple(size) if isinstance(size, (list, tuple)) else (size,)
         )
@@ -361,9 +338,6 @@ class TorchComm(DistComm):
         ]
 
     def _get_device(self, group=None):
-        import torch
-        import torch.distributed as dist
-        
         backend_dict = {
             'nccl': torch.device('cuda', torch.cuda.current_device()) if torch.cuda.is_available() else NOTHING,
             'mpi': torch.device('cpu'),

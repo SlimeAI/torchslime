@@ -227,21 +227,10 @@ def is_slime_naming(__name: str) -> bool:
     return SLIME_PATTERN.match(str(__name)) is not None
 
 #
-# PyTorch types. NOTE: Only used for type checking.
+# Torch version adapter
 #
 
-if TYPE_CHECKING:
-    from torch import Tensor as TorchTensor
-    from torch.nn import Module as TorchModule
-    from torch import device as TorchDevice
-    from torch.optim import Optimizer as TorchOptimizer
-    from torch.utils.data import DataLoader as TorchDataLoader
-    try:
-        from torch.optim.lr_scheduler import LRScheduler as TorchLRScheduler
-    except Exception:
-        from torch.optim.lr_scheduler import _LRScheduler as TorchLRScheduler
-
-    # torch tensor or module
-    TorchTensorOrModule = Union[TorchTensor, TorchModule]
-    # torch tensor, module or their sequence
-    TorchTensorOrModuleOrSequence = Union[TorchTensorOrModule, Sequence[TorchTensorOrModule]]
+try:
+    from torch.optim.lr_scheduler import LRScheduler as TorchLRScheduler
+except Exception:
+    from torch.optim.lr_scheduler import _LRScheduler as TorchLRScheduler

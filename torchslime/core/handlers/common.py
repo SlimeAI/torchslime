@@ -33,7 +33,8 @@ from torchslime.logging.rich import ProfileProgress, SlimeLiveLauncher, SlimeGro
 from .riching import ProgressInterface, ProfileProgressInterface
 from functools import wraps
 from itertools import cycle
-
+from torch import set_grad_enabled
+# Type check only
 if TYPE_CHECKING:
     from .wrappers import HandlerWrapper
 
@@ -62,7 +63,6 @@ def TorchGrad(func):
     """
     @wraps(func)
     def grad_switch(self, ctx: BaseContext):
-        from torch import set_grad_enabled
         # only when context status is in ['TRAIN'] is the grad enabled
         with set_grad_enabled(str(ctx.hook_ctx.state) in ['TRAIN']):
             func(self, ctx)
