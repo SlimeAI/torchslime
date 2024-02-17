@@ -1,5 +1,5 @@
 from torchslime.core.context.base import BaseContext
-from torchslime.utils import list_take
+from torchslime.utils.common import list_take
 from torchslime.logging.logger import logger
 from torchslime.utils.typing import (
     Sequence,

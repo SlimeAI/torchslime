@@ -18,7 +18,7 @@ from .typing import (
     MISSING,
     TYPE_CHECKING
 )
-from . import is_torch_distributed_ready
+from .common import is_torch_distributed_ready
 from .bases import BaseList, AttrObserver, AttrObserve
 # Type check only
 if TYPE_CHECKING:

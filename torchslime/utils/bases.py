@@ -70,7 +70,7 @@ class Base(ScopedAttr):
         Args:
             kwargs (Dict): property dict.
         """
-        from . import dict_merge
+        from .common import dict_merge
         self.__dict__ = dict_merge(self.__dict__, _dict)
 
     def check__(self, item: str):

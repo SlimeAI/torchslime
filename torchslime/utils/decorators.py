@@ -244,7 +244,7 @@ def CallDebug(
     Args:
         func (_type_): _description_
     """
-    from . import get_exec_info
+    from .common import get_exec_info
     
     def decorator(func: _T) -> _T:
         from torchslime.logging.logger import logger, LoggerKwargs

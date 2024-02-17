@@ -14,7 +14,7 @@ from torchslime.utils.typing import (
 from torchslime.components.data import DataProvider
 from torchslime.components.exception import APIMisused
 from torchslime.logging.logger import logger
-from torchslime.utils import get_device, type_cast, count_params
+from torchslime.utils.common import count_params, get_device, type_cast
 from torchslime.utils.decorators import CallDebug, MethodChaining
 from torchslime.utils.bases import AttrObserver, AttrObserve
 from torchslime.core.hooks.build import BuildHook

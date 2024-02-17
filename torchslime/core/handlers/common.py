@@ -17,9 +17,9 @@ from torchslime.utils.typing import (
     MISSING,
     Missing
 )
-from torchslime.utils import (
-    type_cast,
-    get_len
+from torchslime.utils.common import (
+    get_len,
+    type_cast
 )
 from torchslime.utils.bases import BaseList
 from torchslime.components.metric import MeterDict

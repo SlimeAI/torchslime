@@ -1,3 +1,9 @@
+from torchslime.utils.common import (
+    LessThanAnything,
+    dict_merge,
+    safe_divide,
+    GreaterThanAnything
+)
 from torchslime.utils.typing import (
     NOTHING,
     Mapping,
@@ -11,7 +17,6 @@ from torchslime.utils.typing import (
     TYPE_CHECKING
 )
 from torchslime.utils.bases import BaseDict, BaseList
-from torchslime.utils import dict_merge, safe_divide, LessThanAnything, GreaterThanAnything
 from .registry import Registry
 from .exception import APIMisused
 from torchslime.core.context.base import BaseContext
