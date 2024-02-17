@@ -6,7 +6,6 @@ from torchslime.experiment.directory import get_checkpoint_path, join_path, get_
 from torchslime.logging.logger import logger
 from torchslime.utils.typing import NOTHING
 from torchslime.utils.typing import INT_SEQ_N
-import torch
 from torchslime.utils.typing import Sequence, Union, Callable
 import json
 

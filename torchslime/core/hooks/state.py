@@ -4,9 +4,17 @@ State Pattern for model state management.
 from torchslime.components.registry import Registry
 from torchslime.components.metric import MeterDict
 from torchslime.core.context.base import BaseContext
-from torchslime.utils.typing import Tuple, Mapping, Type
-
-from torch.utils.data import DataLoader
+from torchslime.utils.typing import (
+    Tuple,
+    Mapping,
+    Type,
+    TYPE_CHECKING
+)
+# Type check only
+if TYPE_CHECKING:
+    from torchslime.utils.typing import (
+        TorchDataLoader
+    )
 
 state_registry = Registry[Type["StateHook"]]('state_registry')
 
@@ -15,7 +23,7 @@ class StateHook:
 
     def __init__(self) -> None: pass
     def set_model_mode(self, ctx: BaseContext): pass
-    def get_loader(self, ctx: BaseContext) -> DataLoader: pass
+    def get_loader(self, ctx: BaseContext) -> "TorchDataLoader": pass
     # meter operations
     def init_meter(self, ctx: BaseContext) -> None: pass
     def update_meter(self, ctx: BaseContext, loss_value: Mapping, metrics: Mapping) -> None: pass
@@ -34,7 +42,7 @@ class TrainState(StateHook):
     def set_model_mode(self, ctx: BaseContext):
         ctx.model.train()
 
-    def get_loader(self, ctx: BaseContext) -> DataLoader:
+    def get_loader(self, ctx: BaseContext) -> "TorchDataLoader":
         ctx.ctx_check('run_ctx.train_provider', silent=False)
         ctx.run_ctx.train_loader = ctx.run_ctx.train_provider(ctx)
         return ctx.run_ctx.train_loader
@@ -63,7 +71,7 @@ class EvalState(StateHook):
     def set_model_mode(self, ctx: BaseContext):
         ctx.model.eval()
 
-    def get_loader(self, ctx: BaseContext) -> DataLoader:
+    def get_loader(self, ctx: BaseContext) -> "TorchDataLoader":
         ctx.ctx_check('run_ctx.eval_provider', silent=False)
         ctx.run_ctx.eval_loader = ctx.run_ctx.eval_provider(ctx)
         return ctx.run_ctx.eval_loader

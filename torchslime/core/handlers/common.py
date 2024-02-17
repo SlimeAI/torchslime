@@ -31,7 +31,6 @@ from torchslime.core.hooks.state import StateHook
 from torchslime.logging.logger import logger
 from torchslime.logging.rich import ProfileProgress, SlimeLiveLauncher, SlimeGroup, SlimeProgressLauncher
 from .riching import ProgressInterface, ProfileProgressInterface
-from torch import set_grad_enabled
 from functools import wraps
 from itertools import cycle
 
@@ -63,6 +62,7 @@ def TorchGrad(func):
     """
     @wraps(func)
     def grad_switch(self, ctx: BaseContext):
+        from torch import set_grad_enabled
         # only when context status is in ['TRAIN'] is the grad enabled
         with set_grad_enabled(str(ctx.hook_ctx.state) in ['TRAIN']):
             func(self, ctx)

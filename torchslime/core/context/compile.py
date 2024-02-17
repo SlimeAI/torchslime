@@ -31,11 +31,13 @@ from torchslime.core.hooks.launch import LaunchHook, launch_registry
 from torchslime.core.hooks.profiler import ProfilerHook, profiler_registry
 from torchslime.core.hooks.state import StateHook, state_registry
 from torchslime.utils.decorators import CallDebug, MethodChaining
-from torch.optim import Optimizer
-from torch import Tensor
 if TYPE_CHECKING:
     from . import Context, AcceptableDataType
-    from torchslime.utils.typing import LRScheduler
+    from torchslime.utils.typing import (
+        TorchLRScheduler,
+        TorchOptimizer,
+        TorchTensor
+    )
 
 COMPILE_FUNC_SUFFIX = '_compile__'
 
@@ -80,10 +82,10 @@ class Compile:
     def compile_run_ctx(
         self,
         loss_func_list: Union[Iterable[LossFunc], NoneOrNothing, Missing] = MISSING,
-        loss_reduction: Union[str, dict, Callable[["Context"], Tensor], NoneOrNothing, Missing] = MISSING,
+        loss_reduction: Union[str, dict, Callable[["Context"], "TorchTensor"], NoneOrNothing, Missing] = MISSING,
         metrics: Union[Iterable[Metric], NoneOrNothing, Missing] = MISSING,
-        optimizer: Union[Optimizer, NoneOrNothing, Missing] = MISSING,
-        lr_scheduler: Union["LRScheduler", NoneOrNothing, Missing] = MISSING,
+        optimizer: Union["TorchOptimizer", NoneOrNothing, Missing] = MISSING,
+        lr_scheduler: Union["TorchLRScheduler", NoneOrNothing, Missing] = MISSING,
         data_parser: Union[DataParser, NoneOrNothing, Missing] = MISSING
     ) -> "Compile":
         self(
@@ -122,7 +124,7 @@ class Compile:
 
     @CallDebug
     @MethodChaining
-    def loss_reduction_compile__(self, loss_reduction: Union[str, dict, Callable[["Context"], Tensor], NoneOrNothing]) -> "Compile":
+    def loss_reduction_compile__(self, loss_reduction: Union[str, dict, Callable[["Context"], "TorchTensor"], NoneOrNothing]) -> "Compile":
         if not is_none_or_nothing(loss_reduction):
             loss_reduction = LossReductionFactory.get(loss_reduction)
         self.ctx.run_ctx.loss_reduction = loss_reduction
@@ -141,12 +143,12 @@ class Compile:
 
     @CallDebug
     @MethodChaining
-    def optimizer_compile__(self, optimizer: Union[Optimizer, NoneOrNothing]) -> "Compile":
+    def optimizer_compile__(self, optimizer: Union["TorchOptimizer", NoneOrNothing]) -> "Compile":
         self.ctx.run_ctx.optimizer = optimizer
 
     @CallDebug
     @MethodChaining
-    def lr_scheduler_compile__(self, lr_scheduler: Union["LRScheduler", NoneOrNothing]) -> "Compile":
+    def lr_scheduler_compile__(self, lr_scheduler: Union["TorchLRScheduler", NoneOrNothing]) -> "Compile":
         self.ctx.run_ctx.lr_scheduler = lr_scheduler
 
     @CallDebug

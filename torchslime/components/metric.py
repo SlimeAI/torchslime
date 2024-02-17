@@ -7,7 +7,8 @@ from torchslime.utils.typing import (
     Iterable,
     Callable,
     Any,
-    is_none_or_nothing
+    is_none_or_nothing,
+    TYPE_CHECKING
 )
 from torchslime.utils.bases import BaseDict, BaseList
 from torchslime.utils import dict_merge, safe_divide, LessThanAnything, GreaterThanAnything
@@ -15,8 +16,12 @@ from .registry import Registry
 from .exception import APIMisused
 from torchslime.core.context.base import BaseContext
 from torchslime.logging.logger import logger
-from torch import Tensor
 import inspect
+# Type check only
+if TYPE_CHECKING:
+    from torchslime.utils.typing import (
+        TorchTensor
+    )
 
 
 class Metric:
@@ -57,20 +62,20 @@ class MetricContainer(Metric, BaseList[Metric]):
 
 class LossFunc(Metric):
     
-    def get(self, ctx: BaseContext) -> Union[Dict, Tensor]: pass
+    def get(self, ctx: BaseContext) -> Union[Dict, "TorchTensor"]: pass
 
 
 class SimpleLossFunc(LossFunc):
     
     def __init__(
         self,
-        loss_func: Callable[[Any, Any], Union[Dict, Tensor]],
+        loss_func: Callable[[Any, Any], Union[Dict, "TorchTensor"]],
         name: Union[str, NoneOrNothing] = None
     ):
         super().__init__(name)
         self.loss_func = loss_func
     
-    def get(self, ctx: BaseContext) -> Union[Dict, Tensor]:
+    def get(self, ctx: BaseContext) -> Union[Dict, "TorchTensor"]:
         return self.loss_func(ctx.step_ctx.y_pred, ctx.step_ctx.y_true)
 
 
@@ -92,8 +97,8 @@ class LossReductionFactory:
 
     @staticmethod
     def get(
-        item: Union[str, dict, Callable[[BaseContext], Tensor]]
-    ) -> Callable[[BaseContext], Tensor]:
+        item: Union[str, dict, Callable[[BaseContext], "TorchTensor"]]
+    ) -> Callable[[BaseContext], "TorchTensor"]:
         if isinstance(item, str):
             if not item in loss_reduction_registry:
                 raise ValueError('Loss reduction type not supported.')

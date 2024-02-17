@@ -7,13 +7,19 @@ from .typing import (
     Iterator,
     Iterable,
     Any,
-    TypeVar
+    TypeVar,
+    TYPE_CHECKING
 )
-from torch import Tensor
-from torch.nn import Module
 from time import time
 import inspect
 import os
+if TYPE_CHECKING:
+    from .typing import (
+        TorchModule,
+        TorchTensor,
+        TorchTensorOrModule,
+        TorchTensorOrModuleOrSequence
+    )
 
 _T = TypeVar('_T')
 
@@ -74,10 +80,7 @@ def inf_enumerate(__iterable: Iterable, start: int = 0):
         yield item
 
 
-from .typing import T_M_SEQ, T_M
-
-
-def get_device(obj: T_M):
+def get_device(obj: "TorchTensorOrModule"):
     """Get the device of the model or tensor.
 
     Args:
@@ -86,6 +89,9 @@ def get_device(obj: T_M):
     Returns:
         device: the device
     """
+    from torch.nn import Module
+    from torch import Tensor
+    
     if isinstance(obj, Module):
         parameter = next(obj.parameters(), None)
         return parameter.device if parameter is not None else None
@@ -95,7 +101,7 @@ def get_device(obj: T_M):
         return None
 
 
-def get_dtype(obj: T_M):
+def get_dtype(obj: "TorchTensorOrModule"):
     """Get the data type of the model or tensor
 
     Args:
@@ -104,6 +110,9 @@ def get_dtype(obj: T_M):
     Returns:
         data type: the data type
     """
+    from torch.nn import Module
+    from torch import Tensor
+    
     if isinstance(obj, Module):
         parameter = next(obj.parameters(), None)
         return parameter.dtype if parameter is not None else None
@@ -113,7 +122,11 @@ def get_dtype(obj: T_M):
         return None
 
 
-def type_cast(obj: T_M_SEQ, device=None, dtype=None) -> Union[Tuple[Tensor, Module], Tensor, Module, None]:
+def type_cast(
+    obj: "TorchTensorOrModuleOrSequence",
+    device=None,
+    dtype=None
+) -> Union[Tuple["TorchTensor", "TorchModule"], "TorchTensor", "TorchModule", None]:
     """Apply type cast to the model or tensor.
 
     Args:
@@ -124,6 +137,9 @@ def type_cast(obj: T_M_SEQ, device=None, dtype=None) -> Union[Tuple[Tensor, Modu
     Returns:
         Union[Tuple[Tensor, Module], Tensor, Module, None]: [description]
     """
+    from torch.nn import Module
+    from torch import Tensor
+    
     obj = obj if isinstance(obj, (list, tuple)) else ((obj, ) if isinstance(obj, (Tensor, Module)) else obj)
     if isinstance(obj, (list, tuple)) is False:
         return obj
@@ -229,7 +245,7 @@ class IterTool(Iter):
         return self.__len__()
 
 
-def count_params(model: Module, format: str = None, decimal: int = 2):
+def count_params(model: "TorchModule", format: str = None, decimal: int = 2):
     format_dict = {
         None: 1,
         'K': 1e3,

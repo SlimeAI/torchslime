@@ -1,6 +1,7 @@
 """
-This python file defines common types that are used in the project.
-The module is renamed from 'type' to 'typing' to avoid namespace conflict with built-in class ``type``
+This Python module defines common types that are used in the project, 
+provides version compatibility for Python and introduces special constants 
+in torchslime.
 """
 import multiprocessing
 import re
@@ -8,9 +9,10 @@ import sys
 import threading
 from types import FunctionType, MethodType
 from typing import *
-from typing import (
-    TextIO
-)
+
+#
+# Typing import for version compatibility.
+#
 
 if sys.version_info < (3, 8):
     try:
@@ -29,83 +31,92 @@ if sys.version_info < (3, 8):
         raise e
 
 if sys.version_info >= (3, 9):
-    Dict = dict
-    List = list
-    Set = set
-    Frozenset = frozenset
-    Tuple = tuple
-    Type = type
+    from builtins import (
+        dict as Dict,
+        list as List,
+        set as Set,
+        frozenset as Frozenset,
+        tuple as Tuple,
+        type as Type,
+        # for compatibility for Python 2.x
+        str as Text
+    )
     
-    import collections
-    DefaultDict = collections.defaultdict
-    OrderedDict = collections.OrderedDict
-    ChainMap = collections.ChainMap
-    Counter = collections.Counter
-    Deque = collections.deque
+    from collections import (
+        defaultdict as DefaultDict,
+        OrderedDict as OrderedDict,
+        ChainMap as ChainMap,
+        Counter as Counter,
+        deque as Deque
+    )
     
-    import re
-    Pattern = re.Pattern
-    Match = re.Match
+    from re import (
+        Pattern as Pattern,
+        Match as Match
+    )
     
-    import collections.abc as abc
-    AbstractSet = abc.Set
+    from collections.abc import (
+        Set as AbstractSet,
+        Collection as Collection,
+        Container as Container,
+        ItemsView as ItemsView,
+        KeysView as KeysView,
+        Mapping as Mapping,
+        MappingView as MappingView,
+        MutableMapping as MutableMapping,
+        MutableSequence as MutableSequence,
+        MutableSet as MutableSet,
+        Sequence as Sequence,
+        ValuesView as ValuesView,
+        Coroutine as Coroutine,
+        AsyncGenerator as AsyncGenerator,
+        AsyncIterable as AsyncIterable,
+        AsyncIterator as AsyncIterator,
+        Awaitable as Awaitable,
+        Iterable as Iterable,
+        Iterator as Iterator,
+        Callable as Callable,
+        Generator as Generator,
+        Hashable as Hashable,
+        Reversible as Reversible,
+        Sized as Sized
+    )
     
     # deprecated type: ByteString
     try:
-        import typing_extensions
-        ByteString = typing_extensions.Buffer
+        from typing_extensions import (
+            Buffer as ByteString
+        )
     except Exception:
         ByteString = Union[bytes, bytearray, memoryview]
     
-    Collection = abc.Collection
-    Container = abc.Container
-    ItemsView = abc.ItemsView
-    KeysView = abc.KeysView
-    Mapping = abc.Mapping
-    MappingView = abc.MappingView
-    MutableMapping = abc.MutableMapping
-    MutableSequence = abc.MutableSequence
-    MutableSet = abc.MutableSet
-    Sequence = abc.Sequence
-    ValuesView = abc.ValuesView
-    
-    Coroutine = abc.Coroutine
-    AsyncGenerator = abc.AsyncGenerator
-    AsyncIterable = abc.AsyncIterable
-    AsyncIterator = abc.AsyncIterator
-    Awaitable = abc.Awaitable
-
-    Iterable = abc.Iterable
-    Iterator = abc.Iterator
-    Callable = abc.Callable
-    Generator = abc.Generator
-    Hashable = abc.Hashable
-    Reversible = abc.Reversible
-    Sized = abc.Sized
-    
-    import contextlib
-    ContextManager = contextlib.AbstractContextManager
-    AsyncContextManager = contextlib.AbstractAsyncContextManager
+    from contextlib import (
+        AbstractContextManager as ContextManager,
+        AbstractAsyncContextManager as AsyncContextManager
+    )
 
 try:
-    from typing import _overload_dummy
-    overload_dummy: FunctionType = _overload_dummy
+    from typing import _overload_dummy as overload_dummy
 except Exception:
+    @overload
     def overload_dummy(): pass
-    overload_dummy = overload(overload_dummy)
 
 #
-# Nothing class, NOTHING instance and related operations.
+# Special constants defined in torchslime.
 #
 
-class _NothingSingleton(type):
+class _SingletonMetaclass(type):
     """
-    Nothing Singleton should be implemented independently, because the ``Singleton`` decorator relies on the basic NOTHING object, which may cause circular reference.
+    Singleton metaclass that makes a specific class a singleton class.
+    Used for special constants, because the typing module should be an independent module and can only be 
+    imported by other torchslime modules (to avoid circular import error). The ``Singleton`` decorator 
+    (defined in torchslime.utils.decorators) should be used in other modules.
     """
-
-    __t_lock = threading.Lock()
-    __p_lock = multiprocessing.Lock()
-    __instance = None
+    def __init__(cls, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        cls.__t_lock = threading.Lock()
+        cls.__p_lock = multiprocessing.Lock()
+        cls.__instance = None
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
         if self.__instance is None:
@@ -114,12 +125,17 @@ class _NothingSingleton(type):
                     self.__instance = super().__call__(*args, **kwargs)
         return self.__instance
 
-class Nothing(metaclass=_NothingSingleton):
+
+# ``Nothing`` class, ``NOTHING`` instance and related functions.
+
+class Nothing(metaclass=_SingletonMetaclass):
     """
     'Nothing' object, different from python 'None'.
     It often comes from getting properties or items that the object does not have, or simply represents a default value.
     'Nothing' allows any attribute-get or method-call operations without throwing Errors, making the program more stable.
     It will show Warnings in the console instead.
+    Nothing Singleton should be implemented independently, 
+    because the ``Singleton`` decorator relies on the basic NOTHING object, which may cause circular reference.
     """
     __slots__ = ()
 
@@ -170,27 +186,27 @@ def is_none_or_nothing(obj) -> bool:
     return obj is None or obj is NOTHING
 
 
-from torch import Tensor
-from torch.nn import Module
-try:
-    from torch.optim.lr_scheduler import LRScheduler
-except Exception:
-    from torch.optim.lr_scheduler import _LRScheduler as LRScheduler
+# Flag constants.
 
-# tensor or module
-T_M = Union[Tensor, Module]
-# tensor or module or their sequence
-T_M_SEQ = Union[T_M, Sequence[T_M]]
-# int or float
-NUMBER = Union[int, float]
-# int or float. tuple
-NUMBER_T = (int, float)
-# int or sequence of int
-INT_SEQ = Union[int, Sequence[int]]
+class _FlagConstant:
+    def __str__(self) -> str: return self.__class__.__name__.upper()
+    def __repr__(self) -> str: return f'{str(self)}<{str(hex(id(self)))}>'
 
-# int, sequence of int, None or NOTHING
-INT_SEQ_N = Union[INT_SEQ, None]
+"""
+NOTE: The ``_SingletonMetaclass`` metaclass should be specified by each concrete class rather than 
+``_FlagConstant``, because each class should create its own Singleton instance.
+"""
+# ``Pass`` singleton constant
+class Pass(_FlagConstant, metaclass=_SingletonMetaclass): pass
+PASS = Pass()
 
+# ``Missing`` singleton constant
+class Missing(_FlagConstant, metaclass=_SingletonMetaclass): pass
+MISSING = Missing()
+
+#
+# Other types, type checking and naming checking.
+#
 
 FuncOrMethod = Union[FunctionType, MethodType]
 RawFunc = FunctionType
@@ -210,34 +226,22 @@ SLIME_PATTERN = re.compile('^[^_](?:.*[^_])?_{2}$')
 def is_slime_naming(__name: str) -> bool:
     return SLIME_PATTERN.match(str(__name)) is not None
 
+#
+# PyTorch types. NOTE: Only used for type checking.
+#
 
-def create_singleton(__name: str) -> Tuple[Type[object], object]:
-    """
-    Create a new singleton class with its singleton object. Mostly used in flag vars.
-    """
-    from .decorators import Singleton, ClassWraps
+if TYPE_CHECKING:
+    from torch import Tensor as TorchTensor
+    from torch.nn import Module as TorchModule
+    from torch import device as TorchDevice
+    from torch.optim import Optimizer as TorchOptimizer
+    from torch.utils.data import DataLoader as TorchDataLoader
+    try:
+        from torch.optim.lr_scheduler import LRScheduler as TorchLRScheduler
+    except Exception:
+        from torch.optim.lr_scheduler import _LRScheduler as TorchLRScheduler
 
-    new_class = type(__name, (object,), {})
-
-    # set str and repr func
-    class_wraps = ClassWraps(new_class)
-    @class_wraps.__str__
-    def str_func(self) -> str:
-        return __name
-
-    @class_wraps.__repr__
-    def repr_func(self) -> str:
-        return f'{__name}<{str(hex(id(self)))}>'
-
-    new_class = Singleton(new_class)
-    singleton_object = new_class()
-    return new_class, singleton_object
-
-
-# ``Pass`` singleton constant
-Pass, PASS = create_singleton('PASS')
-Pass: Type[object]
-
-# ``Missing`` singleton constant
-Missing, MISSING = create_singleton('MISSING')
-Missing: Type[object]
+    # torch tensor or module
+    TorchTensorOrModule = Union[TorchTensor, TorchModule]
+    # torch tensor, module or their sequence
+    TorchTensorOrModuleOrSequence = Union[TorchTensorOrModule, Sequence[TorchTensorOrModule]]

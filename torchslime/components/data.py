@@ -1,8 +1,18 @@
-from torch.utils.data import DataLoader
 from torchslime.core.context.base import BaseContext
 from torchslime.utils import list_take
 from torchslime.logging.logger import logger
-from torchslime.utils.typing import Sequence, Tuple, Any, Union
+from torchslime.utils.typing import (
+    Sequence,
+    Tuple,
+    Any,
+    Union,
+    TYPE_CHECKING
+)
+# Type check only
+if TYPE_CHECKING:
+    from torchslime.utils.typing import (
+        TorchDataLoader
+    )
 
 
 class DataProvider:
@@ -10,10 +20,12 @@ class DataProvider:
     def __init__(self):
         pass
 
-    def get(self, ctx: BaseContext) -> DataLoader:
+    def get(self, ctx: BaseContext) -> "TorchDataLoader":
         pass
 
-    def __call__(self, ctx: BaseContext) -> DataLoader:
+    def __call__(self, ctx: BaseContext) -> "TorchDataLoader":
+        from torch.utils.data import DataLoader
+        
         data_loader = self.get(ctx)
         if isinstance(data_loader, DataLoader) is False:
             logger.warning('DataProvider returns a non-DataLoader object, this may cause some problems.')
@@ -22,11 +34,11 @@ class DataProvider:
 
 class ConstantProvider(DataProvider):
 
-    def __init__(self, dataset: DataLoader):
+    def __init__(self, dataset: "TorchDataLoader"):
         super().__init__()
         self.dataset = dataset
 
-    def get(self, _) -> DataLoader:
+    def get(self, _) -> "TorchDataLoader":
         return self.dataset
 
 

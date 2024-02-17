@@ -8,7 +8,8 @@ from torchslime.utils.typing import (
     is_none_or_nothing,
     NOTHING,
     Missing,
-    MISSING
+    MISSING,
+    TYPE_CHECKING
 )
 from torchslime.components.data import DataProvider
 from torchslime.components.exception import APIMisused
@@ -20,10 +21,12 @@ from torchslime.core.hooks.build import BuildHook
 from torchslime.core.hooks.launch import LaunchHook
 from torchslime.core.hooks.profiler import ProfilerHook
 from torchslime.core.hooks.plugin import PluginHook
-from torch.utils.data import DataLoader
-
-
-AcceptableDataType = Union[DataLoader, DataProvider]
+# Type check only
+if TYPE_CHECKING:
+    from torchslime.utils.typing import (
+        TorchDataLoader
+    )
+    AcceptableDataType = Union["TorchDataLoader", DataProvider]
 
 
 class Context(BaseContext, AttrObserver):
@@ -57,9 +60,9 @@ class Context(BaseContext, AttrObserver):
     @MethodChaining
     def train(
         self,
-        train_data: AcceptableDataType,
+        train_data: "AcceptableDataType",
         train_end: int = 1,
-        val_data: AcceptableDataType = NOTHING,
+        val_data: "AcceptableDataType" = NOTHING,
         grad_acc: int = 1,
         valid_freq: Union[int, List[int], Callable[[BaseContext], bool]] = 1,
         train_start: int = 0
@@ -95,7 +98,7 @@ class Context(BaseContext, AttrObserver):
     @MethodChaining
     def eval(
         self,
-        data: AcceptableDataType
+        data: "AcceptableDataType"
     ) -> 'Context':
         if is_none_or_nothing(self.run_ctx.eval_container):
             logger.error('``eval`` called before eval handlers are built. Call ``build_eval`` first.')
@@ -121,7 +124,7 @@ class Context(BaseContext, AttrObserver):
     @MethodChaining
     def predict(
         self,
-        data: AcceptableDataType
+        data: "AcceptableDataType"
     ) -> 'Context':
         if is_none_or_nothing(self.run_ctx.predict_container):
             logger.error('``predict`` called before predict handlers are built. Call ``build_predict`` first.')
