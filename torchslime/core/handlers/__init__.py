@@ -19,7 +19,6 @@ from torchslime.utils.typing import (
     PASS,
     TYPE_CHECKING
 )
-from torchslime.core.context.base import BaseContext
 from torchslime.logging.logger import logger
 from torchslime.logging.rich import (
     yield_console
@@ -42,6 +41,7 @@ from functools import partial
 
 if TYPE_CHECKING:
     from torchslime.logging.rich import Group
+    from torchslime.core.context import Context
 
 
 class Handler(CompositeStructure, MutableBiListItem):
@@ -68,9 +68,9 @@ class Handler(CompositeStructure, MutableBiListItem):
         # TODO: lifecycle
         # self.set_lifecycle()
 
-    def handle(self, ctx: BaseContext) -> None: pass
+    def handle(self, ctx: "Context") -> None: pass
 
-    def __call__(self, ctx: BaseContext) -> None:
+    def __call__(self, ctx: "Context") -> None:
         try:
             wrappers = self.get_wrappers()
             exec_ranks = self.get_exec_ranks()
@@ -230,7 +230,7 @@ class HandlerContainer(Handler, BiList[_T_Handler]):
             handlers
         )
     
-    def handle(self, ctx: BaseContext) -> None:
+    def handle(self, ctx: "Context") -> None:
         try:
             for handler in self:
                 handler(ctx)
@@ -238,7 +238,7 @@ class HandlerContainer(Handler, BiList[_T_Handler]):
             # continue in the container
             pass
     
-    def __call__(self, ctx: BaseContext) -> None:
+    def __call__(self, ctx: "Context") -> None:
         try:
             super().__call__(ctx)
         except HandlerBreak:

@@ -1,13 +1,15 @@
-from torchslime.core.context.base import BaseContext
 from torchslime.utils.common import list_take
 from torchslime.logging.logger import logger
 from torchslime.utils.typing import (
     Sequence,
     Tuple,
     Any,
-    Union
+    Union,
+    TYPE_CHECKING
 )
 from torch.utils.data import DataLoader
+if TYPE_CHECKING:
+    from torchslime.core.context import Context
 
 
 class DataProvider:
@@ -15,10 +17,10 @@ class DataProvider:
     def __init__(self):
         pass
 
-    def get(self, ctx: BaseContext) -> DataLoader:
+    def get(self, ctx: "Context") -> DataLoader:
         pass
 
-    def __call__(self, ctx: BaseContext) -> DataLoader:    
+    def __call__(self, ctx: "Context") -> DataLoader:    
         data_loader = self.get(ctx)
         if isinstance(data_loader, DataLoader) is False:
             logger.warning('DataProvider returns a non-DataLoader object, this may cause some problems.')
@@ -40,9 +42,9 @@ class DataParser:
     def __init__(self):
         pass
 
-    def get(self, ctx: BaseContext) -> Tuple[Any, Any, Any]: pass
+    def get(self, ctx: "Context") -> Tuple[Any, Any, Any]: pass
 
-    def __call__(self, ctx: BaseContext) -> Tuple[Any, Any, Any]:
+    def __call__(self, ctx: "Context") -> Tuple[Any, Any, Any]:
         batch = self.get(ctx)
         if isinstance(batch, tuple) is False or len(batch) != 3:
             logger.warning('DataParser returns a non-tuple object or the tuple length is not 3, this may cause value-unpack exceptions.')
@@ -62,6 +64,6 @@ class IndexParser(DataParser):
         self.y = y
         self.extra = extra
 
-    def get(self, ctx: BaseContext) -> Tuple[Any, Any, Any]:
+    def get(self, ctx: "Context") -> Tuple[Any, Any, Any]:
         batch = ctx.step_ctx.batch
         return list_take(batch, self.x), list_take(batch, self.y), list_take(batch, self.extra)

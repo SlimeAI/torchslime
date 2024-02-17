@@ -1,4 +1,3 @@
-from torchslime.core.context.base import BaseContext
 from .riching import HandlerWrapperContainerProfiler
 from . import Handler, HandlerContainer
 from torchslime.utils.bases import (
@@ -26,6 +25,7 @@ from torchslime.logging.logger import logger
 from torchslime.logging.rich import RenderInterface, RenderableType
 if TYPE_CHECKING:
     from torchslime.core.hooks.state import StateHook
+    from torchslime.core.context import Context
 
 __all__ = [
     'HandlerWrapper',
@@ -44,7 +44,7 @@ class HandlerWrapperGenerator(BaseGenerator[_YieldT_co, _SendT_contra, _ReturnT_
     def __init__(
         self,
         __handler: 'HandlerWrapper',
-        __ctx: BaseContext,
+        __ctx: "Context",
         *,
         exit_allowed: bool = True
     ) -> None:
@@ -68,7 +68,7 @@ class HandlerWrapper(Handler):
     def __init__(self, *, id: Union[str, NoneOrNothing] = NOTHING):
         super().__init__(id=id)
     
-    def handle(self, ctx: BaseContext) -> NoReturn:
+    def handle(self, ctx: "Context") -> NoReturn:
         raise APIMisused(
             '``HandlerWrapper`` does not support ``handle``. Please use ``handle_yield`` instead.'
         )
@@ -86,8 +86,8 @@ class HandlerWrapper(Handler):
     def set_lifecycle(self, *args, **kwargs): pass
     def get_lifecycle(self) -> Nothing: return NOTHING
     # yield method
-    def handle_yield(self, ctx: BaseContext) -> Generator: yield True
-    def gen__(self, ctx: BaseContext) -> HandlerWrapperGenerator: return HandlerWrapperGenerator(self, ctx)
+    def handle_yield(self, ctx: "Context") -> Generator: yield True
+    def gen__(self, ctx: "Context") -> HandlerWrapperGenerator: return HandlerWrapperGenerator(self, ctx)
 
 
 _T_HandlerWrapper = TypeVar('_T_HandlerWrapper', bound=HandlerWrapper)
@@ -98,7 +98,7 @@ class HandlerWrapperContainer(HandlerWrapper, HandlerContainer[_T_HandlerWrapper
         HandlerContainer.__init__(self, wrappers, id=id)
         self.profiler = HandlerWrapperContainerProfiler()
     
-    def handle(self, ctx: BaseContext, wrapped: Handler) -> None:
+    def handle(self, ctx: "Context", wrapped: Handler) -> None:
         # the original generator list
         gen_list: List[HandlerWrapperGenerator] = [wrapper.gen__(ctx) for wrapper in self]
         # generator stack
@@ -150,7 +150,7 @@ class StateWrapper(HandlerWrapper):
         self.state = state
         self.restore = restore
     
-    def handle_yield(self, ctx: BaseContext):
+    def handle_yield(self, ctx: "Context"):
         # cache the state before state set
         self.restore_state: Union["StateHook", Nothing] = ctx.hook_ctx.state
         ctx.compile.state_hook_compile__(self.state)
@@ -181,14 +181,14 @@ class ConditionWrapper(HandlerWrapper):
     
     def __init__(
         self,
-        condition: Callable[[BaseContext], bool],
+        condition: Callable[["Context"], bool],
         *,
         id: Union[str, NoneOrNothing] = NOTHING
     ):
         super().__init__(id=id)
         self.condition = condition
     
-    def handle_yield(self, ctx: BaseContext):
+    def handle_yield(self, ctx: "Context"):
         yield self.condition(ctx)
 
 #
@@ -197,14 +197,14 @@ class ConditionWrapper(HandlerWrapper):
 
 class _ConditionOperator:
     
-    def __init__(self, *conditions: Callable[[BaseContext], bool]) -> None:
+    def __init__(self, *conditions: Callable[["Context"], bool]) -> None:
         self.conditions = conditions
 
-    def __call__(self, ctx: BaseContext) -> bool: pass
+    def __call__(self, ctx: "Context") -> bool: pass
 
 class And(_ConditionOperator):
     
-    def __call__(self, ctx: BaseContext) -> bool:
+    def __call__(self, ctx: "Context") -> bool:
         for condition in self.conditions:
             if not condition(ctx):
                 return False
@@ -212,7 +212,7 @@ class And(_ConditionOperator):
 
 class Or(_ConditionOperator):
     
-    def __call__(self, ctx: BaseContext) -> bool:
+    def __call__(self, ctx: "Context") -> bool:
         for condition in self.conditions:
             if condition(ctx):
                 return True
@@ -220,18 +220,18 @@ class Or(_ConditionOperator):
 
 class Not(_ConditionOperator):
     
-    def __init__(self, condition: Callable[[BaseContext], bool]) -> None:
+    def __init__(self, condition: Callable[["Context"], bool]) -> None:
         super().__init__(condition)
         self.condition = self.conditions[0]
     
-    def __call__(self, ctx: BaseContext) -> bool:
+    def __call__(self, ctx: "Context") -> bool:
         return not self.condition(ctx)
 
 #
 # Condition Functions
 #
 
-def validation_check(ctx: BaseContext) -> bool:
+def validation_check(ctx: "Context") -> bool:
     valid_freq = ctx.run_ctx.valid_freq
     if callable(valid_freq):
         return valid_freq(ctx)

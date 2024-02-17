@@ -26,7 +26,7 @@ from torchslime.components.store import store
 from contextlib import contextmanager
 
 if TYPE_CHECKING:
-    from torchslime.core.context.base import BaseContext
+    from torchslime.core.context import Context
     from torchslime.core.handlers import Handler
     from torchslime.core.handlers.wrappers import HandlerWrapper, HandlerWrapperContainer
 
@@ -36,18 +36,18 @@ if TYPE_CHECKING:
 
 class ProgressInterface:
 
-    def create_progress__(self, ctx: "BaseContext") -> Tuple[Any, Any]: pass
-    def progress_update__(self, ctx: "BaseContext") -> None: pass
+    def create_progress__(self, ctx: "Context") -> Tuple[Any, Any]: pass
+    def progress_update__(self, ctx: "Context") -> None: pass
 
-    def add_progress__(self, ctx: "BaseContext") -> None:
+    def add_progress__(self, ctx: "Context") -> None:
         display_ctx = ctx.display_ctx
         display_ctx.live_group.append(display_ctx.handler_progress)
 
-    def remove_progress__(self, ctx: "BaseContext") -> None:
+    def remove_progress__(self, ctx: "Context") -> None:
         ctx.display_ctx.handler_progress.remove_self__()
 
     @contextmanager
-    def progress_context__(self, ctx: "BaseContext"):
+    def progress_context__(self, ctx: "Context"):
         progress, task_id = self.create_progress__(ctx)
         with ctx.display_ctx.assign__(
             handler_progress=progress,
@@ -60,7 +60,7 @@ class ProgressInterface:
 
 class ProfileProgressInterface(ProgressInterface):
 
-    def progress_update__(self, ctx: "BaseContext") -> None:
+    def progress_update__(self, ctx: "Context") -> None:
         ctx.display_ctx.handler_progress.progress.advance(
             task_id=ctx.display_ctx.progress_task_id,
             advance=1
@@ -69,7 +69,7 @@ class ProfileProgressInterface(ProgressInterface):
             f'{ctx.hook_ctx.profiler.meter_profile(ctx)}'
         )
 
-    def remove_progress__(self, ctx: "BaseContext") -> None:
+    def remove_progress__(self, ctx: "Context") -> None:
         super().remove_progress__(ctx)
         # detach observer
         store.builtin__().detach__(ctx.display_ctx.handler_progress.progress)

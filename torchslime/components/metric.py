@@ -13,15 +13,17 @@ from torchslime.utils.typing import (
     Iterable,
     Callable,
     Any,
-    is_none_or_nothing
+    is_none_or_nothing,
+    TYPE_CHECKING
 )
 from torchslime.utils.bases import BaseDict, BaseList
 from .registry import Registry
 from .exception import APIMisused
-from torchslime.core.context.base import BaseContext
 from torchslime.logging.logger import logger
 from torch import Tensor
 import inspect
+if TYPE_CHECKING:
+    from torchslime.core.context import Context
 
 
 class Metric:
@@ -29,9 +31,9 @@ class Metric:
     def __init__(self, name: Union[str, NoneOrNothing] = None):
         self.name = name
 
-    def get(self, ctx: BaseContext) -> Union[Dict, int, float]: pass
+    def get(self, ctx: "Context") -> Union[Dict, int, float]: pass
 
-    def __call__(self, ctx: BaseContext) -> Dict:
+    def __call__(self, ctx: "Context") -> Dict:
         result = self.get(ctx)
         # metric dict
         if isinstance(result, Dict):
@@ -52,7 +54,7 @@ class MetricContainer(Metric, BaseList[Metric]):
         Metric.__init__(self)
         BaseList.__init__(self, metrics)
 
-    def get(self, ctx: BaseContext) -> Dict:
+    def get(self, ctx: "Context") -> Dict:
         result = {}
         for metric in self:
             _res = metric(ctx)
@@ -62,7 +64,7 @@ class MetricContainer(Metric, BaseList[Metric]):
 
 class LossFunc(Metric):
     
-    def get(self, ctx: BaseContext) -> Union[Dict, Tensor]: pass
+    def get(self, ctx: "Context") -> Union[Dict, Tensor]: pass
 
 
 class SimpleLossFunc(LossFunc):
@@ -75,7 +77,7 @@ class SimpleLossFunc(LossFunc):
         super().__init__(name)
         self.loss_func = loss_func
     
-    def get(self, ctx: BaseContext) -> Union[Dict, Tensor]:
+    def get(self, ctx: "Context") -> Union[Dict, Tensor]:
         return self.loss_func(ctx.step_ctx.y_pred, ctx.step_ctx.y_true)
 
 
@@ -86,7 +88,7 @@ class LossFuncContainer(MetricContainer):
             raise ValueError('Param ``loss_func_list`` should be a list.')
         super().__init__(loss_func_list)
     
-    def __call__(self, ctx: BaseContext) -> Dict:
+    def __call__(self, ctx: "Context") -> Dict:
         # if there is only one LossFunc, set the name to 'loss'
         if len(self) == 1 and isinstance(self[0], Metric) and is_none_or_nothing(self[0].name):
             self[0].name = 'loss'
@@ -97,8 +99,8 @@ class LossReductionFactory:
 
     @staticmethod
     def get(
-        item: Union[str, dict, Callable[[BaseContext], Tensor]]
-    ) -> Callable[[BaseContext], Tensor]:
+        item: Union[str, dict, Callable[["Context"], Tensor]]
+    ) -> Callable[["Context"], Tensor]:
         if isinstance(item, str):
             if not item in loss_reduction_registry:
                 raise ValueError('Loss reduction type not supported.')
@@ -118,7 +120,7 @@ loss_reduction_registry = Registry('loss_reduction_registry')
 
 
 @loss_reduction_registry(name='mean')
-def _mean_loss_reduction(ctx: BaseContext):
+def _mean_loss_reduction(ctx: "Context"):
     loss_tensors = ctx.step_ctx.loss.values()
     tensor_len = len(loss_tensors)
     result = sum(map(lambda loss_tensor: safe_divide(loss_tensor, tensor_len, NOTHING), loss_tensors))
@@ -132,7 +134,7 @@ def _mean_loss_reduction(ctx: BaseContext):
 
 
 @loss_reduction_registry(name='sum')
-def _sum_loss_reduction(ctx: BaseContext):
+def _sum_loss_reduction(ctx: "Context"):
     loss_tensors = ctx.step_ctx.loss.values()
     result = sum(loss_tensors) if len(loss_tensors) > 0 else NOTHING
     if result is NOTHING:
@@ -146,7 +148,7 @@ def _sum_loss_reduction(ctx: BaseContext):
 
 def _weighted_loss_reduction(weight: dict):
     _weight = dict(weight)
-    def _reduction(ctx: BaseContext):
+    def _reduction(ctx: "Context"):
         loss_dict = ctx.step_ctx.loss
         # check keys intersection
         loss_keys = set(loss_dict.keys())

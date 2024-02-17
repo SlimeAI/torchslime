@@ -1,24 +1,26 @@
-from torchslime.core.context import BaseContext
 from torchslime.components.registry import Registry
 from torchslime.core.handlers.wrappers import validation_check
 from torchslime.logging.logger import logger
 from torchslime.utils.typing import (
-    Generator
+    Generator,
+    TYPE_CHECKING
 )
 from torchslime.utils.bases import (
     BaseGenerator
 )
+if TYPE_CHECKING:
+    from torchslime.core.context import Context
 
 build_registry = Registry('build_registry')
 
 
 class BuildHook:
 
-    def build_train(self, ctx: BaseContext) -> None: pass
-    def build_eval(self, ctx: BaseContext) -> None: pass
-    def build_predict(self, ctx: BaseContext) -> None: pass
+    def build_train(self, ctx: "Context") -> None: pass
+    def build_eval(self, ctx: "Context") -> None: pass
+    def build_predict(self, ctx: "Context") -> None: pass
 
-    def _build_train(self, ctx: BaseContext):
+    def _build_train(self, ctx: "Context"):
         """
         Build order:
         Launch -> Plugin -> Build -> Launch -> Plugin
@@ -34,7 +36,7 @@ class BuildHook:
         launch_gen()
         plugin_gen()
     
-    def _build_eval(self, ctx: BaseContext):
+    def _build_eval(self, ctx: "Context"):
         """
         Build order:
         Launch -> Plugin -> Build -> Launch -> Plugin
@@ -50,7 +52,7 @@ class BuildHook:
         launch_gen()
         plugin_gen()
 
-    def _build_predict(self, ctx: BaseContext):
+    def _build_predict(self, ctx: "Context"):
         """
         Build order:
         Launch -> Plugin -> Build -> Launch -> Plugin
@@ -71,15 +73,15 @@ class BuildInterface:
     """
     Interface for building handlers.
     """
-    def build_train_yield(self, ctx: BaseContext) -> Generator: yield
-    def build_eval_yield(self, ctx: BaseContext) -> Generator: yield
-    def build_predict_yield(self, ctx: BaseContext) -> Generator: yield
+    def build_train_yield(self, ctx: "Context") -> Generator: yield
+    def build_eval_yield(self, ctx: "Context") -> Generator: yield
+    def build_predict_yield(self, ctx: "Context") -> Generator: yield
 
 
 @build_registry(name='vanilla')
 class VanillaBuild(BuildHook):
     
-    def build_train(self, ctx: BaseContext):
+    def build_train(self, ctx: "Context"):
         # get handler classes from context
         handler = ctx.handler_ctx
         # build training process using handlers
@@ -172,7 +174,7 @@ class VanillaBuild(BuildHook):
             ]
         )
 
-    def build_eval(self, ctx: BaseContext):
+    def build_eval(self, ctx: "Context"):
         # get handler classes from context
         handler = ctx.handler_ctx
         # build evaluating process using handlers
@@ -208,7 +210,7 @@ class VanillaBuild(BuildHook):
             ]
         )
     
-    def build_predict(self, ctx: BaseContext):
+    def build_predict(self, ctx: "Context"):
         # get handler classes from context
         handler = ctx.handler_ctx
         # build predicting process using handlers
@@ -241,7 +243,7 @@ class VanillaBuild(BuildHook):
 @build_registry(name='step')
 class StepBuild(VanillaBuild):
 
-    def build_train(self, ctx: BaseContext):
+    def build_train(self, ctx: "Context"):
         # get handler classes from context
         handler = ctx.handler_ctx
         # build training process using handlers

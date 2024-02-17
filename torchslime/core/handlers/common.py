@@ -25,7 +25,6 @@ from torchslime.utils.bases import BaseList
 from torchslime.components.metric import MeterDict
 from torchslime.components.store import store
 from torchslime.utils.decorators import CallDebug
-from torchslime.core.context.base import BaseContext
 from torchslime.core.handlers import Handler, HandlerContainer
 from torchslime.core.hooks.state import StateHook
 from torchslime.logging.logger import logger
@@ -37,6 +36,7 @@ from torch import set_grad_enabled
 # Type check only
 if TYPE_CHECKING:
     from .wrappers import HandlerWrapper
+    from torchslime.core.context import Context
 
 __all__ = [
     'TorchGrad',
@@ -62,7 +62,7 @@ def TorchGrad(func):
     Set grad enabled or not according to the context mode.
     """
     @wraps(func)
-    def grad_switch(self, ctx: BaseContext):
+    def grad_switch(self, ctx: "Context"):
         # only when context status is in ['TRAIN'] is the grad enabled
         with set_grad_enabled(str(ctx.hook_ctx.state) in ['TRAIN']):
             func(self, ctx)
@@ -77,16 +77,16 @@ class EmptyHandler(Handler):
     """
     
     @CallDebug(module_name='EmptyHandler')
-    def handle(self, _: BaseContext):
+    def handle(self, _: "Context"):
         """do nothing"""
         pass
 
 
-class FuncHandler(Handler, BaseList[Callable[[BaseContext], None]]):
+class FuncHandler(Handler, BaseList[Callable[["Context"], None]]):
     
     def __init__(
         self,
-        func_list: Iterable[Callable[[BaseContext], None]],
+        func_list: Iterable[Callable[["Context"], None]],
         *,
         id: Union[str, NoneOrNothing] = NOTHING,
         exec_ranks: Union[Iterable[int], NoneOrNothing, Pass] = PASS,
@@ -96,7 +96,7 @@ class FuncHandler(Handler, BaseList[Callable[[BaseContext], None]]):
         Handler.__init__(self, id=id, exec_ranks=exec_ranks, wrappers=wrappers, lifecycle=lifecycle)
         BaseList.__init__(self, func_list)
     
-    def handle(self, ctx: BaseContext):
+    def handle(self, ctx: "Context"):
         # execute lambda functions
         for func in self:
             func(ctx)
@@ -108,7 +108,7 @@ class EpochIterationContainer(HandlerContainer, ProgressInterface):
     """
 
     @CallDebug(module_name='EpochIterationContainer')
-    def handle(self, ctx: BaseContext):
+    def handle(self, ctx: "Context"):
         # context check
         ctx.ctx_check('iteration_ctx.total', silent=False)
         
@@ -128,18 +128,18 @@ class EpochIterationContainer(HandlerContainer, ProgressInterface):
                     # update progress
                     self.progress_update__(ctx)
     
-    def create_progress__(self, ctx: BaseContext) -> Tuple[Any, Any]:
+    def create_progress__(self, ctx: "Context") -> Tuple[Any, Any]:
         progress = SlimeProgressLauncher.create__()
         task_id = progress.add_task('EpochIteration', total=ctx.iteration_ctx.total, completed=ctx.iteration_ctx.start)
         return progress, task_id
     
-    def progress_update__(self, ctx: BaseContext) -> None:
+    def progress_update__(self, ctx: "Context") -> None:
         ctx.display_ctx.handler_progress.advance(
             task_id=ctx.display_ctx.progress_task_id,
             advance=1
         )
     
-    def remove_progress__(self, ctx: BaseContext) -> None:
+    def remove_progress__(self, ctx: "Context") -> None:
         super().remove_progress__(ctx)
         # detach observer
         store.builtin__().detach__(ctx.display_ctx.handler_progress)
@@ -149,7 +149,7 @@ class IterationContainer(HandlerContainer, ProfileProgressInterface):
 
     @CallDebug(module_name='IterationContainer')
     @TorchGrad
-    def handle(self, ctx: BaseContext):
+    def handle(self, ctx: "Context"):
         loader = ctx.hook_ctx.state.get_loader(ctx)
         # loader check
         if is_none_or_nothing(loader):
@@ -171,7 +171,7 @@ class IterationContainer(HandlerContainer, ProfileProgressInterface):
                     super().handle(ctx)
                     self.progress_update__(ctx)
     
-    def create_progress__(self, ctx: BaseContext) -> Tuple[Any, Any]:
+    def create_progress__(self, ctx: "Context") -> Tuple[Any, Any]:
         total = ctx.step_ctx.total
         total=total if not is_none_or_nothing(total) else None
         
@@ -190,7 +190,7 @@ class StepIterationContainer(HandlerContainer, ProfileProgressInterface):
     
     @CallDebug(module_name='StepIterationContainer')
     @TorchGrad
-    def handle(self, ctx: BaseContext):
+    def handle(self, ctx: "Context"):
         loader = ctx.hook_ctx.state.get_loader(ctx)
         # loader check
         if is_none_or_nothing(loader):
@@ -216,7 +216,7 @@ class StepIterationContainer(HandlerContainer, ProfileProgressInterface):
                 if current + 1 >= total:
                     break
     
-    def create_progress__(self, ctx: BaseContext) -> Tuple[Any, Any]:
+    def create_progress__(self, ctx: "Context") -> Tuple[Any, Any]:
         handler_progress = ProfileProgress()
         task_id = handler_progress.progress.add_task(
             'StepIteration',
@@ -228,7 +228,7 @@ class StepIterationContainer(HandlerContainer, ProfileProgressInterface):
 class ForwardHandler(Handler):
 
     @CallDebug(module_name='ForwardHandler')
-    def handle(self, ctx: BaseContext):
+    def handle(self, ctx: "Context"):
         # context check
         ctx.ctx_check([
             'model',
@@ -253,7 +253,7 @@ class ForwardHandler(Handler):
 class LossHandler(Handler):
     
     @CallDebug(module_name='LossHandler')
-    def handle(self, ctx: BaseContext):
+    def handle(self, ctx: "Context"):
         # context check
         if ctx.ctx_check('run_ctx.loss_func') is True:
             # compute loss
@@ -270,7 +270,7 @@ class LossHandler(Handler):
 class BackwardHandler(Handler):
 
     @CallDebug(module_name='BackwardHandler')
-    def handle(self, ctx: BaseContext):
+    def handle(self, ctx: "Context"):
         # context check
         if ctx.ctx_check(['step_ctx.loss']):
             last = ctx.step_ctx.total % ctx.run_ctx.grad_acc
@@ -282,7 +282,7 @@ class BackwardHandler(Handler):
 class OptimizerContainer(HandlerContainer):
     
     @CallDebug(module_name='OptimizerContainer')
-    def handle(self, ctx: BaseContext):
+    def handle(self, ctx: "Context"):
         # backward handler
         super().handle(ctx)
         if ctx.ctx_check(['run_ctx.optimizer']) and \
@@ -294,7 +294,7 @@ class OptimizerContainer(HandlerContainer):
 class MetricHandler(Handler):
     
     @CallDebug(module_name='MetricHandler')
-    def handle(self, ctx: BaseContext):
+    def handle(self, ctx: "Context"):
         # context check
         ctx.ctx_check('step_ctx', silent=False)
         if ctx.ctx_check('run_ctx.metrics'):
@@ -304,7 +304,7 @@ class MetricHandler(Handler):
 class GatherAverageHandler(Handler):
     
     @CallDebug(module_name='GatherAverageHandler')
-    def handle(self, ctx: BaseContext):
+    def handle(self, ctx: "Context"):
         dist_comm = ctx.hook_ctx.launch.dist_comm
         # gather data
         gathered_loss_values: List[Dict] = dist_comm.all_gather_object(ctx.step_ctx.loss_values)
@@ -324,21 +324,21 @@ class GatherAverageHandler(Handler):
 class MeterInitHandler(Handler):
     
     @CallDebug(module_name='MeterInitHandler')
-    def handle(self, ctx: BaseContext):
+    def handle(self, ctx: "Context"):
         ctx.hook_ctx.state.init_meter(ctx)
 
 
 class MeterHandler(Handler):
     
     @CallDebug(module_name='MeterHandler')
-    def handle(self, ctx: BaseContext):
+    def handle(self, ctx: "Context"):
         ctx.hook_ctx.state.update_meter(ctx, ctx.step_ctx.loss_values, ctx.step_ctx.metrics)
 
 
 class LRScheduleHandler(Handler):
     
     @CallDebug(module_name='LRScheduleHandler')
-    def handle(self, ctx: BaseContext):
+    def handle(self, ctx: "Context"):
         if ctx.ctx_check(['run_ctx.lr_scheduler']) is True:
             ctx.run_ctx.lr_scheduler.step()
 
@@ -362,7 +362,7 @@ class LoggingHandler(Handler):
         )
         self.logging_states = logging_states
     
-    def handle(self, ctx: BaseContext) -> None:
+    def handle(self, ctx: "Context") -> None:
         # get logging point (Epoch/Step, current, total)
         profiler = ctx.hook_ctx.profiler
         logging_point = profiler.logging_point_profile(ctx)
@@ -381,7 +381,7 @@ class LoggingHandler(Handler):
 
 class RootContainer(HandlerContainer):
     
-    def handle(self, ctx: BaseContext) -> None:
+    def handle(self, ctx: "Context") -> None:
         live_launcher, live_group = self.create_live__(ctx)
         
         with ctx.display_ctx.assign__(
@@ -394,7 +394,7 @@ class RootContainer(HandlerContainer):
         
         store.builtin__().detach__(live_launcher)
     
-    def create_live__(self, ctx: BaseContext) -> Tuple[Any, Any]:
+    def create_live__(self, ctx: "Context") -> Tuple[Any, Any]:
         live_group = SlimeGroup()
         live_launcher = SlimeLiveLauncher(
             # ``launch`` and ``exec_ranks`` args
