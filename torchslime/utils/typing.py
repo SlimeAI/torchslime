@@ -201,7 +201,10 @@ class Pass(_FlagConstant, metaclass=_SingletonMetaclass): pass
 PASS = Pass()
 
 # ``Missing`` singleton constant
-class Missing(_FlagConstant, metaclass=_SingletonMetaclass): pass
+class Missing(_FlagConstant, metaclass=_SingletonMetaclass):
+    def __bool__(self) -> bool:
+        return False
+
 MISSING = Missing()
 
 #

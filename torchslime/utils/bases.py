@@ -5,6 +5,7 @@ from .typing import (
     List,
     Tuple,
     Union,
+    Sequence,
     MutableSequence,
     MutableMapping,
     Iterable,
@@ -22,7 +23,9 @@ from .typing import (
     Pass,
     PASS,
     is_none_or_nothing,
-    Set
+    Set,
+    Missing,
+    MISSING
 )
 from functools import partial
 from types import TracebackType
@@ -621,37 +624,157 @@ class AttrProxy(Generic[_T]):
 
 OBSERVE_FUNC_SUFFIX = '_observe__'
 OBSERVE_FUNC_SUFFIX_PATTERN = re.compile(f'{OBSERVE_FUNC_SUFFIX}$')
-OBSERVE_ATTACH = 'observe_attach__'
-OBSERVE_DETACH = 'observe_detach__'
 OBSERVE_INIT = 'observe_init__'
-ObserveFuncType = Callable[[Any, Any], None]
+OBSERVE_NAMESPACE = 'observe_namespace__'
+ObserveFuncType = Callable[[Any, Any, "AttrObservable"], None]
+
+
+class _ObservableInfo:
+    
+    def __init__(
+        self,
+        observable: "AttrObservable",
+        attr_set: Union[Set[str], Missing] = MISSING
+    ) -> None:
+        self.observable = observable
+        self.attr_set: Set[str] = set() if attr_set is MISSING else attr_set
+    
+    def add_attr__(self, __name: str) -> None:
+        return self.attr_set.add(__name)
+    
+    def remove_attr__(self, __name: str) -> None:
+        if __name in self.attr_set:
+            self.attr_set.remove(__name)
+    
+    def is_empty__(self) -> bool:
+        return len(self.attr_set) < 1
+
+
+class _ObservableDict(BaseDict[str, _ObservableInfo]):
+    
+    @staticmethod
+    def get_observable_id__(__observable: "AttrObservable") -> str:
+        # this behavior may change through different torchslime versions
+        return str(id(__observable))
+    
+    def add__(self, __observable: "AttrObservable", __name: str) -> None:
+        observable_id = self.get_observable_id__(__observable)
+        
+        if observable_id not in self:
+            self[observable_id] = _ObservableInfo(__observable)
+        self[observable_id].add_attr__(__name)
+    
+    def remove__(self, __observable: "AttrObservable", __name: str) -> None:
+        observable_id = self.get_observable_id__(__observable)
+        
+        if observable_id in self:
+            observable_info = self[observable_id]
+            observable_info.remove_attr__(__name)
+            if observable_info.is_empty__():
+                del self[observable_id]
+    
+    def get__(self, __observable: "AttrObservable") -> Set[str]:
+        observable_id = self.get_observable_id__(__observable)
+        
+        if observable_id in self:
+            return self[observable_id].attr_set
+        else:
+            return set()
+    
+    def contains__(self, __observable: "AttrObservable") -> bool:
+        return self.get_observable_id__(__observable) in self
+
+
+from .decorators import (
+    ContextDecoratorBinding,
+    DecoratorCall,
+    RemoveOverload,
+    _unwrap,
+    OnlyOnce
+)
+
 
 class AttrObserver:
     
-    def __init__(self) -> None: pass
+    @OnlyOnce
+    def __init__(self) -> None:
+        self.__observable_dict = _ObservableDict()
     
-    def detach_inspect__(self) -> Set[str]:
-        return self.observe_inspect__(
-            lambda func_name: getattr(_unwrap(getattr(self, func_name)), OBSERVE_DETACH, NOTHING)
-        )
-    
-    def attach_inspect__(self) -> Set[str]:
-        return self.observe_inspect__(
-            lambda func_name: getattr(_unwrap(getattr(self, func_name)), OBSERVE_ATTACH, NOTHING)
-        )
-    
-    def observe_inspect__(self, __func: Callable[[str], bool]) -> Set[str]:
-        return set(
-            map(
-                # get the real observed attribute name
-                lambda func_name: OBSERVE_FUNC_SUFFIX_PATTERN.sub('', func_name),
-                filter(
-                    # filter out attr observe function
-                    lambda func_name: OBSERVE_FUNC_SUFFIX_PATTERN.search(func_name) is not None and __func(func_name),
-                    dir(self)
-                )
+    @staticmethod
+    def check_namespace__(
+        func: ObserveFuncType,
+        namespaces: Union[Sequence[str], Missing, NoneOrNothing]
+    ) -> bool:
+        return (
+            # ``None`` or ``NOTHING`` namespace won't match any function.
+            not is_none_or_nothing(namespaces) and \
+            (
+                # ``MISSING`` namespace will match all the functions.
+                namespaces is MISSING or \
+                # Otherwise check if the function's namespace exists in ``namespaces``.
+                getattr(_unwrap(func), OBSERVE_NAMESPACE, MISSING) in namespaces
             )
         )
+    
+    def detach_inspect__(
+        self,
+        namespaces: Union[Sequence[str], Missing, NoneOrNothing] = MISSING
+    ) -> Dict[str, ObserveFuncType]:
+        return self.observe_inspect__(
+            # Check namespace.
+            lambda func: self.check_namespace__(func, namespaces)
+        )
+    
+    def attach_inspect__(
+        self,
+        namespaces: Union[Sequence[str], Missing, NoneOrNothing] = MISSING
+    ) -> Dict[str, ObserveFuncType]:
+        return self.observe_inspect__(
+            # Check namespace.
+            lambda func: self.check_namespace__(func, namespaces)
+        )
+    
+    def observe_inspect__(
+        self,
+        __func: Callable[[ObserveFuncType], bool]
+    ) -> Dict[str, ObserveFuncType]:
+        observe_dict: Dict[str, ObserveFuncType] = {}
+        """
+        NOTE: ``func_name`` here is actually the attribute name in the object, rather than the 
+        real function name.
+        
+        Example:
+        
+        ```Python
+        class A: pass
+        
+        def b(): pass
+        
+        a = A()
+        a.c = b  # The ``func_name`` is ``c`` rather than ``b``
+        ```
+        """
+        for func_name in filter(
+            lambda func_name: OBSERVE_FUNC_SUFFIX_PATTERN.search(func_name) is not None,
+            dir(self)
+        ):
+            func: ObserveFuncType = getattr(self, func_name)
+            # inspect checking
+            if __func(func):
+                observe_attr_name = OBSERVE_FUNC_SUFFIX_PATTERN.sub('', func_name)
+                observe_dict[observe_attr_name] = func
+        return observe_dict
+    
+    def detach_all__(self) -> None:
+        # NOTE: create a new list of ``__observable_dict.values()`` to avoid value change during iteration.
+        for observable_info in list(self.__observable_dict.values()):
+            observable_info.observable.detach__(self)
+    
+    def __del__(self) -> None:
+        self.detach_all__()
+    
+    def get_observable_dict__(self) -> _ObservableDict:
+        return self.__observable_dict
 
 
 def get_observe_func_name(name: str) -> str:
@@ -676,74 +799,54 @@ class _AttrObserverDict(BaseDict[str, List[AttrObserver]]):
             if len(observers) < 1:
                 del self[__name]
 
-class _ObserverAttrDict(BaseDict[str, Set[str]]):
-    
-    @staticmethod
-    def get_observer_id__(__observer: AttrObserver) -> str:
-        # this behavior may change through different torchslime versions
-        return str(id(__observer))
-    
-    def add__(self, __observer: AttrObserver, __name: str) -> None:
-        observer_id = self.get_observer_id__(__observer)
-        
-        if observer_id not in self:
-            self[observer_id] = set()
-        self[observer_id].add(__name)
-    
-    def remove__(self, __observer: AttrObserver, __name: str) -> None:
-        observer_id = self.get_observer_id__(__observer)
-        
-        if observer_id in self:
-            names = self[observer_id]
-            if __name in names:
-                names.remove(__name)
-            if len(names) < 1:
-                del self[observer_id]
-    
-    def get__(self, __observer: AttrObserver) -> Set[str]:
-        observer_id = self.get_observer_id__(__observer)
-        return self.get(observer_id, set())
-    
-    def contains__(self, __observer: AttrObserver) -> bool:
-        return self.get_observer_id__(__observer) in self
 
 class AttrObservable:
     
     def __init__(self) -> None:
         # attr name to observers
         self.__attr_observer_dict: _AttrObserverDict = _AttrObserverDict()
-        # observer id to observe attr names
-        self.__observer_attr_dict: _ObserverAttrDict = _ObserverAttrDict()
     
-    def attach__(self, __observer: AttrObserver, *, init: Union[bool, NoneOrNothing] = NOTHING) -> None:
-        names = __observer.attach_inspect__()
+    def attach__(
+        self,
+        __observer: AttrObserver,
+        *,
+        init: Union[bool, Missing] = MISSING,
+        namespaces: Union[Sequence[str], Missing, NoneOrNothing] = MISSING
+    ) -> None:
+        observe_dict = __observer.attach_inspect__(namespaces)
         
+        names = set(observe_dict.keys())
         # inspect new observe attrs
-        names = names - self.__observer_attr_dict.get__(__observer)
+        names = names - __observer.get_observable_dict__().get__(self)
         
         for name in names:
             attr_init = getattr(
-                _unwrap(getattr(__observer, get_observe_func_name(name))),
+                _unwrap(observe_dict[name]),
                 OBSERVE_INIT,
-                NOTHING
-            ) if is_none_or_nothing(init) else init
-            self.attach_attr__(__observer, name, init=attr_init)
+                True
+            ) if init is MISSING else init
+            self.attach_attr__(__observer, name, init=bool(attr_init))
     
     def attach_attr__(self, __observer: AttrObserver, __name: str, *, init: bool = True):
         self.__attr_observer_dict.add__(__name, __observer)
-        self.__observer_attr_dict.add__(__observer, __name)
+        __observer.get_observable_dict__().add__(self, __name)
         
         if init:
-            value = getattr(self, __name, NOTHING)
-            self.notify__(__observer, __name, value, NOTHING)
+            value = getattr(self, __name, MISSING)
+            self.notify__(__observer, __name, value, MISSING)
     
-    def detach__(self, __observer: AttrObserver, *, detach_all: bool = True) -> None:
-        if not self.__observer_attr_dict.contains__(__observer):
+    def detach__(
+        self,
+        __observer: AttrObserver,
+        *,
+        namespaces: Union[Sequence[str], Missing, NoneOrNothing] = MISSING
+    ) -> None:
+        observable_dict = __observer.get_observable_dict__()
+        if not observable_dict.contains__(self):
             return
-        
-        detach_names = self.__observer_attr_dict.get__(__observer)
-        if not detach_all:
-            detach_names = __observer.detach_inspect__() & detach_names
+        # Check names to detach.
+        detach_names = observable_dict.get__(self)
+        detach_names = set(__observer.detach_inspect__(namespaces).keys()) & detach_names
         
         # NOTE: use a copy of ``detach_names`` to avoid value change during iteration
         for name in list(detach_names):
@@ -751,50 +854,51 @@ class AttrObservable:
     
     def detach_attr__(self, __observer: AttrObserver, __name: str) -> None:
         self.__attr_observer_dict.remove__(__name, __observer)
-        self.__observer_attr_dict.remove__(__observer, __name)
+        __observer.get_observable_dict__().remove__(self, __name)
     
     def notify__(self, __observer: AttrObserver, __name: str, __new_value: Any, __old_value: Any) -> None:
+        """
+        Notify one observer with new value, old value and observable object.
+        """
         func: ObserveFuncType = getattr(__observer, get_observe_func_name(__name))
-        return func(__new_value, __old_value)
+        return func(__new_value, __old_value, self)
     
     def __setattr__(self, __name: str, __value: Any) -> None:
         if __name not in self.__attr_observer_dict:
             return super().__setattr__(__name, __value)
         else:
-            old_value = getattr(self, __name, NOTHING)
+            old_value = getattr(self, __name, MISSING)
             super().__setattr__(__name, __value)
             # observer is called only when the new value is different from the old value
             if __value is not old_value:
                 for observer in self.__attr_observer_dict[__name]:
                     self.notify__(observer, __name, __value, old_value)
+    
+    def get_attr_observer_dict__(self) -> _AttrObserverDict:
+        return self.__attr_observer_dict
 
-
-from .decorators import ContextDecoratorBinding, DecoratorCall, RemoveOverload, _unwrap
 
 @overload
 def AttrObserve(
     _func: NoneOrNothing = NOTHING,
     *,
-    attach: bool = True,
     init: bool = True,
-    detach: bool = True
+    namespace: Union[str, Missing] = MISSING
 ) -> Callable[[ObserveFuncType], ObserveFuncType]: pass
 @overload
 def AttrObserve(
     _func: ObserveFuncType,
     *,
-    attach: bool = True,
     init: bool = True,
-    detach: bool = True
+    namespace: Union[str, Missing] = MISSING
 ) -> ObserveFuncType: pass
 
 @DecoratorCall(index=0, keyword='_func')
 def AttrObserve(
     _func=NOTHING,
     *,
-    attach: bool = True,
     init: bool = True,
-    detach: bool = True
+    namespace: Union[str, Missing] = MISSING
 ):
     def set__(item: ObserveFuncType, name: str, value: Any):
         try:
@@ -804,9 +908,8 @@ def AttrObserve(
             logger.warning(f'Set ``{name}`` attribute failed. Observe object: {str(item)}. Please make sure it supports attribute set.')
     
     def decorator(func: ObserveFuncType) -> ObserveFuncType:
-        set__(func, OBSERVE_ATTACH, attach)
         set__(func, OBSERVE_INIT, init)
-        set__(func, OBSERVE_DETACH, detach)
+        set__(func, OBSERVE_NAMESPACE, namespace)
         return func
     return decorator
 

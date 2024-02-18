@@ -12,10 +12,11 @@ from torchslime.utils.typing import (
 )
 from torchslime.components.data import DataProvider
 from torchslime.components.exception import APIMisused
+from torchslime.components.store import store
 from torchslime.logging.logger import logger
 from torchslime.utils.common import count_params, get_device, type_cast
 from torchslime.utils.decorators import CallDebug, MethodChaining
-from torchslime.utils.bases import AttrObserver, AttrObserve
+from torchslime.utils.bases import AttrObserver, AttrObserve, AttrObservable
 from torchslime.core.hooks.build import BuildHook
 from torchslime.core.hooks.launch import LaunchHook
 from torchslime.core.hooks.profiler import ProfilerHook
@@ -32,7 +33,7 @@ class Context(BaseContext, AttrObserver):
         model,
         device=None,
         build_hook: Union[str, BuildHook] = 'vanilla',
-        launch_hook: Union[str, LaunchHook] = 'vanilla',
+        launch_hook: Union[str, LaunchHook, Missing] = MISSING,
         profiler_hook: Union[str, ProfilerHook] = 'vanilla',
         compile: Union[Compile, Missing] = MISSING
     ):
@@ -48,9 +49,15 @@ class Context(BaseContext, AttrObserver):
         # compile hooks
         self.compile.compile_hook_ctx(
             build_hook=build_hook,
-            launch_hook=launch_hook,
             profiler_hook=profiler_hook
         )
+        if launch_hook is MISSING:
+            # bind launch hook to builtin store.
+            store.builtin__().attach__(self, namespaces=['builtin_store_launch__'])
+        else:
+            self.compile.compile_hook_ctx(
+                launch_hook=launch_hook
+            )
 
     @CallDebug(module_name='Context.train')
     @MethodChaining
@@ -164,9 +171,12 @@ class Context(BaseContext, AttrObserver):
     def is_distributed(self) -> bool:
         return self.hook_ctx.launch.is_distributed()
     
-    @AttrObserve
-    def launch_observe__(self, new_value, old_value):
-        pass
+    @AttrObserve(namespace='builtin_store_launch__')
+    def launch_observe__(self, new_value: str, old_value, observable: AttrObservable):
+        # change launch hook
+        self.compile.compile_hook_ctx(
+            launch_hook=new_value
+        )
 
 #
 # Try with handler exceptions

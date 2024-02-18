@@ -17,7 +17,7 @@ from .typing import (
     Missing,
     MISSING
 )
-from .bases import BaseList, AttrObserver, AttrObserve
+from .bases import BaseList, AttrObserver, AttrObserve, AttrObservable
 import torch.distributed as dist
 from torch import Tensor
 import torch
@@ -121,9 +121,11 @@ class Launcher(AttrObserver):
         exec_ranks: Union[Iterable[int], NoneOrNothing, Pass, Missing] = MISSING
     ) -> None:
         super().__init__()
+        self.bind_launch_to_builtin_store__ = launch is MISSING
         if launch is MISSING:
+            # bind launch to builtin store
             from torchslime.components.store import store
-            store.builtin__().attach_attr__(self, 'launch')
+            store.builtin__().attach__(self, namespaces=['builtin_store_launch__'])
         else:
             self.set_launch__(launch)
         
@@ -136,8 +138,8 @@ class Launcher(AttrObserver):
             launch = launch_util_registry.get(launch)()
         self.launch__ = launch
     
-    @AttrObserve(attach=False, detach=False)
-    def launch_observe__(self, new_value, old_value):
+    @AttrObserve(namespace='builtin_store_launch__')
+    def launch_observe__(self, new_value, old_value, observable: AttrObservable):
         self.set_launch__(new_value)
     
     def set_exec_ranks__(self, exec_ranks: Union[Iterable[int], NoneOrNothing, Pass]):

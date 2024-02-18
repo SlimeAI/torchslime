@@ -17,7 +17,8 @@ from .typing import (
     NOTHING,
     Nothing,
     List,
-    overload_dummy
+    overload_dummy,
+    MISSING
 )
 
 _T = TypeVar('_T')
@@ -257,13 +258,17 @@ def CallDebug(
         if is_none_or_nothing(module_name):
             module_name = getattr(func, '__name__', NOTHING)
 
-        _exec_info = get_exec_info(func)
+        _exec_info = MISSING
 
         @wraps(func)
         def wrapper(*args, **kwargs):
             # do not use debug
             if not store.builtin__().call_debug:
                 return func(*args, **kwargs)
+            
+            nonlocal _exec_info
+            if _exec_info is MISSING:
+                _exec_info = get_exec_info(func)
             
             exec_name = _exec_info["full_exec_name"] if \
                 store.builtin__().call_debug_full_exec_name else \
@@ -428,3 +433,19 @@ def RemoveOverload(_cls=NOTHING, *, checklist: Union[NoneOrNothing, List[str]] =
         
         return cls
     return decorator
+
+
+def OnlyOnce(func: Callable[..., _T]) -> Callable[..., Union[_T, None]]:
+    """
+    Used for multiple inheritance.
+    """
+    once_flag__ = f'{str(id(func))}_once__'
+    
+    @wraps(func)
+    def wrapper(self, *args, **kwargs) -> Union[_T, None]:
+        if not getattr(self, once_flag__, False):
+            setattr(self, once_flag__, True)
+            return func(self, *args, **kwargs)
+    
+    wrapper.once_flag__ = once_flag__
+    return wrapper

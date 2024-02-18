@@ -15,7 +15,7 @@ from torchslime.utils.typing import (
     NoneOrNothing,
     Pass
 )
-from torchslime.utils.bases import BaseDict, AttrObserver, AttrObserve
+from torchslime.utils.bases import BaseDict, AttrObserver, AttrObserve, AttrObservable
 from .rich import RichHandler, SlimeRichHandler
 import sys
 
@@ -42,7 +42,7 @@ class SlimeLogger(Logger, Launcher, AttrObserver):
         Launcher.__init__(self, launch, exec_ranks)
         AttrObserver.__init__(self)
         # observe store attrs
-        store.builtin__().attach__(self)
+        store.builtin__().attach__(self, namespaces=['builtin_store__'])
 
     def addHandler(self, handler: Handler) -> None:
         if not handler.formatter:
@@ -52,20 +52,20 @@ class SlimeLogger(Logger, Launcher, AttrObserver):
                 handler.setFormatter(SlimeFormatter())
         super().addHandler(handler)
 
-    @AttrObserve
-    def log_template_observe__(self, new_value, old_value) -> None:
+    @AttrObserve(namespace='builtin_store__')
+    def log_template_observe__(self, new_value, old_value, observable: AttrObservable) -> None:
         for handler in self.handlers:
             if isinstance(handler.formatter, SlimeFormatter):
                 handler.setFormatter(SlimeFormatter())
     
-    @AttrObserve
-    def log_rich_template_observe__(self, new_value, old_value) -> None:
+    @AttrObserve(namespace='builtin_store__')
+    def log_rich_template_observe__(self, new_value, old_value, observable: AttrObservable) -> None:
         for handler in self.handlers:
             if isinstance(handler.formatter, SlimeRichFormatter):
                 handler.setFormatter((SlimeRichFormatter()))
     
-    @AttrObserve
-    def log_dateformat_observe__(self, new_value, old_value) -> None:
+    @AttrObserve(namespace='builtin_store__')
+    def log_dateformat_observe__(self, new_value, old_value, observable: AttrObservable) -> None:
         for handler in self.handlers:
             if isinstance(handler.formatter, SlimeFormatter):
                 handler.setFormatter(SlimeFormatter())
