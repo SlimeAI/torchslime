@@ -141,6 +141,8 @@ class Meta:
     NOTE: The ``Meta`` feature is already deprecated because of the complexity and high 
     learning cost.
     
+    NOTE: Can be better implemented using Python metaclass.
+    
     ---
     
     The ``Meta`` class can separate the object ``__init__`` operation into 2 processes:

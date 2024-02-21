@@ -30,6 +30,16 @@ if sys.version_info < (3, 8):
         )
         raise e
 
+if sys.version_info < (3, 9):
+    # FIX: ``from typing import *`` does not include the following modules under Python 3.9
+    from typing import (
+        BinaryIO,
+        IO,
+        Match,
+        Pattern,
+        TextIO
+    )
+
 if sys.version_info >= (3, 9):
     from builtins import (
         dict as Dict,

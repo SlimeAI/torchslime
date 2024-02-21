@@ -18,7 +18,9 @@ from .typing import (
     Nothing,
     List,
     overload_dummy,
-    MISSING
+    MISSING,
+    Dict,
+    Missing
 )
 
 _T = TypeVar('_T')
@@ -258,6 +260,7 @@ def CallDebug(
         if is_none_or_nothing(module_name):
             module_name = getattr(func, '__name__', NOTHING)
 
+        # Lazy loading.
         _exec_info = MISSING
 
         @wraps(func)
@@ -435,17 +438,68 @@ def RemoveOverload(_cls=NOTHING, *, checklist: Union[NoneOrNothing, List[str]] =
     return decorator
 
 
-def OnlyOnce(func: Callable[..., _T]) -> Callable[..., Union[_T, None]]:
+def InitOnce(func: Callable[..., _T]) -> Callable[..., Union[_T, None]]:
     """
-    Used for multiple inheritance.
+    Used for ``__init__`` operations in multiple inheritance scenarios.
+    Should be used together with ``torchslime.utils.metaclasses.InitOnceMetaclass``.
+    When ``__init__`` is decorated with ``InitOnce``, it will be called only once during 
+    each instance creation. NOTE that there is an exception that if one ``__init__`` call
+    raises an Exception and it is successfully caught and processed, this ``__init__`` 
+    method may be called again by other methods. Because of this, ``InitOnce`` only ensure 
+    'one successful call' rather than 'one call'.
+    
+    Example:
+    
+    ```Python
+    class Example(metaclass=InitOnceMetaclass):
+        @InitOnce
+        def __init__(self, arg1, arg2):
+            print('Example.__init__', arg1, arg2)
+    
+    class A(Example):
+        def __init__(self):
+            Example.__init__(self, arg1=1, arg2=2)
+    
+    class B(Example):
+        def __init__(self):
+            Example.__init__(self, arg1=3, arg2=4)
+    
+    class C(A, B):
+        def __init__(self):
+            A.__init__(self)
+            B.__init__(self)
+    
+    C()
+    
+    \"\"\"
+    Output:
+    Example.__init__ 1 2
+    \"\"\"
+    ```
     """
-    once_flag__ = f'{str(id(func))}_once__'
+    func_id = str(id(func))
     
     @wraps(func)
     def wrapper(self, *args, **kwargs) -> Union[_T, None]:
-        if not getattr(self, once_flag__, False):
-            setattr(self, once_flag__, True)
-            return func(self, *args, **kwargs)
-    
-    wrapper.once_flag__ = once_flag__
+        init_once__: Union[Dict, Missing] = getattr(self, 'init_once__', MISSING)
+        # whether the instance is being created.
+        instance_creating = init_once__ is not MISSING
+        # whether the instance is being created AND this ``__init__`` method has not been called.
+        uninitialized = instance_creating and not init_once__.get(func_id, False)
+        
+        ret = None
+        if not instance_creating or uninitialized:
+            # call the ``__init__`` method.
+            ret = func(self, *args, **kwargs)
+        
+        if uninitialized:
+            """
+            mark this ``__init__`` has been called.
+            Note that it is after ``func`` is called, so ``InitOnce`` only ensure 
+            'one successful call' rather than 'one call'.
+            """
+            init_once__[func_id] = True
+        
+        return ret
+
     return wrapper

@@ -27,6 +27,16 @@ from .typing import (
     Missing,
     MISSING
 )
+from .decorators import (
+    ContextDecoratorBinding,
+    DecoratorCall,
+    RemoveOverload,
+    _unwrap,
+    InitOnce
+)
+from .metaclasses import (
+    InitOnceMetaclass
+)
 from functools import partial
 from types import TracebackType
 import re
@@ -685,18 +695,9 @@ class _ObservableDict(BaseDict[str, _ObservableInfo]):
         return self.get_observable_id__(__observable) in self
 
 
-from .decorators import (
-    ContextDecoratorBinding,
-    DecoratorCall,
-    RemoveOverload,
-    _unwrap,
-    OnlyOnce
-)
-
-
-class AttrObserver:
+class AttrObserver(metaclass=InitOnceMetaclass):
     
-    @OnlyOnce
+    @InitOnce
     def __init__(self) -> None:
         self.__observable_dict = _ObservableDict()
     

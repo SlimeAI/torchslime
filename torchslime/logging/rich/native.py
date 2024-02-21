@@ -23,6 +23,13 @@ from torchslime.utils.bases import (
     BiList,
     MutableBiListItem
 )
+from torchslime.utils.metaclasses import (
+    Metaclasses,
+    InitOnceMetaclass
+)
+from abc import (
+    ABCMeta
+)
 from rich.progress import (
     Progress,
     TextColumn,
@@ -121,33 +128,14 @@ class SlimeConsoleObserver(AttrObserver):
         self.set_console__(new_value)
 
 #
-# Start-Stop Store Observer
+# Start-Stop Observer Manager
 #
 
-class _StartStopStoreObserver(RichLauncher, SlimeConsoleObserver):
+class _StartStopObserverManager:
     """
     Because some ``rich`` objects work only when they start, we want to detach some 
     observed attributes when they stop in order to improve performance, and re-attach 
     them when they start again.
-    
-    ``_StartStopStoreObserver`` inherits both ``RichLauncher`` and ``SlimeConsoleObserver`` 
-    just for type hints, and we strongly recommend explicitly inheriting these two classes 
-    in user-defined sub-classes, because ``_StartStopStoreObserver`` does not consider 
-    multiple inheritance and this issue should be resolved in sub-classes.
-    
-    For example, the multiple inheritance of ``__init__`` method is not processed in 
-    ``_StartStopStoreObserver``, and see below:
-    
-    ```Python
-    # Not recommended, multiple inheritance is not processed and not explicitly shown here.
-    class ExampleNotRecommended(_StartStopStoreObserver): pass
-    
-    # Recommended, multiple inheritance is explicitly shown, and it reminds the user to process it.
-    class ExampleRecommended(_StartStopStoreObserver, RichLauncher, SlimeConsoleObserver):
-        def __init__(self, ...) -> None:
-            RichLauncher.__init__(self, ...)
-            SlimeConsoleObserver.__init__(self, ...)
-    ```
     """
     def __init__(self) -> None: pass
     
@@ -155,24 +143,25 @@ class _StartStopStoreObserver(RichLauncher, SlimeConsoleObserver):
         """
         Attach attributes before start.
         """
-        # attach console
-        store.builtin__().attach__(self, namespaces=['builtin_store_console__'])
-        # attach launch (if and only if ``bind_launch_to_builtin_store__`` is True)
-        if self.bind_launch_to_builtin_store__:
-            store.builtin__().attach__(self, namespaces=['builtin_store_launch__'])
+        pass
     
     def stop_detach__(self):
         """
         Detach attributes after stop.
         """
-        # detach builtin store.
-        store.builtin__().detach__(self, namespaces=['builtin_store_console__', 'builtin_store_launch__'])
+        pass
 
 #
 # Rich Live Adapter
 #
 
-class SlimeLiveLauncher(Live, _StartStopStoreObserver, RichLauncher, SlimeConsoleObserver):
+class SlimeLiveLauncher(
+    Live,
+    _StartStopObserverManager,
+    RichLauncher,
+    SlimeConsoleObserver,
+    metaclass=Metaclasses(InitOnceMetaclass, ABCMeta)
+):
     
     def __init__(
         self,
@@ -198,6 +187,17 @@ class SlimeLiveLauncher(Live, _StartStopStoreObserver, RichLauncher, SlimeConsol
         result = super().stop(*args, **kwargs)
         self.stop_detach__()
         return result
+    
+    def start_attach__(self):
+        # attach console
+        store.builtin__().attach__(self, namespaces=['builtin_store_console__'])
+        # attach launch (if and only if ``bind_launch_to_builtin_store__`` is True)
+        if self.bind_launch_to_builtin_store__:
+            store.builtin__().attach__(self, namespaces=['builtin_store_launch__'])
+    
+    # def stop_detach__(self):
+    #     # detach builtin store.
+    #     store.builtin__().detach__(self, namespaces=['builtin_store_console__', 'builtin_store_launch__'])
 
 #
 # Rich Logging Adapter
@@ -213,7 +213,13 @@ class SlimeRichHandler(RichHandler, SlimeConsoleObserver):
 # Renderable Adapter
 #
 
-class SlimeProgressLauncher(Progress, MutableBiListItem, _StartStopStoreObserver, RichLauncher, SlimeConsoleObserver):
+class SlimeProgressLauncher(
+    Progress,
+    _StartStopObserverManager,
+    MutableBiListItem,
+    RichLauncher,
+    SlimeConsoleObserver
+):
 
     def __init__(
         self,
@@ -255,6 +261,17 @@ class SlimeProgressLauncher(Progress, MutableBiListItem, _StartStopStoreObserver
         result = super().stop(*args, **kwargs)
         self.stop_detach__()
         return result
+    
+    def start_attach__(self):
+        # attach console
+        store.builtin__().attach__(self, namespaces=['builtin_store_console__'])
+        # attach launch (if and only if ``bind_launch_to_builtin_store__`` is True)
+        if self.bind_launch_to_builtin_store__:
+            store.builtin__().attach__(self, namespaces=['builtin_store_launch__'])
+    
+    def stop_detach__(self):
+        # detach builtin store.
+        store.builtin__().detach__(self, namespaces=['builtin_store_console__', 'builtin_store_launch__'])
 
 
 class SlimeText(Text, MutableBiListItem):
