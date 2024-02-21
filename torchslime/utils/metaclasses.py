@@ -19,6 +19,10 @@ def Metaclasses(*args: Type[type], **kwargs) -> Type[type]:
 
 
 class InstanceCreationHookMetaclass(type):
+    """
+    This metaclass breaks the inheritance chain of ``__call__`` method, so 
+    it should better be the highest possible level base class.
+    """
     
     def __call__(cls, *args, **kwargs):
         instance = cls.__new__(cls, *args, **kwargs)

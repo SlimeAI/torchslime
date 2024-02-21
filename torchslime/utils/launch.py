@@ -120,7 +120,7 @@ class Launcher(AttrObserver):
         launch: Union[str, LaunchUtil, Missing] = MISSING,
         exec_ranks: Union[Iterable[int], NoneOrNothing, Pass, Missing] = MISSING
     ) -> None:
-        super().__init__()
+        AttrObserver.__init__(self)
         self.bind_launch_to_builtin_store__ = launch is MISSING
         if launch is MISSING:
             # bind launch to builtin store

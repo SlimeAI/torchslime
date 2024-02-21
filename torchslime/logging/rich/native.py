@@ -117,7 +117,7 @@ def yield_console(
 class SlimeConsoleObserver(AttrObserver):
     
     def __init__(self) -> None:
-        super().__init__()
+        AttrObserver.__init__(self)
         # auto attach observer
         store.builtin__().attach__(self, namespaces=['builtin_store_console__'])
     
@@ -160,7 +160,7 @@ class SlimeLiveLauncher(
     _StartStopObserverManager,
     RichLauncher,
     SlimeConsoleObserver,
-    metaclass=Metaclasses(InitOnceMetaclass, ABCMeta)
+    metaclass=Metaclasses(ABCMeta, InitOnceMetaclass)
 ):
     
     def __init__(

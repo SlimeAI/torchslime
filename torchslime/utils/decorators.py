@@ -24,6 +24,7 @@ from .typing import (
 )
 
 _T = TypeVar('_T')
+_T_FuncOrMethod = TypeVar('_T_FuncOrMethod', bound=FuncOrMethod)
 
 #
 # ClassWraps decorator
@@ -438,7 +439,7 @@ def RemoveOverload(_cls=NOTHING, *, checklist: Union[NoneOrNothing, List[str]] =
     return decorator
 
 
-def InitOnce(func: Callable[..., _T]) -> Callable[..., Union[_T, None]]:
+def InitOnce(func: _T_FuncOrMethod) -> _T_FuncOrMethod:
     """
     Used for ``__init__`` operations in multiple inheritance scenarios.
     Should be used together with ``torchslime.utils.metaclasses.InitOnceMetaclass``.
