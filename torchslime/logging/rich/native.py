@@ -195,9 +195,9 @@ class SlimeLiveLauncher(
         if self.bind_launch_to_builtin_store__:
             store.builtin__().attach__(self, namespaces=['builtin_store_launch__'])
     
-    # def stop_detach__(self):
-    #     # detach builtin store.
-    #     store.builtin__().detach__(self, namespaces=['builtin_store_console__', 'builtin_store_launch__'])
+    def stop_detach__(self):
+        # detach builtin store.
+        store.builtin__().detach__(self, namespaces=['builtin_store_console__', 'builtin_store_launch__'])
 
 #
 # Rich Logging Adapter
