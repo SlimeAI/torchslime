@@ -8,7 +8,6 @@ from .typing import (
     Type,
     Tuple,
     Dict,
-    Generator,
     Any
 )
 
@@ -25,38 +24,23 @@ class InstanceCreationHookMetaclass(type):
     """
     
     def __call__(cls, *args, **kwargs):
-        instance = cls.__new__(cls, *args, **kwargs)
+        instance = cls.new_hook_metaclass__(*args, **kwargs)
         if isinstance(instance, cls):
-            from .bases import BaseGenerator
-            init_hook_gen = BaseGenerator(cls.init_hook_yield__(instance, args, kwargs))
-            # before init
-            init_hook_gen()
-            # init
-            cls.__init__(instance, *args, **kwargs)
-            # after init
-            init_hook_gen()
+            cls.init_hook_metaclass__(instance, args=args, kwargs=kwargs)
         return instance
     
-    def init_hook_yield__(
-        cls,
-        instance,
-        args: Tuple,
-        kwargs: Dict[str, Any]
-    ) -> Generator:
-        yield
+    def new_hook_metaclass__(cls, *args, **kwargs):
+        return cls.__new__(cls, *args, **kwargs)
+    
+    def init_hook_metaclass__(cls, instance, args: Tuple, kwargs: Dict[str, Any]) -> None:
+        # init
+        cls.__init__(instance, *args, **kwargs)
 
 
 class InitOnceMetaclass(InstanceCreationHookMetaclass):
     
-    def init_hook_yield__(cls, instance, args: Tuple, kwargs: Dict[str, Any]) -> Generator:
-        from .bases import BaseGenerator
-        gen = BaseGenerator(super().init_hook_yield__(instance, args, kwargs))
-        gen()
-        # set ``init_once__`` cache
+    def init_hook_metaclass__(cls, instance, args: Tuple, kwargs: Dict[str, Any]) -> None:
         instance.init_once__ = {}
-        # ``cls.__init__``
-        yield
-        gen()
-        # remove ``init_once__`` cache
+        super().init_hook_metaclass__(instance, args, kwargs)
         if hasattr(instance, 'init_once__'):
             del instance.init_once__
