@@ -1,5 +1,5 @@
 """
-Deprecated: Meta
+Archived: Meta
 """
 from torchslime.utils.common import dict_to_key_value_str_list
 from torchslime.utils.typing import (

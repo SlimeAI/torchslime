@@ -118,9 +118,14 @@ except Exception:
 class _SingletonMetaclass(type):
     """
     Singleton metaclass that makes a specific class a singleton class.
-    Used for special constants, because the typing module should be an independent module and can only be 
-    imported by other torchslime modules (to avoid circular import error). The ``Singleton`` decorator 
-    (defined in torchslime.utils.decorators) should be used in other modules.
+    
+    Used for special constants. It is defined here rather than in ``torchslime.utils.metaclasses``, because 
+    the typing module should be an independent module and can only be imported by other torchslime modules 
+    (to avoid circular import error). The ``SingletonMetaclass`` in ``torchslime.utils.metaclasses`` and 
+    ``Singleton`` in ``torchslime.utils.bases`` are just based on this class for more general use.
+    
+    NOTE: The ``_SingletonMetaclass`` works for each class (even subclasses) independently, because it sets 
+    locks and ``__instance`` separately for each class it creates.
     """
     def __init__(cls, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -144,8 +149,6 @@ class Nothing(metaclass=_SingletonMetaclass):
     It often comes from getting properties or items that the object does not have, or simply represents a default value.
     'Nothing' allows any attribute-get or method-call operations without throwing Errors, making the program more stable.
     It will show Warnings in the console instead.
-    Nothing Singleton should be implemented independently, 
-    because the ``Singleton`` decorator relies on the basic NOTHING object, which may cause circular reference.
     """
     __slots__ = ()
 
@@ -198,27 +201,23 @@ def is_none_or_nothing(obj) -> bool:
 
 # Flag constants.
 
-class _FlagConstant:
+class _FlagConstant(metaclass=_SingletonMetaclass):
     def __str__(self) -> str: return self.__class__.__name__.upper()
     def __repr__(self) -> str: return f'{str(self)}<{str(hex(id(self)))}>'
 
-"""
-NOTE: The ``_SingletonMetaclass`` metaclass should be specified by each concrete class rather than 
-``_FlagConstant``, because each class should create its own Singleton instance.
-"""
 # ``Pass`` singleton constant
-class Pass(_FlagConstant, metaclass=_SingletonMetaclass): pass
+class Pass(_FlagConstant): pass
 PASS = Pass()
 
 # ``Missing`` singleton constant
-class Missing(_FlagConstant, metaclass=_SingletonMetaclass):
+class Missing(_FlagConstant):
     def __bool__(self) -> bool:
         return False
 
 MISSING = Missing()
 
 #
-# Other types, type checking and naming checking.
+# Other types, type checking, naming checking and type parsing.
 #
 
 FuncOrMethod = Union[FunctionType, MethodType]
@@ -238,6 +237,21 @@ SLIME_PATTERN = re.compile('^[^_](?:.*[^_])?_{2}$')
 
 def is_slime_naming(__name: str) -> bool:
     return SLIME_PATTERN.match(str(__name)) is not None
+
+
+@overload
+def unwrap_method(func: FuncOrMethod) -> RawFunc: pass
+@overload
+def unwrap_method(func: NoneOrNothing) -> NoneOrNothing: pass
+
+def unwrap_method(func: Union[FuncOrMethod, NoneOrNothing]) -> Union[RawFunc, NoneOrNothing]:
+    """
+    Get the original static function if the given ``func`` is a method.
+    """
+    if isinstance(func, MethodType):
+        # get the original function body of the method
+        func = func.__func__
+    return func
 
 #
 # Torch version adapter

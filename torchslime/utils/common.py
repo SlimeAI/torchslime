@@ -31,12 +31,14 @@ def dict_to_key_value_str_list(
 ) -> list:
     return [f'{key}{key_value_sep}{value}' for key, value in __dict.items()]
 
+
 def dict_to_key_value_str(
     __dict: Mapping,
     key_value_sep: str = '=',
     str_sep: str = ', '
 ) -> str:
     return str_sep.join(dict_to_key_value_str_list(__dict, key_value_sep=key_value_sep))
+
 
 def concat_format(
     __left: str,
@@ -252,6 +254,7 @@ def xor__(__x, __y) -> bool:
     return bool((__x and not __y) or (not __x and __y))
 
 
+# TODO: refactor it to ``typing`` and make it a flag constant?
 class LessThanAnything:
 
     def __lt__(self, __value: Any) -> bool: return True
@@ -286,3 +289,10 @@ def get_len(__obj: Any, *, default: _T = NOTHING) -> Union[int, _T]:
         return len(__obj)
     except TypeError:
         return default
+
+
+class FuncArgs:
+    
+    def __init__(self, *args, **kwargs) -> None:
+        self.args = args
+        self.kwargs = kwargs

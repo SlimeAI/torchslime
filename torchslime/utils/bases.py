@@ -25,25 +25,25 @@ from .typing import (
     is_none_or_nothing,
     Set,
     Missing,
-    MISSING
+    MISSING,
+    unwrap_method
 )
 from .decorators import (
-    ContextDecoratorBinding,
     DecoratorCall,
-    RemoveOverload,
-    _unwrap,
     InitOnce
 )
 from .metaclasses import (
-    InitOnceMetaclass
+    InitOnceMetaclass,
+    SingletonMetaclass,
+    _ReadonlyAttrMetaclass
 )
+from contextlib import ContextDecorator
 from functools import partial
 from types import TracebackType
 import re
 
 # TypeVars
 _T = TypeVar('_T')
-_T1 = TypeVar('_T1')
 _KT = TypeVar('_KT')
 _VT = TypeVar('_VT')
 
@@ -62,10 +62,41 @@ class ScopedAttr:
         return ScopedAttrRestore(self, attrs)
 
 #
+# ItemAttrBinding
+#
+
+class ItemAttrSetBinding:
+    
+    def __setitem__(self, __name: str, __value: Any) -> None:
+        return setattr(self, __name, __value)
+
+
+class ItemAttrGetBinding:
+    
+    def __getitem__(self, __name: str) -> Any:
+        return getattr(self, __name)
+
+
+class ItemAttrDelBinding:
+    
+    def __delitem__(self, __name: str) -> None:
+        return delattr(self, __name)
+
+
+class ItemAttrBinding(
+    ItemAttrSetBinding,
+    ItemAttrGetBinding,
+    ItemAttrDelBinding
+):
+    """
+    """
+    pass
+
+#
 # Base
 #
 
-class Base(ScopedAttr):
+class Base(ScopedAttr, ItemAttrBinding):
     """
     Base class, making its subclasses be able to use '[]' operations(just like python dict).
     Return 'Nothing' if the object does not have the property being retrieved, without throwing Errors.
@@ -133,15 +164,6 @@ class Base(ScopedAttr):
             return super().__delattr__(__name)
         except AttributeError:
             return
-
-    def __getitem__(self, __name: str):
-        return getattr(self, __name)
-
-    def __setitem__(self, __name: str, __value: Any):
-        return setattr(self, __name, __value)
-
-    def __delitem__(self, __name: str):
-        return delattr(self, __name)
     
     def __str__(self) -> str:
         from .common import dict_to_key_value_str
@@ -713,7 +735,7 @@ class AttrObserver(metaclass=InitOnceMetaclass):
                 # ``MISSING`` namespace will match all the functions.
                 namespaces is MISSING or \
                 # Otherwise check if the function's namespace exists in ``namespaces``.
-                getattr(_unwrap(func), OBSERVE_NAMESPACE, MISSING) in namespaces
+                getattr(unwrap_method(func), OBSERVE_NAMESPACE, MISSING) in namespaces
             )
         )
     
@@ -822,7 +844,7 @@ class AttrObservable:
         
         for name in names:
             attr_init = getattr(
-                _unwrap(observe_dict[name]),
+                unwrap_method(observe_dict[name]),
                 OBSERVE_INIT,
                 True
             ) if init is MISSING else init
@@ -918,11 +940,7 @@ def AttrObserve(
 # Scoped Attr Utils
 #
 
-@ContextDecoratorBinding
-@RemoveOverload(checklist=[
-    '__call__'
-])
-class ScopedAttrRestore(Generic[_T]):
+class ScopedAttrRestore(ContextDecorator, Generic[_T]):
 
     def __init__(
         self,
@@ -932,10 +950,6 @@ class ScopedAttrRestore(Generic[_T]):
         self.obj = obj
         self.attrs = list(attrs)
         self.prev_value_dict: Dict[str, Any] = {}
-
-    # just for type hint
-    @overload
-    def __call__(self, func: _T1) -> _T1: pass
 
     def __enter__(self) -> "ScopedAttrRestore":
         for attr in self.attrs:
@@ -984,3 +998,50 @@ class ScopedAttrAssign(ScopedAttrRestore[_T]):
                     f'attribute: {attr}. {str(e.__class__.__name__)}: {str(e)}'
                 )
         return ret
+
+#
+# Singleton base class
+#
+
+class Singleton(metaclass=SingletonMetaclass):
+    """
+    Helper class that creates a Singleton class using inheritance.
+    
+    Note that it works for each class (even subclasses) independently.
+    
+    Example:
+    
+    ```Python
+    from torchslime.utils.bases import Singleton
+    class A(Singleton): pass
+    
+    # B inherits A
+    class B(A): pass
+    
+    print(A() is A())  # True
+    print(B() is B())  # True
+    print(A() is B())  # False
+    
+    \"\"\"
+    These two values are different, because ``SingletonMetaclass`` sets ``__instance`` 
+    separately for each class it creates.
+    \"\"\"
+    print(A._SingletonMetaclass__instance)
+    print(B._SingletonMetaclass__instance)
+    ```
+    """
+    __slots__ = ()
+
+#
+# Readonly attributes.
+#
+
+class ReadonlyAttr(metaclass=_ReadonlyAttrMetaclass):
+    
+    readonly_attr__: Tuple[str, ...] = ()
+    readonly_attr_computed__: Tuple[str, ...] = ()
+    readonly_attr_nothing_allowed__: bool = True
+    readonly_attr_empty_allowed__: bool = True
+    
+    def __setattr__(self, __name: str, __value: Any) -> None:
+        pass

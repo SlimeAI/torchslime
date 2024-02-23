@@ -16,9 +16,11 @@ from torchslime.utils.typing import (
 )
 from torchslime.utils.bases import (
     Base,
-    AttrObservable
+    AttrObservable,
+    ItemAttrBinding,
+    Singleton
 )
-from torchslime.utils.decorators import Singleton, ItemAttrBinding, RemoveOverload
+from torchslime.utils.decorators import RemoveOverload
 from io import TextIOWrapper
 import threading
 import os
@@ -49,8 +51,8 @@ class ScopedStore(Base, AttrObservable):
                 getattr(self, __name, MISSING) is MISSING:
             setattr(self, __name, __value)
 
-@Singleton
-class BuiltinScopedStore(ScopedStore):
+
+class BuiltinScopedStore(ScopedStore, Singleton):
     
     def __init__(self) -> None:
         """
@@ -100,8 +102,6 @@ _scoped_store_dict = {}
 # Store
 #
 
-@ItemAttrBinding
-@Singleton
 @RemoveOverload(checklist=[
     'attach__',
     'attach_attr__',
@@ -110,7 +110,7 @@ _scoped_store_dict = {}
     'assign__',
     'restore__'
 ])
-class Store:
+class Store(ItemAttrBinding, Singleton):
     
     def scope__(self, __key) -> Union[ScopedStore, BuiltinScopedStore]:
         if __key == BUILTIN_SCOPED_STORE_KEY:

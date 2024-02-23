@@ -8,12 +8,28 @@ from .typing import (
     Type,
     Tuple,
     Dict,
-    Any
+    Any,
+    _SingletonMetaclass
 )
 
 
+class MetaclassAdapter(type):
+    """
+    This is a base class that indicates a metaclass is a ``MergedMetaclass``.
+    ``MergedMetaclass`` simply inherits multiple metaclasses and does nothing else, so it 
+    shouldn't be taken into account in the metaclass check (see 
+    ``torchslime.utils.decorators.MetaclassCheck`` for more information).
+    """
+    pass
+
+
 def Metaclasses(*args: Type[type], **kwargs) -> Type[type]:
-    class MergedMetaclass(*args, **kwargs): pass
+    """
+    Returns a newly created ``MergedMetaclass`` that inherits all the specified metaclasses 
+    as well as ``MetaclassAdapter``. It makes the adaptation of metaclasses convenient , 
+    which does not need the user manually define a new metaclass.
+    """
+    class MergedMetaclass(MetaclassAdapter, *args, **kwargs): pass
     return MergedMetaclass
 
 
@@ -44,3 +60,27 @@ class InitOnceMetaclass(InstanceCreationHookMetaclass):
         super().init_hook_metaclass__(instance, args, kwargs)
         if hasattr(instance, 'init_once__'):
             del instance.init_once__
+
+
+class SingletonMetaclass(_SingletonMetaclass):
+    """
+    Makes a specific class a singleton class. Inherits ``_SingletonMetaclass`` in 
+    ``torchslime.utils.typing`` for more general use.
+    """
+    pass
+
+
+class _ReadonlyAttrMetaclass(type):
+    """
+    
+    """
+
+    def __new__(
+        meta_cls,
+        __name: str,
+        __bases: Tuple[type, ...],
+        __namespace: Dict[str, Any],
+        **kwargs: Any
+    ):
+        cls = super().__new__(meta_cls, __name, __bases, __namespace, **kwargs)
+        pass

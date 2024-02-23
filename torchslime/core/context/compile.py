@@ -13,6 +13,7 @@ from torchslime.utils.typing import (
     MISSING,
     TorchLRScheduler
 )
+from torchslime.utils.common import FuncArgs
 from torchslime.logging.logger import logger, LoggerKwargs
 from torchslime.components.data import (
     ConstantProvider,
@@ -41,11 +42,7 @@ if TYPE_CHECKING:
 COMPILE_FUNC_SUFFIX = '_compile__'
 
 
-class CompileFuncArgs:
-    
-    def __init__(self, *args, **kwargs) -> None:
-        self.args = args
-        self.kwargs = kwargs
+class CompileFuncArgs(FuncArgs): pass
 
 
 class Compile:
