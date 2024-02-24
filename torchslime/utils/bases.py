@@ -26,7 +26,8 @@ from .typing import (
     Set,
     Missing,
     MISSING,
-    unwrap_method
+    unwrap_method,
+    FrozenSet
 )
 from .decorators import (
     DecoratorCall,
@@ -1037,11 +1038,51 @@ class Singleton(metaclass=SingletonMetaclass):
 #
 
 class ReadonlyAttr(metaclass=_ReadonlyAttrMetaclass):
+    """
+    Make specified attributes readonly.
+    """
     
     readonly_attr__: Tuple[str, ...] = ()
-    readonly_attr_computed__: Tuple[str, ...] = ()
-    readonly_attr_nothing_allowed__: bool = True
-    readonly_attr_empty_allowed__: bool = True
+    readonly_attr_computed__: FrozenSet[str] = frozenset()
+    """
+    ``nothing_readonly__``, ``empty_readonly__``: 
+    Whether empty value or ``NOTHING`` value of a specified attribute 
+    is still readonly.
+    """
+    nothing_readonly__: bool = False
+    empty_readonly__: bool = False
     
     def __setattr__(self, __name: str, __value: Any) -> None:
-        pass
+        return self.attr_mod__(
+            __name,
+            partial(super().__setattr__, __name, __value)
+        )
+    
+    def __delattr__(self, __name: str) -> None:
+        return self.attr_mod__(
+            __name,
+            partial(super().__delattr__, __name)
+        )
+    
+    def attr_mod__(self, __name: str, __mod_func: Callable[[], None]) -> None:
+        """
+        Method that checks readonly attributes and apply ``__mod_func`` if certain 
+        requirements are met, else raise ``APIMisused`` exception.
+        
+        ``__mod_func``: partial function of ``__setattr__``, ``__delattr__`` or other 
+        attribute modification functions.
+        """
+        # Directly modify attr here for performance optimization.
+        if __name not in self.readonly_attr_computed__:
+            return __mod_func()
+
+        hasattr__ = hasattr(self, __name)
+        attr__ = getattr(self, __name, MISSING)
+
+        # Whether empty value or ``NOTHING`` value is readonly.
+        if (not hasattr__ and not self.empty_readonly__) or \
+                (attr__ is NOTHING and not self.nothing_readonly__):
+            return __mod_func()
+        else:
+            from torchslime.components.exception import APIMisused
+            raise APIMisused(f'``{__name}`` in class ``{type(self)}`` is a readonly attribute.')

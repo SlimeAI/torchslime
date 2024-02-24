@@ -5,12 +5,16 @@ We name all the metaclasses with ``Metaclass`` rather than the abbreviation
 been deprecated), and we want to distinguish between these two concepts.
 """
 from .typing import (
+    TypeVar,
     Type,
     Tuple,
     Dict,
     Any,
-    _SingletonMetaclass
+    _SingletonMetaclass,
+    TYPE_CHECKING
 )
+if TYPE_CHECKING:
+    from .bases import ReadonlyAttr
 
 
 class MetaclassAdapter(type):
@@ -70,9 +74,13 @@ class SingletonMetaclass(_SingletonMetaclass):
     pass
 
 
+_ReadonlyAttrT = TypeVar('_ReadonlyAttrT', bound="ReadonlyAttr")
+
+
 class _ReadonlyAttrMetaclass(type):
     """
-    
+    Metaclass that checks readonly attributes. It should NOT be used independently. 
+    Directly inherit ``torchslime.utils.bases.ReadonlyAttr`` instead.
     """
 
     def __new__(
@@ -82,5 +90,14 @@ class _ReadonlyAttrMetaclass(type):
         __namespace: Dict[str, Any],
         **kwargs: Any
     ):
-        cls = super().__new__(meta_cls, __name, __bases, __namespace, **kwargs)
-        pass
+        # Check ``readonly_attr__`` defined in the class. If undefined, set it to ``()``.
+        readonly_attr__: Tuple[str, ...] = __namespace.setdefault('readonly_attr__', ())
+        # Create new class.
+        cls: Type[_ReadonlyAttrT] = super().__new__(meta_cls, __name, __bases, __namespace, **kwargs)
+        
+        readonly_attr_computed_set = set(readonly_attr__)
+        for base in __bases:
+            readonly_attr_computed_set.update(getattr(base, 'readonly_attr_computed__', ()))
+        
+        cls.readonly_attr_computed__ = frozenset(readonly_attr_computed_set)
+        return cls
