@@ -30,7 +30,7 @@ from torchslime.utils.bases import (
     BiList,
     BaseList
 )
-from torchslime.components.exception import (
+from torchslime.utils.exception import (
     HandlerException,
     HandlerTerminate,
     HandlerBreak,

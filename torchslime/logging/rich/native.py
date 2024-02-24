@@ -1,7 +1,7 @@
 """
 Rich Native Utils
 """
-from torchslime.components.store import store
+from torchslime.utils.store import store
 from torchslime.utils.typing import (
     MISSING,
     Iterable,

@@ -1,6 +1,6 @@
 import logging
 from logging import Formatter, Filter, Handler, LogRecord, Logger
-from torchslime.components.store import store
+from torchslime.utils.store import store
 from torchslime.utils.launch import (
     Launcher,
     LaunchUtil

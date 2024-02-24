@@ -1,4 +1,4 @@
-from torchslime.components.registry import Registry
+from torchslime.utils.registry import Registry
 from torchslime.core.handlers.wrappers import validation_check
 from torchslime.logging.logger import logger
 from torchslime.utils.typing import (

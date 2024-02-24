@@ -1,6 +1,6 @@
-from torchslime.utils.common import list_take
 from torchslime.logging.logger import logger
-from torchslime.utils.typing import (
+from .common import list_take
+from .typing import (
     Sequence,
     Tuple,
     Any,

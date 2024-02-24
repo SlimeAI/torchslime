@@ -494,7 +494,7 @@ class BaseGenerator(
 
     def call__(self, __caller: Callable[[], _T]) -> Union[_T, Nothing]:
         if self.exit and not self.exit_allowed:
-            from torchslime.components.exception import APIMisused
+            from .exception import APIMisused
             raise APIMisused('``exit_allowed`` is set to False, and the generator already stopped but you still try to call ``next``.')
         elif self.exit:
             return NOTHING
@@ -1084,5 +1084,5 @@ class ReadonlyAttr(metaclass=_ReadonlyAttrMetaclass):
                 (attr__ is NOTHING and not self.nothing_readonly__):
             return __mod_func()
         else:
-            from torchslime.components.exception import APIMisused
+            from .exception import APIMisused
             raise APIMisused(f'``{__name}`` in class ``{type(self)}`` is a readonly attribute.')

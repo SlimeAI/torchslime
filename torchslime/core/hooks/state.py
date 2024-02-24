@@ -1,8 +1,8 @@
 """
 State Pattern for model state management.
 """
-from torchslime.components.registry import Registry
-from torchslime.components.metric import MeterDict
+from torchslime.utils.registry import Registry
+from torchslime.utils.metric import MeterDict
 from torchslime.utils.typing import (
     Tuple,
     Mapping,

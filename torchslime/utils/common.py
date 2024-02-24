@@ -57,7 +57,7 @@ def concat_format(
     if not break_line:
         indent_prefix = ''
     elif is_none_or_nothing(indent_prefix):
-        from torchslime.components.store import store
+        from .store import store
         indent_prefix: str = store.builtin__().indent_str
     # format content
     content_sep = item_sep + (break_line_sep if break_line else '')

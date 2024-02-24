@@ -1,6 +1,6 @@
 import io
 import pickle
-from torchslime.components.registry import Registry
+from .registry import Registry
 from .typing import (
     NOTHING,
     List,
@@ -124,7 +124,7 @@ class Launcher(AttrObserver):
         self.bind_launch_to_builtin_store__ = launch is MISSING
         if launch is MISSING:
             # bind launch to builtin store
-            from torchslime.components.store import store
+            from .store import store
             store.builtin__().attach__(self, namespaces=['builtin_store_launch__'])
         else:
             self.set_launch__(launch)

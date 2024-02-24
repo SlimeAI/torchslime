@@ -7,7 +7,7 @@ from torchslime.utils.typing import (
     TYPE_CHECKING
 )
 from .build import BuildInterface
-from torchslime.components.registry import Registry
+from torchslime.utils.registry import Registry
 if TYPE_CHECKING:
     from torchslime.core.context import Context
 

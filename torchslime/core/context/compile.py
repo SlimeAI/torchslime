@@ -15,13 +15,13 @@ from torchslime.utils.typing import (
 )
 from torchslime.utils.common import FuncArgs
 from torchslime.logging.logger import logger, LoggerKwargs
-from torchslime.components.data import (
+from torchslime.utils.data import (
     ConstantProvider,
     DataParser,
     DataProvider,
     IndexParser
 )
-from torchslime.components.metric import (
+from torchslime.utils.metric import (
     MetricContainer,
     LossReductionFactory,
     Metric,

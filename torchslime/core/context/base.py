@@ -12,7 +12,7 @@ from torchslime.utils.typing import (
     is_none_or_nothing,
     TorchLRScheduler
 )
-from torchslime.components.exception import APIMisused
+from torchslime.utils.exception import APIMisused
 from torchslime.logging.logger import logger, LoggerKwargs
 from torch import (
     Tensor,
@@ -188,7 +188,7 @@ class IterationContext(TempContext):
         self.total: int = NOTHING
         self.start: int = 0
         # average information in one period (e.g. epoch or a specified number of steps)
-        from torchslime.components.metric import MeterDict
+        from torchslime.utils.metric import MeterDict
         # average train metrics
         self.train_metrics: MeterDict = MeterDict()
         # average eval metrics
@@ -216,25 +216,25 @@ class RunContext(TempContext):
         # optimizer
         self.optimizer: Optimizer = NOTHING
         # loss_func
-        from torchslime.components.metric import LossFuncContainer
+        from torchslime.utils.metric import LossFuncContainer
         self.loss_func: Union[LossFuncContainer, Nothing] = NOTHING
         # gradient accumulation
         self.grad_acc: int = 1
         # learning rate scheduler
         self.lr_scheduler: TorchLRScheduler = NOTHING
         # data provider
-        from torchslime.components.data import DataProvider
+        from torchslime.utils.data import DataProvider
         self.train_provider: DataProvider = NOTHING
         self.eval_provider: DataProvider = NOTHING
         # data parser
-        from torchslime.components.data import DataParser, IndexParser
+        from torchslime.utils.data import DataParser, IndexParser
         # the data parser should be set to IndexParser as default
         self.data_parser: DataParser = IndexParser()
         # metric container
-        from torchslime.components.metric import MetricContainer
+        from torchslime.utils.metric import MetricContainer
         self.metrics: Union[MetricContainer, Nothing] = NOTHING
         # loss reduction func
-        from torchslime.components.metric import LossReductionFactory
+        from torchslime.utils.metric import LossReductionFactory
         self.loss_reduction: Callable[[BaseContext], Tensor] = LossReductionFactory.get('mean')
 
 

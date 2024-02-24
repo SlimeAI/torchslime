@@ -16,7 +16,7 @@ from torchslime.utils.typing import (
     NoReturn,
     TYPE_CHECKING
 )
-from torchslime.components.exception import (
+from torchslime.utils.exception import (
     APIMisused,
     HandlerBaseException,
     HandlerWrapperException

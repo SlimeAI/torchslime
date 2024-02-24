@@ -99,7 +99,7 @@ class ClassWraps:
     
     def __init__(self, cls: type) -> None:
         if not isinstance(cls, type):
-            from torchslime.components.exception import APIMisused
+            from torchslime.utils.exception import APIMisused
             raise APIMisused(f'ClassWraps can only be used for class, not {str(cls)}.')
         
         self.cls = cls

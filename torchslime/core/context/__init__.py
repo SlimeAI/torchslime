@@ -10,9 +10,9 @@ from torchslime.utils.typing import (
     Missing,
     MISSING
 )
-from torchslime.components.data import DataProvider
-from torchslime.components.exception import APIMisused
-from torchslime.components.store import store
+from torchslime.utils.data import DataProvider
+from torchslime.utils.exception import APIMisused
+from torchslime.utils.store import store
 from torchslime.logging.logger import logger
 from torchslime.utils.common import count_params, get_device, type_cast
 from torchslime.utils.decorators import CallDebug, MethodChaining
@@ -183,7 +183,7 @@ class Context(BaseContext, AttrObserver):
 #
 
 from torchslime.core.handlers import Handler
-from torchslime.components.exception import HandlerException, HandlerTerminate
+from torchslime.utils.exception import HandlerException, HandlerTerminate
 
 def _handler_call(handler: Handler, ctx: Context):
     try:

@@ -22,8 +22,8 @@ from torchslime.utils.common import (
     type_cast
 )
 from torchslime.utils.bases import BaseList
-from torchslime.components.metric import MeterDict
-from torchslime.components.store import store
+from torchslime.utils.metric import MeterDict
+from torchslime.utils.store import store
 from torchslime.utils.decorators import CallDebug
 from torchslime.core.handlers import Handler, HandlerContainer
 from torchslime.core.hooks.state import StateHook

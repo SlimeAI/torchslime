@@ -22,7 +22,7 @@ from torchslime.utils.bases import (
     BaseList,
     CompositeBFT
 )
-from torchslime.components.store import store
+from torchslime.utils.store import store
 from contextlib import contextmanager
 
 if TYPE_CHECKING:
@@ -167,7 +167,7 @@ class HandlerTreeProfiler:
         return wrap_func
 
 
-from torchslime.components.registry import Registry
+from torchslime.utils.registry import Registry
 handler_profile_wrap_func = Registry[Callable[[Group, "Handler"], Group]]('handler_profile_wrap_func')
 
 

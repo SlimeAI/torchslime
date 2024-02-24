@@ -12,7 +12,7 @@ from torchslime.utils.typing import (
     Type
 )
 from torchslime.utils.common import dict_to_key_value_str
-from torchslime.components.registry import Registry
+from torchslime.utils.registry import Registry
 from .state import state_registry
 
 if TYPE_CHECKING:

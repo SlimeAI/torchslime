@@ -1,6 +1,5 @@
 from functools import wraps
 from .typing import (
-    Any,
     Union,
     Callable,
     TypeVar,
@@ -78,7 +77,7 @@ def CallDebug(
     
     def decorator(func: _T) -> _T:
         from torchslime.logging.logger import logger, LoggerKwargs
-        from torchslime.components.store import store
+        from .store import store
 
         # Inspect ``module_name``
         nonlocal module_name

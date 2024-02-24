@@ -1,4 +1,4 @@
-from torchslime.utils.typing import (
+from .typing import (
     NOTHING,
     Any,
     Dict,
@@ -14,20 +14,20 @@ from torchslime.utils.typing import (
     TextIO,
     NoneOrNothing
 )
-from torchslime.utils.bases import (
+from .bases import (
     Base,
     AttrObservable,
     ItemAttrBinding,
     Singleton
 )
-from torchslime.utils.decorators import RemoveOverload
+from .decorators import RemoveOverload
 from io import TextIOWrapper
 import threading
 import os
 # type hint only
 if TYPE_CHECKING:
-    from torchslime.utils.launch import LaunchUtil
-    from torchslime.utils.bases import (
+    from .launch import LaunchUtil
+    from .bases import (
         AttrObserver,
         ScopedAttrAssign,
         ScopedAttrRestore
@@ -177,7 +177,7 @@ store.builtin__().delay_init__()
 # Store Assign
 #
 
-from torchslime.utils.bases import ScopedAttrAssign
+from .bases import ScopedAttrAssign
 _T_ScopedStore = TypeVar('_T_ScopedStore', bound=ScopedStore)
 
 class StoreAssign(ScopedAttrAssign[_T_ScopedStore]):
