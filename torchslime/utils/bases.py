@@ -94,6 +94,16 @@ class ItemAttrBinding(
     pass
 
 #
+# InitOnce Base
+#
+
+class InitOnceBase(metaclass=InitOnceMetaclass):
+    """
+    Helper class that implements ``InitOnce`` using inheritance.
+    """
+    pass
+
+#
 # Base
 #
 
@@ -718,7 +728,7 @@ class _ObservableDict(BaseDict[str, _ObservableInfo]):
         return self.get_observable_id__(__observable) in self
 
 
-class AttrObserver(metaclass=InitOnceMetaclass):
+class AttrObserver(InitOnceBase):
     
     @InitOnce
     def __init__(self) -> None:
