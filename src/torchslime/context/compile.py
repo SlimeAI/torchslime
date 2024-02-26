@@ -28,10 +28,10 @@ from torchslime.utils.metric import (
     LossFunc,
     LossFuncContainer
 )
-from torchslime.core.hooks.build import BuildHook, build_registry
-from torchslime.core.hooks.launch import LaunchHook, launch_registry
-from torchslime.core.hooks.profiler import ProfilerHook, profiler_registry
-from torchslime.core.hooks.state import StateHook, state_registry
+from torchslime.hooks.build import BuildHook, build_registry
+from torchslime.hooks.launch import LaunchHook, launch_registry
+from torchslime.hooks.profiler import ProfilerHook, profiler_registry
+from torchslime.hooks.state import StateHook, state_registry
 from torchslime.utils.decorators import CallDebug, MethodChaining
 from torch import Tensor
 from torch.optim import Optimizer

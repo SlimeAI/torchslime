@@ -23,7 +23,7 @@ from torchslime.logging.logger import logger
 from torch import Tensor
 import inspect
 if TYPE_CHECKING:
-    from torchslime.core.context import Context
+    from torchslime.context import Context
 
 
 class Metric:

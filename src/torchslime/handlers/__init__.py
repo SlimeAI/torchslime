@@ -1,4 +1,4 @@
-from torchslime.core.handlers.riching import HandlerTreeProfiler
+from torchslime.handlers.riching import HandlerTreeProfiler
 from torchslime.utils.common import (
     Count,
     dict_to_key_value_str_list,
@@ -41,7 +41,7 @@ from functools import partial
 
 if TYPE_CHECKING:
     from torchslime.logging.rich import Group
-    from torchslime.core.context import Context
+    from torchslime.context import Context
 
 
 class Handler(CompositeStructure, MutableBiListItem):

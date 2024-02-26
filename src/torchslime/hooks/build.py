@@ -1,5 +1,5 @@
 from torchslime.utils.registry import Registry
-from torchslime.core.handlers.wrappers import validation_check
+from torchslime.handlers.wrappers import validation_check
 from torchslime.logging.logger import logger
 from torchslime.utils.typing import (
     Generator,
@@ -9,7 +9,7 @@ from torchslime.utils.bases import (
     BaseGenerator
 )
 if TYPE_CHECKING:
-    from torchslime.core.context import Context
+    from torchslime.context import Context
 
 build_registry = Registry('build_registry')
 

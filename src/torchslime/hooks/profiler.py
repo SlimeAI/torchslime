@@ -16,7 +16,7 @@ from torchslime.utils.registry import Registry
 from .state import state_registry
 
 if TYPE_CHECKING:
-    from torchslime.core.context import Context
+    from torchslime.context import Context
     from .state import StateHook
 
 profiler_registry = Registry[Type["ProfilerHook"]]('profiler_registry')

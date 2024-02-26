@@ -9,7 +9,7 @@ from .typing import (
 )
 from torch.utils.data import DataLoader
 if TYPE_CHECKING:
-    from torchslime.core.context import Context
+    from torchslime.context import Context
 
 
 class DataProvider:

@@ -9,7 +9,7 @@ from torchslime.utils.typing import (
 from .build import BuildInterface
 from torchslime.utils.registry import Registry
 if TYPE_CHECKING:
-    from torchslime.core.context import Context
+    from torchslime.context import Context
 
 launch_registry = Registry('launch_registry')
 

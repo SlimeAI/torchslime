@@ -26,9 +26,9 @@ from torchslime.utils.store import store
 from contextlib import contextmanager
 
 if TYPE_CHECKING:
-    from torchslime.core.context import Context
-    from torchslime.core.handlers import Handler
-    from torchslime.core.handlers.wrappers import HandlerWrapper, HandlerWrapperContainer
+    from torchslime.context import Context
+    from torchslime.handlers import Handler
+    from torchslime.handlers.wrappers import HandlerWrapper, HandlerWrapperContainer
 
 #
 # Handler Progress Interface

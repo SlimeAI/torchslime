@@ -17,10 +17,10 @@ from torchslime.logging.logger import logger
 from torchslime.utils.common import count_params, get_device, type_cast
 from torchslime.utils.decorators import CallDebug, MethodChaining
 from torchslime.utils.bases import AttrObserver, AttrObserve, AttrObservable
-from torchslime.core.hooks.build import BuildHook
-from torchslime.core.hooks.launch import LaunchHook
-from torchslime.core.hooks.profiler import ProfilerHook
-from torchslime.core.hooks.plugin import PluginHook
+from torchslime.hooks.build import BuildHook
+from torchslime.hooks.launch import LaunchHook
+from torchslime.hooks.profiler import ProfilerHook
+from torchslime.hooks.plugin import PluginHook
 from torch.utils.data import DataLoader
 
 AcceptableDataType = Union[DataLoader, DataProvider]
@@ -182,7 +182,7 @@ class Context(BaseContext, AttrObserver):
 # Try with handler exceptions
 #
 
-from torchslime.core.handlers import Handler
+from torchslime.handlers import Handler
 from torchslime.utils.exception import HandlerException, HandlerTerminate
 
 def _handler_call(handler: Handler, ctx: Context):

@@ -200,10 +200,10 @@ class IterationContext(TempContext):
 
 
 class RunContext(TempContext):
-   
+
     def initialize(self):
         # handler containers that define the process of training, evaluating and predicting.
-        from torchslime.core.handlers import HandlerContainer
+        from torchslime.handlers import HandlerContainer
         self.train_container: Union[HandlerContainer, Nothing] = NOTHING
         self.eval_container: Union[HandlerContainer, Nothing] = NOTHING
         self.predict_container: Union[HandlerContainer, Nothing] = NOTHING
@@ -242,11 +242,11 @@ class HandlerContext(TempContext):
 
     def initialize(self):
         # base handlers
-        from torchslime.core import handlers
+        from torchslime import handlers
         self.Handler = handlers.Handler
         self.Container = handlers.HandlerContainer
         
-        from torchslime.core.handlers import common
+        from torchslime.handlers import common
         # the root container, should be used only once in a single container structure
         self.RootContainer = common.RootContainer
         # common handlers
@@ -267,7 +267,7 @@ class HandlerContext(TempContext):
         self.FuncHandler = common.FuncHandler
         
         # handler wrappers
-        from torchslime.core.handlers import wrappers
+        from torchslime.handlers import wrappers
         self.Wrapper = wrappers.HandlerWrapper
         self.WrapperContainer = wrappers.HandlerWrapperContainer
         self.StateWrapper = wrappers.StateWrapper
@@ -285,19 +285,19 @@ class HookContext(TempContext):
 
     def initialize(self):
         # hooks
-        from torchslime.core.hooks.plugin import PluginContainer
+        from torchslime.hooks.plugin import PluginContainer
         self.plugins: PluginContainer = PluginContainer()
         
-        from torchslime.core.hooks.launch import LaunchHook
+        from torchslime.hooks.launch import LaunchHook
         self.launch: Union[LaunchHook, Nothing] = NOTHING
         
-        from torchslime.core.hooks.build import BuildHook
+        from torchslime.hooks.build import BuildHook
         self.build: Union[BuildHook, Nothing] = NOTHING
         
-        from torchslime.core.hooks.state import StateHook
+        from torchslime.hooks.state import StateHook
         self.state: Union[StateHook, Nothing] = NOTHING
         
-        from torchslime.core.hooks.profiler import ProfilerHook
+        from torchslime.hooks.profiler import ProfilerHook
         self.profiler: Union[ProfilerHook, Nothing] = NOTHING
 
 

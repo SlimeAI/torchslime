@@ -25,8 +25,8 @@ from torchslime.utils.bases import BaseList
 from torchslime.utils.metric import MeterDict
 from torchslime.utils.store import store
 from torchslime.utils.decorators import CallDebug
-from torchslime.core.handlers import Handler, HandlerContainer
-from torchslime.core.hooks.state import StateHook
+from torchslime.handlers import Handler, HandlerContainer
+from torchslime.hooks.state import StateHook
 from torchslime.logging.logger import logger
 from torchslime.logging.rich import ProfileProgress, SlimeLiveLauncher, SlimeGroup, SlimeProgressLauncher
 from .riching import ProgressInterface, ProfileProgressInterface
@@ -36,7 +36,7 @@ from torch import set_grad_enabled
 # Type check only
 if TYPE_CHECKING:
     from .wrappers import HandlerWrapper
-    from torchslime.core.context import Context
+    from torchslime.context import Context
 
 __all__ = [
     'TorchGrad',
@@ -73,7 +73,7 @@ class EmptyHandler(Handler):
     """Empty handler that does nothing when called.
 
     Args:
-        Handler (torchslime.core.handler.Handler): _description_
+        Handler (torchslime.handler.Handler): _description_
     """
     
     @CallDebug(module_name='EmptyHandler')

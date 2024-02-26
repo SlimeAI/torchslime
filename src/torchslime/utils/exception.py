@@ -9,7 +9,7 @@ class APIMisused(Exception):
         self.msg = msg
     
     def __str__(self) -> str:
-        return f'APIMisused: {self.msg}'
+        return f'{self.msg}'
 
 
 from .typing import NOTHING
@@ -47,7 +47,7 @@ class HandlerTerminate(HandlerInterrupt):
         self.raise_handler = raise_handler
     
     def __str__(self) -> str:
-        return f'HandlerTerminate -> raise_handler: {str(self.raise_handler)}, msg: {self.msg}'
+        return f'raise_handler: {str(self.raise_handler)}, msg: {self.msg}'
 
 #
 # Handler Exception
@@ -61,10 +61,10 @@ class HandlerException(HandlerBaseException):
         self.exception = exception
     
     def __str__(self) -> str:
-        return f'HandlerException -> exception_handler: {str(self.exception_handler)}'
+        return f'exception_handler: {str(self.exception_handler)}'
 
 
 class HandlerWrapperException(HandlerException):
     
     def __str__(self) -> str:
-        return f'HandlerWrapperException -> exception_handler: {str(self.exception_handler)}'
+        return f'exception_handler: {str(self.exception_handler)}'

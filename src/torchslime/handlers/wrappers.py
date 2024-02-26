@@ -24,8 +24,8 @@ from torchslime.utils.exception import (
 from torchslime.logging.logger import logger
 from torchslime.logging.rich import RenderInterface, RenderableType
 if TYPE_CHECKING:
-    from torchslime.core.hooks.state import StateHook
-    from torchslime.core.context import Context
+    from torchslime.hooks.state import StateHook
+    from torchslime.context import Context
 
 __all__ = [
     'HandlerWrapper',
@@ -140,7 +140,7 @@ class StateWrapper(HandlerWrapper):
     ):
         super().__init__(id=id)
         # get state supported
-        from torchslime.core.hooks.state import StateHook, state_registry
+        from torchslime.hooks.state import StateHook, state_registry
         registered_states = list(state_registry.keys())
         if not isinstance(state, StateHook) and state not in registered_states:
             logger.warning(

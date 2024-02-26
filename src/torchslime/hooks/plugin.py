@@ -2,13 +2,13 @@ from torchslime.utils.bases import (
     BaseList,
     BaseGenerator
 )
-from torchslime.core.hooks.build import BuildInterface
+from torchslime.hooks.build import BuildInterface
 from torchslime.utils.typing import (
     Generator,
     TYPE_CHECKING
 )
 if TYPE_CHECKING:
-    from torchslime.core.context import Context
+    from torchslime.context import Context
 
 
 class PluginHook(BuildInterface): pass
