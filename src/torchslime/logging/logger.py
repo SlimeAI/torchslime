@@ -15,7 +15,7 @@ from torchslime.utils.typing import (
     NoneOrNothing,
     Pass
 )
-from torchslime.utils.bases import BaseDict, AttrObserver, AttrObserve, AttrObservable
+from torchslime.utils.base import BaseDict, AttrObserver, AttrObserve, AttrObservable
 from .rich import RichHandler, SlimeRichHandler
 import sys
 

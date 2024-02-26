@@ -32,7 +32,7 @@ class DistributedLaunch(LaunchHook, DistributedLaunchUtil):
     def build_train_yield(self, ctx: "Context") -> Generator:
         yield
         handler = ctx.handler_ctx
-        average_handlers = ctx.run_ctx.train_container.get_by_class(handler.MeterHandler)
+        average_handlers = ctx.pipeline_ctx.train_container.get_by_class(handler.MeterHandler)
         for a_handler in average_handlers:
             state = a_handler.get_id().split('_')[-1]
             a_handler.insert_before_self__(handler.GatherAverageHandler(id=f'gather_average_{state}'))
@@ -40,7 +40,7 @@ class DistributedLaunch(LaunchHook, DistributedLaunchUtil):
     def build_eval_yield(self, ctx: "Context") -> Generator:
         yield
         handler = ctx.handler_ctx
-        average_handlers = ctx.run_ctx.eval_container.get_by_class(handler.MeterHandler)
+        average_handlers = ctx.pipeline_ctx.eval_container.get_by_class(handler.MeterHandler)
         for a_handler in average_handlers:
             state = a_handler.get_id().split('_')[-1]
             a_handler.insert_before_self__(handler.GatherAverageHandler(id=f'gather_average_{state}'))

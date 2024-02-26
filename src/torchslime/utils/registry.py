@@ -1,8 +1,8 @@
 """
 A convenient module register util that helps you dynamically build modules.
 """
-from .bases import BaseDict
-from .decorators import DecoratorCall
+from .base import BaseDict
+from .decorator import DecoratorCall
 from .typing import (
     NOTHING,
     NoneOrNothing,

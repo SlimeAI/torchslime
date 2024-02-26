@@ -1,4 +1,4 @@
-from torchslime.utils.bases import (
+from torchslime.utils.base import (
     BaseList,
     BaseGenerator
 )

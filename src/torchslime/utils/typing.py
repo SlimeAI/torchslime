@@ -119,10 +119,10 @@ class _SingletonMetaclass(type):
     """
     Singleton metaclass that makes a specific class a singleton class.
     
-    Used for special constants. It is defined here rather than in ``torchslime.utils.metaclasses``, because 
+    Used for special constants. It is defined here rather than in ``torchslime.utils.metaclass``, because 
     the typing module should be an independent module and can only be imported by other torchslime modules 
-    (to avoid circular import error). The ``SingletonMetaclass`` in ``torchslime.utils.metaclasses`` and 
-    ``Singleton`` in ``torchslime.utils.bases`` are just based on this class for more general use.
+    (to avoid circular import error). The ``SingletonMetaclass`` in ``torchslime.utils.metaclass`` and 
+    ``Singleton`` in ``torchslime.utils.base`` are just based on this class for more general use.
     
     NOTE: The ``_SingletonMetaclass`` works for each class (even subclasses) independently, because it sets 
     locks and ``__instance`` separately for each class it creates.

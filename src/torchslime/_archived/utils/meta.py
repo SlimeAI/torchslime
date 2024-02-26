@@ -14,7 +14,7 @@ from torchslime.utils.typing import (
     overload,
     NoReturn
 )
-from torchslime.utils.decorators import DecoratorCall, RemoveOverload
+from torchslime.utils.decorator import DecoratorCall, RemoveOverload
 from .decorators import ClassWraps, ClassFuncWrapper
 from torchslime.utils.exception import APIMisused
 

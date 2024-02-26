@@ -17,7 +17,7 @@ from .typing import (
     Missing,
     MISSING
 )
-from .bases import BaseList, AttrObserver, AttrObserve, AttrObservable
+from .base import BaseList, AttrObserver, AttrObserve, AttrObservable
 import torch.distributed as dist
 from torch import Tensor
 import torch

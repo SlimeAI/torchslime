@@ -1,6 +1,6 @@
 from .riching import HandlerWrapperContainerProfiler
 from . import Handler, HandlerContainer
-from torchslime.utils.bases import (
+from torchslime.utils.base import (
     BaseGenerator,
     GeneratorQueue
 )
@@ -24,7 +24,7 @@ from torchslime.utils.exception import (
 from torchslime.logging.logger import logger
 from torchslime.logging.rich import RenderInterface, RenderableType
 if TYPE_CHECKING:
-    from torchslime.hooks.state import StateHook
+    from torchslime.pipelines.state import ModelState
     from torchslime.context import Context
 
 __all__ = [
@@ -133,16 +133,16 @@ class StateWrapper(HandlerWrapper):
     
     def __init__(
         self,
-        state: Union[str, "StateHook"] = 'train',
+        state: Union[str, "ModelState"] = 'train',
         restore: bool = True,
         *,
         id: Union[str, NoneOrNothing] = NOTHING
     ):
         super().__init__(id=id)
         # get state supported
-        from torchslime.hooks.state import StateHook, state_registry
+        from torchslime.pipelines.state import ModelState, state_registry
         registered_states = list(state_registry.keys())
-        if not isinstance(state, StateHook) and state not in registered_states:
+        if not isinstance(state, ModelState) and state not in registered_states:
             logger.warning(
                 'An unregistered state is set, this may cause some problems. '
                 f'Registered states: {registered_states} - Specified state: {state}.'
@@ -152,13 +152,13 @@ class StateWrapper(HandlerWrapper):
     
     def handle_yield(self, ctx: "Context"):
         # cache the state before state set
-        self.restore_state: Union["StateHook", Nothing] = ctx.hook_ctx.state
-        ctx.compile.state_hook_compile__(self.state)
+        self.restore_state: Union["ModelState", Nothing] = ctx.pipeline_ctx.model_state
+        ctx.compile.model_state_compile__(self.state)
         # call wrapped handler
         yield True
         # restore
         if self.restore:
-            ctx.compile.state_hook_compile__(self.restore_state)
+            ctx.compile.model_state_compile__(self.restore_state)
         if hasattr(self, 'restore_state'):
             # destroy cached state
             del self.restore_state
@@ -232,7 +232,7 @@ class Not(_ConditionOperator):
 #
 
 def validation_check(ctx: "Context") -> bool:
-    valid_freq = ctx.run_ctx.valid_freq
+    valid_freq = ctx.pipeline_ctx.valid_freq
     if callable(valid_freq):
         return valid_freq(ctx)
     elif isinstance(valid_freq, list):

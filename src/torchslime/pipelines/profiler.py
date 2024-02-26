@@ -17,18 +17,18 @@ from .state import state_registry
 
 if TYPE_CHECKING:
     from torchslime.context import Context
-    from .state import StateHook
+    from .state import ModelState
 
-profiler_registry = Registry[Type["ProfilerHook"]]('profiler_registry')
+profiler_registry = Registry[Type["PipelineProfiler"]]('profiler_registry')
 
 
-class ProfilerHook:
+class PipelineProfiler:
     
     def logging_point_profile(self, ctx: "Context") -> str: pass
     def meter_profile(
         self,
         ctx: "Context",
-        state: Union[str, "StateHook", NoneOrNothing] = NOTHING
+        state: Union[str, "ModelState", NoneOrNothing] = NOTHING
     ) -> str: pass
     
     def parse_meter_dict(
@@ -53,7 +53,7 @@ class ProfilerHook:
 
 
 @profiler_registry(name='vanilla')
-class VanillaProfiler(ProfilerHook):
+class VanillaProfiler(PipelineProfiler):
     
     def logging_point_profile(self, ctx: "Context") -> str:
         build_name = str(ctx.hook_ctx.build)
@@ -64,10 +64,10 @@ class VanillaProfiler(ProfilerHook):
     def meter_profile(
         self,
         ctx: "Context",
-        state: Union[str, "StateHook", NoneOrNothing] = NOTHING
+        state: Union[str, "ModelState", NoneOrNothing] = NOTHING
     ) -> str:
         if is_none_or_nothing(state):
-            state = ctx.hook_ctx.state
+            state = ctx.pipeline_ctx.model_state
         elif isinstance(state, str):
             state = state_registry.get(state)()
         

@@ -15,7 +15,7 @@ from torchslime.utils.typing import (
     Any,
     overload
 )
-from torchslime.utils.decorators import DecoratorCall
+from torchslime.utils.decorator import DecoratorCall
 import threading
 import multiprocessing
 

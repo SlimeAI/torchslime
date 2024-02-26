@@ -18,7 +18,7 @@ from torchslime.logging.rich import (
     parse_renderable,
     escape
 )
-from torchslime.utils.bases import (
+from torchslime.utils.base import (
     BaseList,
     CompositeBFT
 )
@@ -28,7 +28,7 @@ from contextlib import contextmanager
 if TYPE_CHECKING:
     from torchslime.context import Context
     from torchslime.handlers import Handler
-    from torchslime.handlers.wrappers import HandlerWrapper, HandlerWrapperContainer
+    from torchslime.handlers.wrapper import HandlerWrapper, HandlerWrapperContainer
 
 #
 # Handler Progress Interface
@@ -66,7 +66,7 @@ class ProfileProgressInterface(ProgressInterface):
             advance=1
         )
         ctx.display_ctx.handler_progress.set_text__(
-            f'{ctx.hook_ctx.profiler.meter_profile(ctx)}'
+            f'{ctx.pipeline_ctx.pipeline_profiler.meter_profile(ctx)}'
         )
 
     def remove_progress__(self, ctx: "Context") -> None:

@@ -14,20 +14,20 @@ from .typing import (
     TextIO,
     NoneOrNothing
 )
-from .bases import (
+from .base import (
     Base,
     AttrObservable,
     ItemAttrBinding,
     Singleton
 )
-from .decorators import RemoveOverload
+from .decorator import RemoveOverload
 from io import TextIOWrapper
 import threading
 import os
 # type hint only
 if TYPE_CHECKING:
     from .launch import LaunchUtil
-    from .bases import (
+    from .base import (
         AttrObserver,
         ScopedAttrAssign,
         ScopedAttrRestore
@@ -75,7 +75,7 @@ class BuiltinScopedStore(ScopedStore, Singleton):
         """
         Delay initialization.
         Initialization of some items should be delayed due to circular import.
-        This method should be called after creation of ``torchslime.components.store.store``.
+        This method should be called after creation of ``torchslime.utils.store.store``.
         """
         # console
         from torchslime.logging.rich import (
@@ -177,7 +177,7 @@ store.builtin__().delay_init__()
 # Store Assign
 #
 
-from .bases import ScopedAttrAssign
+from .base import ScopedAttrAssign
 _T_ScopedStore = TypeVar('_T_ScopedStore', bound=ScopedStore)
 
 class StoreAssign(ScopedAttrAssign[_T_ScopedStore]):

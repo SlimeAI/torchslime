@@ -14,7 +14,7 @@ from .typing import (
     TYPE_CHECKING
 )
 if TYPE_CHECKING:
-    from .bases import ReadonlyAttr
+    from .base import ReadonlyAttr
 
 
 class MetaclassAdapter(type):
@@ -22,7 +22,7 @@ class MetaclassAdapter(type):
     This is a base class that indicates a metaclass is a ``MergedMetaclass``.
     ``MergedMetaclass`` simply inherits multiple metaclasses and does nothing else, so it 
     shouldn't be taken into account in the metaclass check (see 
-    ``torchslime.utils.decorators.MetaclassCheck`` for more information).
+    ``torchslime.utils.decorator.MetaclassCheck`` for more information).
     """
     pass
 
@@ -80,7 +80,7 @@ _ReadonlyAttrT = TypeVar('_ReadonlyAttrT', bound="ReadonlyAttr")
 class _ReadonlyAttrMetaclass(type):
     """
     Metaclass that checks readonly attributes. It should NOT be used independently. 
-    Directly inherit ``torchslime.utils.bases.ReadonlyAttr`` instead.
+    Directly inherit ``torchslime.utils.base.ReadonlyAttr`` instead.
     """
 
     def __new__(

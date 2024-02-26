@@ -1,10 +1,10 @@
-from .common import (
+from torchslime.utils.common import (
     LessThanAnything,
     dict_merge,
     safe_divide,
     GreaterThanAnything
 )
-from .typing import (
+from torchslime.utils.typing import (
     NOTHING,
     Mapping,
     NoneOrNothing,
@@ -16,9 +16,9 @@ from .typing import (
     is_none_or_nothing,
     TYPE_CHECKING
 )
-from .bases import BaseDict, BaseList
-from .registry import Registry
-from .exception import APIMisused
+from torchslime.utils.base import BaseDict, BaseList
+from torchslime.utils.registry import Registry
+from torchslime.utils.exception import APIMisused
 from torchslime.logging.logger import logger
 from torch import Tensor
 import inspect

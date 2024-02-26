@@ -10,16 +10,15 @@ from torchslime.utils.typing import (
     Missing,
     MISSING
 )
-from torchslime.utils.data import DataProvider
+from torchslime.pipelines.data import DataProvider
 from torchslime.utils.exception import APIMisused
 from torchslime.utils.store import store
 from torchslime.logging.logger import logger
 from torchslime.utils.common import count_params, get_device, type_cast
-from torchslime.utils.decorators import CallDebug, MethodChaining
-from torchslime.utils.bases import AttrObserver, AttrObserve, AttrObservable
+from torchslime.utils.decorator import CallDebug, MethodChaining
+from torchslime.utils.base import AttrObserver, AttrObserve, AttrObservable
 from torchslime.hooks.build import BuildHook
 from torchslime.hooks.launch import LaunchHook
-from torchslime.hooks.profiler import ProfilerHook
 from torchslime.hooks.plugin import PluginHook
 from torch.utils.data import DataLoader
 
@@ -34,7 +33,6 @@ class Context(BaseContext, AttrObserver):
         device=None,
         build_hook: Union[str, BuildHook] = 'vanilla',
         launch_hook: Union[str, LaunchHook, Missing] = MISSING,
-        profiler_hook: Union[str, ProfilerHook] = 'vanilla',
         compile: Union[Compile, Missing] = MISSING
     ):
         BaseContext.__init__(self)
@@ -48,8 +46,7 @@ class Context(BaseContext, AttrObserver):
         
         # compile hooks
         self.compile.compile_hook_ctx(
-            build_hook=build_hook,
-            profiler_hook=profiler_hook
+            build_hook=build_hook
         )
         if launch_hook is MISSING:
             # bind launch hook to builtin store.
@@ -70,7 +67,7 @@ class Context(BaseContext, AttrObserver):
         valid_freq: Union[int, List[int], Callable[[BaseContext], bool]] = 1,
         train_start: int = 0
     ) -> 'Context':
-        if is_none_or_nothing(self.run_ctx.train_container):
+        if is_none_or_nothing(self.pipeline_ctx.train_container):
             logger.error('``train`` called before train handlers are built. Call ``build_train`` first.')
             raise APIMisused('train')
         
@@ -83,7 +80,7 @@ class Context(BaseContext, AttrObserver):
             train_start=train_start
         )
         logger.info(self.hook_ctx.launch.get_device_info(self))
-        _handler_call(self.run_ctx.train_container, self)
+        _handler_call(self.pipeline_ctx.train_container, self)
 
     @CallDebug(module_name='Context.build_train')
     @MethodChaining
@@ -93,9 +90,9 @@ class Context(BaseContext, AttrObserver):
     @CallDebug(module_name='Context.display_train')
     @MethodChaining
     def display_train(self) -> 'Context':
-        if is_none_or_nothing(self.run_ctx.train_container):
+        if is_none_or_nothing(self.pipeline_ctx.train_container):
             logger.warning('``display_train`` called before train handlers are built.')
-        self.run_ctx.train_container.display()
+        self.pipeline_ctx.train_container.display()
 
     @CallDebug(module_name='Context.eval')
     @MethodChaining
@@ -103,13 +100,13 @@ class Context(BaseContext, AttrObserver):
         self,
         data: "AcceptableDataType"
     ) -> 'Context':
-        if is_none_or_nothing(self.run_ctx.eval_container):
+        if is_none_or_nothing(self.pipeline_ctx.eval_container):
             logger.error('``eval`` called before eval handlers are built. Call ``build_eval`` first.')
             raise APIMisused('eval')
         
         self.compile.eval_provider_compile__(data)
         logger.info(self.hook_ctx.launch.get_device_info(self))
-        _handler_call(self.run_ctx.eval_container, self)
+        _handler_call(self.pipeline_ctx.eval_container, self)
 
     @CallDebug(module_name='Context.build_eval')
     @MethodChaining
@@ -119,9 +116,9 @@ class Context(BaseContext, AttrObserver):
     @CallDebug(module_name='Context.display_eval')
     @MethodChaining
     def display_eval(self) -> 'Context':
-        if is_none_or_nothing(self.run_ctx.eval_container):
+        if is_none_or_nothing(self.pipeline_ctx.eval_container):
             logger.warning('``display_eval`` called before eval handlers are built.')
-        self.run_ctx.eval_container.display()
+        self.pipeline_ctx.eval_container.display()
 
     @CallDebug(module_name='Context.predict')
     @MethodChaining
@@ -129,13 +126,13 @@ class Context(BaseContext, AttrObserver):
         self,
         data: "AcceptableDataType"
     ) -> 'Context':
-        if is_none_or_nothing(self.run_ctx.predict_container):
+        if is_none_or_nothing(self.pipeline_ctx.predict_container):
             logger.error('``predict`` called before predict handlers are built. Call ``build_predict`` first.')
             raise APIMisused('predict')
         
         self.compile.eval_provider_compile__(data)
         logger.info(self.hook_ctx.launch.get_device_info(self))
-        _handler_call(self.run_ctx.predict_container, self)
+        _handler_call(self.pipeline_ctx.predict_container, self)
 
     @CallDebug(module_name='Context.build_predict')
     @MethodChaining
@@ -145,9 +142,9 @@ class Context(BaseContext, AttrObserver):
     @CallDebug(module_name='Context.display_predict')
     @MethodChaining
     def display_predict(self) -> 'Context':
-        if is_none_or_nothing(self.run_ctx.predict_container):
+        if is_none_or_nothing(self.pipeline_ctx.predict_container):
             logger.warning('``display_predict`` called before predict handlers are built.')
-        self.run_ctx.predict_container.display()
+        self.pipeline_ctx.predict_container.display()
 
     @CallDebug(module_name='Context.summary')
     @MethodChaining

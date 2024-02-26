@@ -21,12 +21,12 @@ from torchslime.utils.common import (
     get_len,
     type_cast
 )
-from torchslime.utils.bases import BaseList
-from torchslime.utils.metric import MeterDict
+from torchslime.utils.base import BaseList
+from torchslime.pipelines.metric import MeterDict
 from torchslime.utils.store import store
-from torchslime.utils.decorators import CallDebug
+from torchslime.utils.decorator import CallDebug
 from torchslime.handlers import Handler, HandlerContainer
-from torchslime.hooks.state import StateHook
+from torchslime.pipelines.state import ModelState
 from torchslime.logging.logger import logger
 from torchslime.logging.rich import ProfileProgress, SlimeLiveLauncher, SlimeGroup, SlimeProgressLauncher
 from .riching import ProgressInterface, ProfileProgressInterface
@@ -35,7 +35,7 @@ from itertools import cycle
 from torch import set_grad_enabled
 # Type check only
 if TYPE_CHECKING:
-    from .wrappers import HandlerWrapper
+    from .wrapper import HandlerWrapper
     from torchslime.context import Context
 
 __all__ = [
@@ -64,7 +64,7 @@ def TorchGrad(func):
     @wraps(func)
     def grad_switch(self, ctx: "Context"):
         # only when context status is in ['TRAIN'] is the grad enabled
-        with set_grad_enabled(str(ctx.hook_ctx.state) in ['TRAIN']):
+        with set_grad_enabled(str(ctx.pipeline_ctx.model_state) in ['TRAIN']):
             func(self, ctx)
     return grad_switch
 
@@ -150,7 +150,7 @@ class IterationContainer(HandlerContainer, ProfileProgressInterface):
     @CallDebug(module_name='IterationContainer')
     @TorchGrad
     def handle(self, ctx: "Context"):
-        loader = ctx.hook_ctx.state.get_loader(ctx)
+        loader = ctx.pipeline_ctx.model_state.get_loader(ctx)
         # loader check
         if is_none_or_nothing(loader):
             logger.warning('Got empty data loader.')
@@ -177,7 +177,7 @@ class IterationContainer(HandlerContainer, ProfileProgressInterface):
         
         handler_progress = ProfileProgress()
         task_id = handler_progress.progress.add_task(
-            str(ctx.hook_ctx.state),
+            str(ctx.pipeline_ctx.model_state),
             total=total
         )
         return handler_progress, task_id
@@ -191,7 +191,7 @@ class StepIterationContainer(HandlerContainer, ProfileProgressInterface):
     @CallDebug(module_name='StepIterationContainer')
     @TorchGrad
     def handle(self, ctx: "Context"):
-        loader = ctx.hook_ctx.state.get_loader(ctx)
+        loader = ctx.pipeline_ctx.model_state.get_loader(ctx)
         # loader check
         if is_none_or_nothing(loader):
             logger.warning('Got empty data loader.')
@@ -233,11 +233,11 @@ class ForwardHandler(Handler):
         ctx.ctx_check([
             'model',
             'device',
-            'run_ctx.data_parser',
+            'pipeline_ctx.data_parser',
             'step_ctx'
         ], silent=False)
         # forward
-        x, y_true, extra = ctx.run_ctx.data_parser(ctx)
+        x, y_true, extra = ctx.pipeline_ctx.data_parser(ctx)
         y_pred = ctx.model(type_cast(x, ctx.device))
         y_true = type_cast(y_true, ctx.device)
         # clone and update context info
@@ -255,9 +255,9 @@ class LossHandler(Handler):
     @CallDebug(module_name='LossHandler')
     def handle(self, ctx: "Context"):
         # context check
-        if ctx.ctx_check('run_ctx.loss_func') is True:
+        if ctx.ctx_check('pipeline_ctx.loss_func') is True:
             # compute loss
-            loss = ctx.run_ctx.loss_func(ctx)
+            loss = ctx.pipeline_ctx.loss_func(ctx)
             ctx.step_ctx.loss = loss
             ctx.step_ctx.loss_values = self._parse_float(dict(loss))
     
@@ -273,10 +273,10 @@ class BackwardHandler(Handler):
     def handle(self, ctx: "Context"):
         # context check
         if ctx.ctx_check(['step_ctx.loss']):
-            last = ctx.step_ctx.total % ctx.run_ctx.grad_acc
-            grad_acc = ctx.run_ctx.grad_acc if (ctx.step_ctx.total - ctx.step_ctx.current - 1) >= last else last
+            last = ctx.step_ctx.total % ctx.pipeline_ctx.grad_acc
+            grad_acc = ctx.pipeline_ctx.grad_acc if (ctx.step_ctx.total - ctx.step_ctx.current - 1) >= last else last
             # backward
-            (ctx.run_ctx.loss_reduction(ctx) / grad_acc).backward()
+            (ctx.pipeline_ctx.loss_reduction(ctx) / grad_acc).backward()
 
 
 class OptimizerContainer(HandlerContainer):
@@ -285,10 +285,10 @@ class OptimizerContainer(HandlerContainer):
     def handle(self, ctx: "Context"):
         # backward handler
         super().handle(ctx)
-        if ctx.ctx_check(['run_ctx.optimizer']) and \
-            ((ctx.step_ctx.current + 1) % ctx.run_ctx.grad_acc == 0 or ctx.step_ctx.current + 1 == ctx.step_ctx.total):
-            ctx.run_ctx.optimizer.step()
-            ctx.run_ctx.optimizer.zero_grad()
+        if ctx.ctx_check(['pipeline_ctx.optimizer']) and \
+            ((ctx.step_ctx.current + 1) % ctx.pipeline_ctx.grad_acc == 0 or ctx.step_ctx.current + 1 == ctx.step_ctx.total):
+            ctx.pipeline_ctx.optimizer.step()
+            ctx.pipeline_ctx.optimizer.zero_grad()
 
 
 class MetricHandler(Handler):
@@ -297,8 +297,8 @@ class MetricHandler(Handler):
     def handle(self, ctx: "Context"):
         # context check
         ctx.ctx_check('step_ctx', silent=False)
-        if ctx.ctx_check('run_ctx.metrics'):
-            ctx.step_ctx.metrics = ctx.run_ctx.metrics(ctx)
+        if ctx.ctx_check('pipeline_ctx.metrics'):
+            ctx.step_ctx.metrics = ctx.pipeline_ctx.metrics(ctx)
 
 
 class GatherAverageHandler(Handler):
@@ -325,29 +325,29 @@ class MeterInitHandler(Handler):
     
     @CallDebug(module_name='MeterInitHandler')
     def handle(self, ctx: "Context"):
-        ctx.hook_ctx.state.init_meter(ctx)
+        ctx.pipeline_ctx.model_state.init_meter(ctx)
 
 
 class MeterHandler(Handler):
     
     @CallDebug(module_name='MeterHandler')
     def handle(self, ctx: "Context"):
-        ctx.hook_ctx.state.update_meter(ctx, ctx.step_ctx.loss_values, ctx.step_ctx.metrics)
+        ctx.pipeline_ctx.model_state.update_meter(ctx, ctx.step_ctx.loss_values, ctx.step_ctx.metrics)
 
 
 class LRScheduleHandler(Handler):
     
     @CallDebug(module_name='LRScheduleHandler')
     def handle(self, ctx: "Context"):
-        if ctx.ctx_check(['run_ctx.lr_scheduler']) is True:
-            ctx.run_ctx.lr_scheduler.step()
+        if ctx.ctx_check(['pipeline_ctx.lr_scheduler']) is True:
+            ctx.pipeline_ctx.lr_scheduler.step()
 
 
 class LoggingHandler(Handler):
     
     def __init__(
         self,
-        logging_states: Sequence[Union[str, StateHook]],
+        logging_states: Sequence[Union[str, ModelState]],
         *,
         id: Union[str, NoneOrNothing] = NOTHING,
         exec_ranks: Union[Iterable[int], NoneOrNothing, Pass, Missing] = MISSING,
@@ -364,7 +364,7 @@ class LoggingHandler(Handler):
     
     def handle(self, ctx: "Context") -> None:
         # get logging point (Epoch/Step, current, total)
-        profiler = ctx.hook_ctx.profiler
+        profiler = ctx.pipeline_ctx.pipeline_profiler
         logging_point = profiler.logging_point_profile(ctx)
         
         for state in self.logging_states:

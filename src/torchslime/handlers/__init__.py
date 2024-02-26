@@ -23,7 +23,7 @@ from torchslime.logging.logger import logger
 from torchslime.logging.rich import (
     yield_console
 )
-from torchslime.utils.bases import (
+from torchslime.utils.base import (
     CompositeStructure,
     CompositeDFS,
     MutableBiListItem,
@@ -249,4 +249,4 @@ class HandlerContainer(Handler, BiList[_T_Handler]):
 
 
 from .common import *
-from .wrappers import *
+from .wrapper import *

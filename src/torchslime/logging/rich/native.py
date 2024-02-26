@@ -15,7 +15,7 @@ from torchslime.utils.typing import (
     Type
 )
 from torchslime.utils.launch import LaunchUtil, Launcher
-from torchslime.utils.bases import (
+from torchslime.utils.base import (
     AttrObserver,
     AttrObserve,
     AttrObservable,
@@ -23,7 +23,7 @@ from torchslime.utils.bases import (
     BiList,
     MutableBiListItem
 )
-from torchslime.utils.metaclasses import (
+from torchslime.utils.metaclass import (
     Metaclasses,
     InitOnceMetaclass
 )

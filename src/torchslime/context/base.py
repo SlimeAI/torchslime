@@ -1,4 +1,4 @@
-from torchslime.utils.bases import Base
+from torchslime.utils.base import Base
 from torchslime.utils.typing import (
     Any,
     Sequence,
@@ -47,8 +47,8 @@ class BaseContext(Base):
         self.device: Union[str, device] = NOTHING
         # model
         self.model: Module = NOTHING
-        # run context
-        self.run_ctx: RunContext = RunContext()
+        # pipeline context
+        self.pipeline_ctx: PipelineContext = PipelineContext()
         # information about iteration
         self.iteration_ctx: IterationContext = IterationContext()
         # information in one step
@@ -188,7 +188,7 @@ class IterationContext(TempContext):
         self.total: int = NOTHING
         self.start: int = 0
         # average information in one period (e.g. epoch or a specified number of steps)
-        from torchslime.utils.metric import MeterDict
+        from torchslime.pipelines.metric import MeterDict
         # average train metrics
         self.train_metrics: MeterDict = MeterDict()
         # average eval metrics
@@ -199,7 +199,7 @@ class IterationContext(TempContext):
         self.eval_loss_values: MeterDict = MeterDict()
 
 
-class RunContext(TempContext):
+class PipelineContext(TempContext):
 
     def initialize(self):
         # handler containers that define the process of training, evaluating and predicting.
@@ -216,26 +216,32 @@ class RunContext(TempContext):
         # optimizer
         self.optimizer: Optimizer = NOTHING
         # loss_func
-        from torchslime.utils.metric import LossFuncContainer
+        from torchslime.pipelines.metric import LossFuncContainer
         self.loss_func: Union[LossFuncContainer, Nothing] = NOTHING
         # gradient accumulation
         self.grad_acc: int = 1
         # learning rate scheduler
         self.lr_scheduler: TorchLRScheduler = NOTHING
         # data provider
-        from torchslime.utils.data import DataProvider
+        from torchslime.pipelines.data import DataProvider
         self.train_provider: DataProvider = NOTHING
         self.eval_provider: DataProvider = NOTHING
         # data parser
-        from torchslime.utils.data import DataParser, IndexParser
+        from torchslime.pipelines.data import DataParser, IndexParser
         # the data parser should be set to IndexParser as default
         self.data_parser: DataParser = IndexParser()
         # metric container
-        from torchslime.utils.metric import MetricContainer
+        from torchslime.pipelines.metric import MetricContainer
         self.metrics: Union[MetricContainer, Nothing] = NOTHING
         # loss reduction func
-        from torchslime.utils.metric import LossReductionFactory
+        from torchslime.pipelines.metric import LossReductionFactory
         self.loss_reduction: Callable[[BaseContext], Tensor] = LossReductionFactory.get('mean')
+        # model state
+        from torchslime.pipelines.state import ModelState
+        self.model_state: Union[ModelState, Nothing] = NOTHING
+        # pipeline profiler
+        from torchslime.pipelines.profiler import PipelineProfiler, profiler_registry
+        self.pipeline_profiler: Union[PipelineProfiler, Nothing] = profiler_registry.get('vanilla')()
 
 
 class HandlerContext(TempContext):
@@ -267,11 +273,11 @@ class HandlerContext(TempContext):
         self.FuncHandler = common.FuncHandler
         
         # handler wrappers
-        from torchslime.handlers import wrappers
-        self.Wrapper = wrappers.HandlerWrapper
-        self.WrapperContainer = wrappers.HandlerWrapperContainer
-        self.StateWrapper = wrappers.StateWrapper
-        self.ConditionWrapper = wrappers.ConditionWrapper
+        from torchslime.handlers import wrapper
+        self.Wrapper = wrapper.HandlerWrapper
+        self.WrapperContainer = wrapper.HandlerWrapperContainer
+        self.StateWrapper = wrapper.StateWrapper
+        self.ConditionWrapper = wrapper.ConditionWrapper
 
 
 class CustomContext(TempContext):
@@ -293,12 +299,6 @@ class HookContext(TempContext):
         
         from torchslime.hooks.build import BuildHook
         self.build: Union[BuildHook, Nothing] = NOTHING
-        
-        from torchslime.hooks.state import StateHook
-        self.state: Union[StateHook, Nothing] = NOTHING
-        
-        from torchslime.hooks.profiler import ProfilerHook
-        self.profiler: Union[ProfilerHook, Nothing] = NOTHING
 
 
 class DisplayContext(TempContext):

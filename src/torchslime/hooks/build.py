@@ -1,11 +1,11 @@
 from torchslime.utils.registry import Registry
-from torchslime.handlers.wrappers import validation_check
+from torchslime.handlers.wrapper import validation_check
 from torchslime.logging.logger import logger
 from torchslime.utils.typing import (
     Generator,
     TYPE_CHECKING
 )
-from torchslime.utils.bases import (
+from torchslime.utils.base import (
     BaseGenerator
 )
 if TYPE_CHECKING:
@@ -85,7 +85,7 @@ class VanillaBuild(BuildHook):
         # get handler classes from context
         handler = ctx.handler_ctx
         # build training process using handlers
-        ctx.run_ctx.train_container = handler.RootContainer(
+        ctx.pipeline_ctx.train_container = handler.RootContainer(
             id='container',
             handlers=[
                 # epoch iter
@@ -178,7 +178,7 @@ class VanillaBuild(BuildHook):
         # get handler classes from context
         handler = ctx.handler_ctx
         # build evaluating process using handlers
-        ctx.run_ctx.eval_container = handler.RootContainer(
+        ctx.pipeline_ctx.eval_container = handler.RootContainer(
             id='container',
             handlers=[
                 handler.Container(
@@ -214,7 +214,7 @@ class VanillaBuild(BuildHook):
         # get handler classes from context
         handler = ctx.handler_ctx
         # build predicting process using handlers
-        ctx.run_ctx.predict_container = handler.RootContainer(
+        ctx.pipeline_ctx.predict_container = handler.RootContainer(
             id='container',
             handlers=[
                 handler.Container(
@@ -247,7 +247,7 @@ class StepBuild(VanillaBuild):
         # get handler classes from context
         handler = ctx.handler_ctx
         # build training process using handlers
-        ctx.run_ctx.train_container = handler.RootContainer(
+        ctx.pipeline_ctx.train_container = handler.RootContainer(
             id='container',
             handlers=[
                 # train

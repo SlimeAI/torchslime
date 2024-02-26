@@ -2,7 +2,7 @@
 State Pattern for model state management.
 """
 from torchslime.utils.registry import Registry
-from torchslime.utils.metric import MeterDict
+from torchslime.pipelines.metric import MeterDict
 from torchslime.utils.typing import (
     Tuple,
     Mapping,
@@ -13,10 +13,10 @@ from torch.utils.data import DataLoader
 if TYPE_CHECKING:
     from torchslime.context import Context
 
-state_registry = Registry[Type["StateHook"]]('state_registry')
+state_registry = Registry[Type["ModelState"]]('state_registry')
 
 
-class StateHook:
+class ModelState:
 
     def __init__(self) -> None: pass
     def set_model_mode(self, ctx: "Context"): pass
@@ -31,7 +31,7 @@ class StateHook:
 
 
 @state_registry(name='train')
-class TrainState(StateHook):
+class TrainState(ModelState):
 
     def __init__(self) -> None:
         super().__init__()
@@ -40,9 +40,9 @@ class TrainState(StateHook):
         ctx.model.train()
 
     def get_loader(self, ctx: "Context") -> DataLoader:
-        ctx.ctx_check('run_ctx.train_provider', silent=False)
-        ctx.run_ctx.train_loader = ctx.run_ctx.train_provider(ctx)
-        return ctx.run_ctx.train_loader
+        ctx.ctx_check('pipeline_ctx.train_provider', silent=False)
+        ctx.pipeline_ctx.train_loader = ctx.pipeline_ctx.train_provider(ctx)
+        return ctx.pipeline_ctx.train_loader
 
     def init_meter(self, ctx: "Context") -> None:
         ctx.iteration_ctx.train_loss_values.clear()
@@ -60,7 +60,7 @@ class TrainState(StateHook):
 
 
 @state_registry(name='eval')
-class EvalState(StateHook):
+class EvalState(ModelState):
 
     def __init__(self) -> None:
         super().__init__()
@@ -69,9 +69,9 @@ class EvalState(StateHook):
         ctx.model.eval()
 
     def get_loader(self, ctx: "Context") -> DataLoader:
-        ctx.ctx_check('run_ctx.eval_provider', silent=False)
-        ctx.run_ctx.eval_loader = ctx.run_ctx.eval_provider(ctx)
-        return ctx.run_ctx.eval_loader
+        ctx.ctx_check('pipeline_ctx.eval_provider', silent=False)
+        ctx.pipeline_ctx.eval_loader = ctx.pipeline_ctx.eval_provider(ctx)
+        return ctx.pipeline_ctx.eval_loader
 
     def init_meter(self, ctx: "Context") -> None:
         ctx.iteration_ctx.eval_loss_values.clear()

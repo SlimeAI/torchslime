@@ -15,13 +15,13 @@ from torchslime.utils.typing import (
 )
 from torchslime.utils.common import FuncArgs
 from torchslime.logging.logger import logger, LoggerKwargs
-from torchslime.utils.data import (
+from torchslime.pipelines.data import (
     ConstantProvider,
     DataParser,
     DataProvider,
     IndexParser
 )
-from torchslime.utils.metric import (
+from torchslime.pipelines.metric import (
     MetricContainer,
     LossReductionFactory,
     Metric,
@@ -30,9 +30,9 @@ from torchslime.utils.metric import (
 )
 from torchslime.hooks.build import BuildHook, build_registry
 from torchslime.hooks.launch import LaunchHook, launch_registry
-from torchslime.hooks.profiler import ProfilerHook, profiler_registry
-from torchslime.hooks.state import StateHook, state_registry
-from torchslime.utils.decorators import CallDebug, MethodChaining
+from torchslime.pipelines.profiler import PipelineProfiler, profiler_registry
+from torchslime.pipelines.state import ModelState, state_registry
+from torchslime.utils.decorator import CallDebug, MethodChaining
 from torch import Tensor
 from torch.optim import Optimizer
 # Type check only
@@ -75,7 +75,7 @@ class Compile:
     
     @CallDebug
     @MethodChaining
-    def compile_run_ctx(
+    def compile_pipeline_ctx(
         self,
         loss_func_list: Union[Iterable[LossFunc], NoneOrNothing, Missing] = MISSING,
         loss_reduction: Union[str, dict, Callable[["Context"], Tensor], NoneOrNothing, Missing] = MISSING,
@@ -98,15 +98,11 @@ class Compile:
     def compile_hook_ctx(
         self,
         build_hook: Union[str, BuildHook, Missing] = MISSING,
-        launch_hook: Union[str, LaunchHook, Missing] = MISSING,
-        profiler_hook: Union[str, ProfilerHook, Missing] = MISSING,
-        state_hook: Union[str, StateHook, Missing] = MISSING
+        launch_hook: Union[str, LaunchHook, Missing] = MISSING
     ) -> "Compile":
         self(
             build_hook=build_hook,
-            launch_hook=launch_hook,
-            profiler_hook=profiler_hook,
-            state_hook=state_hook
+            launch_hook=launch_hook
         )
 
     @CallDebug
@@ -116,36 +112,36 @@ class Compile:
             loss_func = loss_func_list
         else:
             loss_func = LossFuncContainer(loss_func_list)
-        self.ctx.run_ctx.loss_func = loss_func
+        self.ctx.pipeline_ctx.loss_func = loss_func
 
     @CallDebug
     @MethodChaining
     def loss_reduction_compile__(self, loss_reduction: Union[str, dict, Callable[["Context"], Tensor], NoneOrNothing]) -> "Compile":
         if not is_none_or_nothing(loss_reduction):
             loss_reduction = LossReductionFactory.get(loss_reduction)
-        self.ctx.run_ctx.loss_reduction = loss_reduction
+        self.ctx.pipeline_ctx.loss_reduction = loss_reduction
 
     @CallDebug
     @MethodChaining
     def metrics_compile__(self, metrics: Union[Iterable[Metric], NoneOrNothing]) -> "Compile":
         if not is_none_or_nothing(metrics):
             metrics = MetricContainer(metrics)
-        self.ctx.run_ctx.metrics = metrics
+        self.ctx.pipeline_ctx.metrics = metrics
 
     @CallDebug
     @MethodChaining
     def data_parser_compile__(self, data_parser: Union[DataParser, NoneOrNothing]) -> "Compile":
-        self.ctx.run_ctx.data_parser = data_parser if not is_none_or_nothing(data_parser) else IndexParser()
+        self.ctx.pipeline_ctx.data_parser = data_parser if not is_none_or_nothing(data_parser) else IndexParser()
 
     @CallDebug
     @MethodChaining
     def optimizer_compile__(self, optimizer: Union[Optimizer, NoneOrNothing]) -> "Compile":
-        self.ctx.run_ctx.optimizer = optimizer
+        self.ctx.pipeline_ctx.optimizer = optimizer
 
     @CallDebug
     @MethodChaining
     def lr_scheduler_compile__(self, lr_scheduler: Union[TorchLRScheduler, NoneOrNothing]) -> "Compile":
-        self.ctx.run_ctx.lr_scheduler = lr_scheduler
+        self.ctx.pipeline_ctx.lr_scheduler = lr_scheduler
 
     @CallDebug
     @MethodChaining
@@ -168,24 +164,24 @@ class Compile:
     def train_provider_compile__(self, data: Union["AcceptableDataType", NoneOrNothing]) -> "Compile":
         if not is_none_or_nothing(data):
             data = data if isinstance(data, DataProvider) else ConstantProvider(data)
-        self.ctx.run_ctx.train_provider = data
+        self.ctx.pipeline_ctx.train_provider = data
     
     @CallDebug
     @MethodChaining
     def eval_provider_compile__(self, data: Union["AcceptableDataType", NoneOrNothing]) -> "Compile":
         if not is_none_or_nothing(data):
             data = data if isinstance(data, DataProvider) else ConstantProvider(data)
-        self.ctx.run_ctx.eval_provider = data
+        self.ctx.pipeline_ctx.eval_provider = data
 
     @CallDebug
     @MethodChaining
     def grad_acc_compile__(self, grad_acc: int) -> "Compile":
-        self.ctx.run_ctx.grad_acc = grad_acc
+        self.ctx.pipeline_ctx.grad_acc = grad_acc
 
     @CallDebug
     @MethodChaining
     def valid_freq_compile__(self, valid_freq: Union[int, Callable[["Context"], bool]]) -> "Compile":
-        self.ctx.run_ctx.valid_freq = valid_freq
+        self.ctx.pipeline_ctx.valid_freq = valid_freq
 
     @CallDebug
     @MethodChaining
@@ -215,28 +211,28 @@ class Compile:
     
     @CallDebug
     @MethodChaining
-    def profiler_hook_compile__(self, profiler_hook: Union[str, ProfilerHook]) -> "Compile":
-        if isinstance(profiler_hook, str):
-            profiler_hook = profiler_registry.get(profiler_hook)()
+    def pipeline_profiler_compile__(self, pipeline_profiler: Union[str, PipelineProfiler]) -> "Compile":
+        if isinstance(pipeline_profiler, str):
+            pipeline_profiler = profiler_registry.get(pipeline_profiler)()
         
-        if not isinstance(profiler_hook, ProfilerHook):
+        if not isinstance(pipeline_profiler, PipelineProfiler):
             logger.warning(
-                f'Profiler hook type mismatch. Expected: {ProfilerHook} -> Actual: {type(profiler_hook)}'
+                f'PipelineProfiler type mismatch. Expected: {PipelineProfiler} -> Actual: {type(pipeline_profiler)}'
             )
         
-        self.ctx.hook_ctx.profiler = profiler_hook
+        self.ctx.pipeline_ctx.pipeline_profiler = pipeline_profiler
 
     @CallDebug
     @MethodChaining
-    def state_hook_compile__(self, state_hook: Union[str, StateHook, Nothing]) -> "Compile":
-        if isinstance(state_hook, str):
-            state_hook = state_registry.get(state_hook)()
+    def model_state_compile__(self, model_state: Union[str, ModelState, Nothing]) -> "Compile":
+        if isinstance(model_state, str):
+            model_state = state_registry.get(model_state)()
         
-        if not isinstance(state_hook, (StateHook, Nothing)):
+        if not isinstance(model_state, (ModelState, Nothing)):
             logger.warning(
-                f'State hook type mismatch. Expected: {StateHook} or {Nothing} -> Actual: {type(state_hook)}'
+                f'ModelState type mismatch. Expected: {ModelState} or {Nothing} -> Actual: {type(model_state)}'
             )
         
-        self.ctx.hook_ctx.state = state_hook
+        self.ctx.pipeline_ctx.model_state = model_state
         # Change model mode according to the state hook
-        self.ctx.hook_ctx.state.set_model_mode(self.ctx)
+        self.ctx.pipeline_ctx.model_state.set_model_mode(self.ctx)

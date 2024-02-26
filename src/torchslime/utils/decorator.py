@@ -169,7 +169,7 @@ def RemoveOverload(_cls=NOTHING, *, checklist: Union[NoneOrNothing, List[str]] =
 def InitOnce(func: _T_FuncOrMethod) -> _T_FuncOrMethod:
     """
     Used for ``__init__`` operations in multiple inheritance scenarios.
-    Should be used together with ``torchslime.utils.metaclasses.InitOnceMetaclass``.
+    Should be used together with ``torchslime.utils.metaclass.InitOnceMetaclass``.
     When ``__init__`` is decorated with ``InitOnce``, it will be called only once during 
     each instance creation. NOTE that there is an exception that if one ``__init__`` call
     raises an Exception and it is successfully caught and processed, this ``__init__`` 

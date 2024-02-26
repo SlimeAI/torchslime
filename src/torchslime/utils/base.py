@@ -29,11 +29,11 @@ from .typing import (
     unwrap_method,
     FrozenSet
 )
-from .decorators import (
+from .decorator import (
     DecoratorCall,
     InitOnce
 )
-from .metaclasses import (
+from .metaclass import (
     InitOnceMetaclass,
     SingletonMetaclass,
     _ReadonlyAttrMetaclass
