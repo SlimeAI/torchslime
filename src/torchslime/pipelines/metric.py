@@ -78,7 +78,7 @@ class SimpleLossFunc(LossFunc):
         self.loss_func = loss_func
     
     def get(self, ctx: "Context") -> Union[Dict, Tensor]:
-        return self.loss_func(ctx.step_ctx.y_pred, ctx.step_ctx.y_true)
+        return self.loss_func(ctx.step_ctx.output, ctx.step_ctx.label)
 
 
 class LossFuncContainer(MetricContainer):

@@ -237,15 +237,15 @@ class ForwardHandler(Handler):
             'step_ctx'
         ], silent=False)
         # forward
-        x, y_true, extra = ctx.pipeline_ctx.data_parser(ctx)
-        y_pred = ctx.model(type_cast(x, ctx.device))
-        y_true = type_cast(y_true, ctx.device)
+        input, label, extra = ctx.pipeline_ctx.data_parser(ctx)
+        output = ctx.model(type_cast(input, ctx.device))
+        label = type_cast(label, ctx.device)
         # clone and update context info
         ctx.step_ctx.from_kwargs__(
             # the result of the forward progress
-            x=x,
-            y_true=y_true,
-            y_pred=y_pred,
+            input=input,
+            label=label,
+            output=output,
             extra=extra
         )
 

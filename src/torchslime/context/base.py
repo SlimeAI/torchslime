@@ -155,26 +155,26 @@ class StepContext(TempContext):
         """
         step context attribute placeholders(for code hints)
         """
+        # original batch data of the iteration of dataloader
+        self.batch: Any = NOTHING
         # data input to the model
-        self.x: Any = NOTHING
+        self.input: Any = NOTHING
         # output of the model
-        self.y_pred: Any = NOTHING
-        # label of the data(or expected output in unsupervised learning)
-        self.y_true: Any = NOTHING
+        self.output: Any = NOTHING
+        # label of the data (or expected output in unsupervised learning)
+        self.label: Any = NOTHING
+        # extra data passed to the context
+        self.extra: Any = NOTHING
         # metrics of the step
         self.metrics: Dict = NOTHING
         # loss tensor(s) of the step
         self.loss: Union[Dict[str, Tensor], Nothing] = NOTHING
         # loss value(s) of the step
         self.loss_values: Union[Dict[str, float], Nothing] = NOTHING
-        # extra data passed to the context
-        self.extra: Any = NOTHING
         # current iteration step
         self.current: int = NOTHING
         # total steps of iteration
         self.total: int = NOTHING
-        # original batch data of the iteration of dataloader
-        self.batch: Any = NOTHING
 
 
 class IterationContext(TempContext):

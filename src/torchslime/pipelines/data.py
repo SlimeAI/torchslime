@@ -22,7 +22,7 @@ class DataProvider:
 
     def __call__(self, ctx: "Context") -> DataLoader:    
         data_loader = self.get(ctx)
-        if isinstance(data_loader, DataLoader) is False:
+        if not isinstance(data_loader, DataLoader):
             logger.warning('DataProvider returns a non-DataLoader object, this may cause some problems.')
         return data_loader
 
@@ -55,15 +55,19 @@ class IndexParser(DataParser):
 
     def __init__(
         self,
-        x: Union[Sequence[int], int] = 0,
-        y: Union[Sequence[int], int] = 1,
+        input: Union[Sequence[int], int] = 0,
+        label: Union[Sequence[int], int] = 1,
         extra: Union[Sequence[int], int] = None
     ):
         super(IndexParser, self).__init__()
-        self.x = x
-        self.y = y
+        self.input = input
+        self.label = label
         self.extra = extra
 
     def get(self, ctx: "Context") -> Tuple[Any, Any, Any]:
         batch = ctx.step_ctx.batch
-        return list_take(batch, self.x), list_take(batch, self.y), list_take(batch, self.extra)
+        return (
+            list_take(batch, self.input),
+            list_take(batch, self.label),
+            list_take(batch, self.extra)
+        )
