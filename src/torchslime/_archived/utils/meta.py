@@ -15,7 +15,7 @@ from torchslime.utils.typing import (
     NoReturn
 )
 from torchslime.utils.decorator import DecoratorCall, RemoveOverload
-from .decorators import ClassWraps, ClassFuncWrapper
+from .decorator import ClassWraps, ClassFuncWrapper
 from torchslime.utils.exception import APIMisused
 
 _T = TypeVar('_T')
