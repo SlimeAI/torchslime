@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 class PluginHook(BuildInterface): pass
 
 
-_PluginHookT = TypeVar('_PluginHookT', bound=PluginHook)
+_PluginHookT = TypeVar("_PluginHookT", bound=PluginHook)
 
 class PluginContainer(PluginHook, BaseList[_PluginHookT]):
     

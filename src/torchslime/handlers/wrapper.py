@@ -35,10 +35,10 @@ __all__ = [
     'StateWrapper',
     'ConditionWrapper'
 ]
-_T = TypeVar('_T')
-_YieldT_co = TypeVar('_YieldT_co', covariant=True)
-_SendT_contra = TypeVar('_SendT_contra', contravariant=True)
-_ReturnT_co = TypeVar('_ReturnT_co', covariant=True)
+_T = TypeVar("_T")
+_YieldT_co = TypeVar("_YieldT_co", covariant=True)
+_SendT_contra = TypeVar("_SendT_contra", contravariant=True)
+_ReturnT_co = TypeVar("_ReturnT_co", covariant=True)
 
 
 class HandlerWrapperGenerator(ContextGenerator[_YieldT_co, _SendT_contra, _ReturnT_co]):
@@ -68,7 +68,7 @@ class HandlerWrapperGenerator(ContextGenerator[_YieldT_co, _SendT_contra, _Retur
             raise HandlerWrapperException(exception_handler=self.wrapper, exception=e)
 
 
-_HandlerT = TypeVar('_HandlerT', bound=Handler)
+_HandlerT = TypeVar("_HandlerT", bound=Handler)
 
 class HandlerWrapper(HandlerContainer[_HandlerT]):
     
@@ -94,7 +94,7 @@ class HandlerWrapper(HandlerContainer[_HandlerT]):
         )
 
 
-_HandlerWrapperT = TypeVar('_HandlerWrapperT', bound=HandlerWrapper)
+_HandlerWrapperT = TypeVar("_HandlerWrapperT", bound=HandlerWrapper)
 
 class HandlerWrapperContainer(HandlerContainer[_HandlerWrapperT], RenderInterface):
     

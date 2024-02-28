@@ -74,7 +74,7 @@ class SingletonMetaclass(_SingletonMetaclass):
     pass
 
 
-_ReadonlyAttrT = TypeVar('_ReadonlyAttrT', bound="ReadonlyAttr")
+_ReadonlyAttrT = TypeVar("_ReadonlyAttrT", bound="ReadonlyAttr")
 
 
 class _ReadonlyAttrMetaclass(type):

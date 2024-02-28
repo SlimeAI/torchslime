@@ -14,7 +14,7 @@ from .typing import (
     Callable
 )
 
-_T = TypeVar('_T')
+_T = TypeVar("_T")
 
 
 class Registry(BaseDict[str, _T]):

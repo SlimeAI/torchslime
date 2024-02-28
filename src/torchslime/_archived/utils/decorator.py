@@ -19,7 +19,7 @@ from torchslime.utils.decorator import DecoratorCall
 import threading
 import multiprocessing
 
-_T = TypeVar('_T')
+_T = TypeVar("_T")
 
 #
 # ClassWraps decorator

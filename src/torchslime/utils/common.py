@@ -19,7 +19,7 @@ from .typing import (
 from torch.nn import Module
 from torch import Tensor
 
-_T = TypeVar('_T')
+_T = TypeVar("_T")
 
 #
 # dict and list formatter

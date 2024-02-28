@@ -46,9 +46,9 @@ from types import TracebackType
 import re
 
 # TypeVars
-_T = TypeVar('_T')
-_KT = TypeVar('_KT')
-_VT = TypeVar('_VT')
+_T = TypeVar("_T")
+_KT = TypeVar("_KT")
+_VT = TypeVar("_VT")
 
 #
 # Scoped Attribute
@@ -343,11 +343,11 @@ class MutableBiListItem(BiListItem):
         parent.remove(self)
 
 
-_T_BiListItem = TypeVar('_T_BiListItem', bound=BiListItem)
+_BiListItemT = TypeVar("_BiListItemT", bound=BiListItem)
 
-class BiList(BaseList[_T_BiListItem]):
+class BiList(BaseList[_BiListItemT]):
     
-    def set_list__(self, __list: List[_T_BiListItem]) -> None:
+    def set_list__(self, __list: List[_BiListItemT]) -> None:
         prev_list = self.get_list__()
         
         for prev_item in prev_list:
@@ -359,14 +359,14 @@ class BiList(BaseList[_T_BiListItem]):
         return super().set_list__(__list)
 
     @overload
-    def __setitem__(self, __key: SupportsIndex, __value: _T_BiListItem) -> None: pass
+    def __setitem__(self, __key: SupportsIndex, __value: _BiListItemT) -> None: pass
     @overload
-    def __setitem__(self, __key: slice, __value: Iterable[_T_BiListItem]) -> None: pass
+    def __setitem__(self, __key: slice, __value: Iterable[_BiListItemT]) -> None: pass
     
     def __setitem__(
         self,
         __key: Union[SupportsIndex, slice],
-        __value: Union[_T_BiListItem, Iterable[_T_BiListItem]]
+        __value: Union[_BiListItemT, Iterable[_BiListItemT]]
     ) -> None:
         # delete parents of the replaced items and set parents to the replacing items
         if isinstance(__key, slice):
@@ -374,11 +374,11 @@ class BiList(BaseList[_T_BiListItem]):
                 replaced_item.del_parent__()
             
             for item in __value:
-                item: _T_BiListItem
+                item: _BiListItemT
                 item.set_parent__(self)
         else:
             self[__key].del_parent__()
-            __value: _T_BiListItem
+            __value: _BiListItemT
             __value.set_parent__(self)
         return super().__setitem__(__key, __value)
     
@@ -395,7 +395,7 @@ class BiList(BaseList[_T_BiListItem]):
             self[__key].del_parent__()
         return super().__delitem__(__key)
     
-    def insert(self, __index: SupportsIndex, __item: _T_BiListItem) -> None:
+    def insert(self, __index: SupportsIndex, __item: _BiListItemT) -> None:
         __item.set_parent__(self)
         return super().insert(__index, __item)
 
@@ -460,9 +460,9 @@ class BaseDict(MutableMapping[_KT, _VT]):
 #
 
 # Type Vars
-_YieldT_co = TypeVar('_YieldT_co', covariant=True)
-_SendT_contra = TypeVar('_SendT_contra', contravariant=True)
-_ReturnT_co = TypeVar('_ReturnT_co', covariant=True)
+_YieldT_co = TypeVar("_YieldT_co", covariant=True)
+_SendT_contra = TypeVar("_SendT_contra", contravariant=True)
+_ReturnT_co = TypeVar("_ReturnT_co", covariant=True)
 
 class BaseGenerator(Generator[_YieldT_co, _SendT_contra, _ReturnT_co]):
 
@@ -563,7 +563,7 @@ class ContextGenerator(
             raise exception[1]
 
 
-_BaseGeneratorT = TypeVar('_BaseGeneratorT', bound=BaseGenerator)
+_BaseGeneratorT = TypeVar("_BaseGeneratorT", bound=BaseGenerator)
 
 class BaseGeneratorQueue(BaseList[_BaseGeneratorT], ContextManager):
     """
@@ -599,7 +599,7 @@ class BaseGeneratorQueue(BaseList[_BaseGeneratorT], ContextManager):
         return False
 
 
-_ContextGeneratorT = TypeVar('_ContextGeneratorT', bound=ContextGenerator)
+_ContextGeneratorT = TypeVar("_ContextGeneratorT", bound=ContextGenerator)
 
 class ContextGeneratorStack(BaseList[_ContextGeneratorT], ContextManager):
     
@@ -644,13 +644,13 @@ class CompositeStructure:
     def composite_iterable__(self) -> Union[Iterable["CompositeStructure"], Nothing]: pass
 
 
-_T_CompositeStructure = TypeVar('_T_CompositeStructure', bound=CompositeStructure)
+_CompositeStructureT = TypeVar("_CompositeStructureT", bound=CompositeStructure)
 
 def CompositeDFT(
-    __item: _T_CompositeStructure,
-    __func: Callable[[_T_CompositeStructure], None]
+    __item: _CompositeStructureT,
+    __func: Callable[[_CompositeStructureT], None]
 ) -> None:
-    stack: List[Union[Iterator[_T_CompositeStructure], Nothing]] = [iter([__item])]
+    stack: List[Union[Iterator[_CompositeStructureT], Nothing]] = [iter([__item])]
     
     while len(stack) > 0:
         node_iter = stack[-1]
@@ -666,9 +666,9 @@ def CompositeDFT(
 
 
 def CompositeDFS(
-    __item: _T_CompositeStructure,
-    __func: Callable[[_T_CompositeStructure], bool]
-) -> List[_T_CompositeStructure]:
+    __item: _CompositeStructureT,
+    __func: Callable[[_CompositeStructureT], bool]
+) -> List[_CompositeStructureT]:
     results = []
     
     def _search(item):
@@ -680,10 +680,10 @@ def CompositeDFS(
 
 
 def CompositeBFT(
-    __item: _T_CompositeStructure,
-    __func: Callable[[_T_CompositeStructure], None]
+    __item: _CompositeStructureT,
+    __func: Callable[[_CompositeStructureT], None]
 ) -> None:
-    queue: List[Union[Iterator[_T_CompositeStructure], Nothing]] = [iter([__item])]
+    queue: List[Union[Iterator[_CompositeStructureT], Nothing]] = [iter([__item])]
     
     while len(queue) > 0:
         node_iter = queue[0]
@@ -699,9 +699,9 @@ def CompositeBFT(
 
 
 def CompositeBFS(
-    __item: _T_CompositeStructure,
-    __func: Callable[[_T_CompositeStructure], bool]
-) -> List[_T_CompositeStructure]:
+    __item: _CompositeStructureT,
+    __func: Callable[[_CompositeStructureT], bool]
+) -> List[_CompositeStructureT]:
     results = []
     
     def _search(item):

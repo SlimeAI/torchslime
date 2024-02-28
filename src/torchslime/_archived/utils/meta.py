@@ -18,7 +18,7 @@ from torchslime.utils.decorator import DecoratorCall, RemoveOverload
 from .decorator import ClassWraps, ClassFuncWrapper
 from torchslime.utils.exception import APIMisused
 
-_T = TypeVar('_T')
+_T = TypeVar("_T")
 
 
 class _MetaWrapper:

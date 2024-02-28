@@ -180,9 +180,9 @@ store.builtin__().delay_init__()
 #
 
 from .base import ScopedAttrAssign
-_T_ScopedStore = TypeVar('_T_ScopedStore', bound=ScopedStore)
+_ScopedStoreT = TypeVar("_ScopedStoreT", bound=ScopedStore)
 
-class StoreAssign(ScopedAttrAssign[_T_ScopedStore]):
+class StoreAssign(ScopedAttrAssign[_ScopedStoreT]):
     
     def __init__(
         self,
@@ -193,9 +193,9 @@ class StoreAssign(ScopedAttrAssign[_T_ScopedStore]):
         super().__init__(store.scope__(self.key), attr_assign)
 
 
-_T_BuiltinScopedStore = TypeVar('_T_BuiltinScopedStore', bound=BuiltinScopedStore)
+_BuiltinScopedStoreT = TypeVar("_BuiltinScopedStoreT", bound=BuiltinScopedStore)
 
-class BuiltinStoreAssign(StoreAssign[_T_BuiltinScopedStore]):
+class BuiltinStoreAssign(StoreAssign[_BuiltinScopedStoreT]):
     
     def __init__(
         self,

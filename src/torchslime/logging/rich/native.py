@@ -54,13 +54,13 @@ import multiprocessing
 import rich
 from rich.markup import escape
 
-_T = TypeVar('_T')
+_T = TypeVar("_T")
 
-_T_Launcher = TypeVar('_T_Launcher', bound=Launcher)
+_LauncherT = TypeVar("_LauncherT", bound=Launcher)
 
 class RichLauncher(Launcher):
     
-    def get__(self: _T_Launcher) -> Union[_T_Launcher, Nothing]:
+    def get__(self: _LauncherT) -> Union[_LauncherT, Nothing]:
         return self if self.is_exec__() else NOTHING
 
 #
@@ -302,9 +302,9 @@ class SlimeTable(Table, MutableBiListItem):
         MutableBiListItem.__init__(self)
 
 
-_T_RichRenderable = TypeVar('_T_RichRenderable', bound=Union[RenderableType, MutableBiListItem])
+_RichRenderableT = TypeVar("_RichRenderableT", bound=Union[RenderableType, MutableBiListItem])
 
-class SlimeGroup(Group, MutableBiListItem, BiList[_T_RichRenderable]):
+class SlimeGroup(Group, MutableBiListItem, BiList[_RichRenderableT]):
     
     def __init__(self, *renderables: RenderableType, fit: bool = True) -> None:
         Group.__init__(self, *renderables, fit=fit)
@@ -316,7 +316,7 @@ class SlimeGroup(Group, MutableBiListItem, BiList[_T_RichRenderable]):
 # Custom Rich Components
 #
 
-class ProfileProgress(SlimeGroup[_T_RichRenderable]):
+class ProfileProgress(SlimeGroup[_RichRenderableT]):
     
     def __init__(
         self,

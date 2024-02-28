@@ -199,13 +199,13 @@ class Handler(CompositeStructure, MutableBiListItem):
         }
 
 
-_T_Handler = TypeVar('_T_Handler', bound=Handler)
+_HandlerT = TypeVar("_HandlerT", bound=Handler)
 
-class HandlerContainer(Handler, BiList[_T_Handler]):
+class HandlerContainer(Handler, BiList[_HandlerT]):
 
     def __init__(
         self,
-        handlers: Union[Iterable[_T_Handler], NoneOrNothing] = NOTHING,
+        handlers: Union[Iterable[_HandlerT], NoneOrNothing] = NOTHING,
         *,
         id: Union[str, NoneOrNothing] = NOTHING,
         exec_ranks: Union[Iterable[int], NoneOrNothing, Pass] = PASS,
@@ -244,7 +244,7 @@ class HandlerContainer(Handler, BiList[_T_Handler]):
             # break out of the container
             pass
     
-    def composite_iterable__(self) -> Iterable[_T_Handler]: return self
+    def composite_iterable__(self) -> Iterable[_HandlerT]: return self
 
 
 from .common import *

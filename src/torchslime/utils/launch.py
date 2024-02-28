@@ -22,8 +22,8 @@ import torch.distributed as dist
 from torch import Tensor
 import torch
 
-_T = TypeVar('_T')
-launch_util_registry = Registry[Type['LaunchUtil']]('launch_util_registry')
+_T = TypeVar("_T")
+launch_util_registry = Registry[Type["LaunchUtil"]]('launch_util_registry')
 
 
 class LaunchUtil:
