@@ -67,4 +67,4 @@ class HandlerException(HandlerBaseException):
 class HandlerWrapperException(HandlerException):
     
     def __str__(self) -> str:
-        return f'exception_handler: {str(self.exception_handler)}'
+        return f'exception_wrapper: {str(self.exception_handler)}'

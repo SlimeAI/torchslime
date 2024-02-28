@@ -6,7 +6,8 @@ from torchslime.utils.typing import (
     TYPE_CHECKING
 )
 from torchslime.utils.base import (
-    BaseGenerator
+    BaseGenerator,
+    BaseGeneratorQueue
 )
 if TYPE_CHECKING:
     from torchslime.context import Context
@@ -27,14 +28,11 @@ class BuildHook:
         """
         h = ctx.hook_ctx
         
-        launch_gen = BaseGenerator(h.launch.build_train_yield(ctx))
-        plugin_gen = BaseGenerator(h.plugins.build_train_yield(ctx))
-        
-        launch_gen()
-        plugin_gen()
-        h.build.build_train(ctx)
-        launch_gen()
-        plugin_gen()
+        with BaseGeneratorQueue((
+            BaseGenerator(h.launch.build_train_yield(ctx)),
+            BaseGenerator(h.plugins.build_train_yield(ctx))
+        )):
+            h.build.build_train(ctx)
     
     def _build_eval(self, ctx: "Context"):
         """
@@ -43,14 +41,11 @@ class BuildHook:
         """
         h = ctx.hook_ctx
         
-        launch_gen = BaseGenerator(h.launch.build_eval_yield(ctx))
-        plugin_gen = BaseGenerator(h.plugins.build_eval_yield(ctx))
-        
-        launch_gen()
-        plugin_gen()
-        h.build.build_eval(ctx)
-        launch_gen()
-        plugin_gen()
+        with BaseGeneratorQueue((
+            BaseGenerator(h.launch.build_eval_yield(ctx)),
+            BaseGenerator(h.plugins.build_eval_yield(ctx))
+        )):
+            h.build.build_eval(ctx)
 
     def _build_predict(self, ctx: "Context"):
         """
@@ -59,14 +54,11 @@ class BuildHook:
         """
         h = ctx.hook_ctx
 
-        launch_gen = BaseGenerator(h.launch.build_predict_yield(ctx))
-        plugin_gen = BaseGenerator(h.plugins.build_predict_yield(ctx))
-        
-        launch_gen()
-        plugin_gen()
-        h.build.build_predict(ctx)
-        launch_gen()
-        plugin_gen()
+        with BaseGeneratorQueue((
+            BaseGenerator(h.launch.build_predict_yield(ctx)),
+            BaseGenerator(h.plugins.build_predict_yield(ctx))
+        )):
+            h.build.build_predict(ctx)
 
 
 class BuildInterface:

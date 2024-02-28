@@ -23,12 +23,12 @@ if sys.version_info < (3, 8):
             Protocol,
             runtime_checkable
         )
-    except Exception as e:
+    except Exception:
         print(
             'Loading ``typing_extensions`` module failed. '
             'Please make sure you have installed it correctly.'
         )
-        raise e
+        raise
 
 if sys.version_info < (3, 9):
     # FIX: ``from typing import *`` does not include the following modules under Python 3.9
@@ -198,8 +198,9 @@ def is_none_or_nothing(obj) -> bool:
     """
     return obj is None or obj is NOTHING
 
-
+#
 # Flag constants.
+#
 
 class _FlagConstant(metaclass=_SingletonMetaclass):
     def __str__(self) -> str: return self.__class__.__name__.upper()
@@ -215,6 +216,13 @@ class Missing(_FlagConstant):
         return False
 
 MISSING = Missing()
+
+# ``Stop`` singleton constant
+class Stop(_FlagConstant):
+    def __bool__(self) -> bool:
+        return False
+
+STOP = Stop()
 
 #
 # Other types, type checking, naming checking and type parsing.

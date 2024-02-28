@@ -27,7 +27,9 @@ from .typing import (
     Missing,
     MISSING,
     unwrap_method,
-    FrozenSet
+    FrozenSet,
+    ContextManager,
+    STOP
 )
 from .decorator import (
     DecoratorCall,
@@ -38,7 +40,7 @@ from .metaclass import (
     SingletonMetaclass,
     _ReadonlyAttrMetaclass
 )
-from contextlib import ContextDecorator
+from contextlib import ContextDecorator, ExitStack
 from functools import partial
 from types import TracebackType
 import re
@@ -187,7 +189,7 @@ class Base(ScopedAttr, ItemAttrBinding):
 # Base List
 #
 
-class BaseList(MutableSequence[_T], Generic[_T]):
+class BaseList(MutableSequence[_T]):
 
     def __init__(
         self,
@@ -216,9 +218,11 @@ class BaseList(MutableSequence[_T], Generic[_T]):
         WARNING: This changes the default behavior of ``BaseList``, which creates an empty list when the list_like object is 
         ``None`` or ``NOTHING`` and creates ``[...]`` when the list_like object is ``...``.
         """
-        if (__list_like is NOTHING and return_nothing is True) or \
-                (__list_like is None and return_none is True) or \
-                (__list_like is PASS and return_pass is True):
+        if (
+            (__list_like is NOTHING and return_nothing is True) or 
+            (__list_like is None and return_none is True) or 
+            (__list_like is PASS and return_pass is True)
+        ):
             # return the item itself
             __list_like: Union[NoneOrNothing, Pass]
             return __list_like
@@ -399,7 +403,7 @@ class BiList(BaseList[_T_BiListItem]):
 # Base Dict
 #
 
-class BaseDict(MutableMapping[_KT, _VT], Generic[_KT, _VT]):
+class BaseDict(MutableMapping[_KT, _VT]):
 
     def __init__(
         self,
@@ -460,10 +464,7 @@ _YieldT_co = TypeVar('_YieldT_co', covariant=True)
 _SendT_contra = TypeVar('_SendT_contra', contravariant=True)
 _ReturnT_co = TypeVar('_ReturnT_co', covariant=True)
 
-class BaseGenerator(
-    Generator[_YieldT_co, _SendT_contra, _ReturnT_co],
-    Generic[_YieldT_co, _SendT_contra, _ReturnT_co]
-):
+class BaseGenerator(Generator[_YieldT_co, _SendT_contra, _ReturnT_co]):
 
     def __init__(
         self,
@@ -515,52 +516,124 @@ class BaseGenerator(
             self.exit = True
 
 
-_GeneratorT = TypeVar('_GeneratorT', bound=Generator)
-
-class GeneratorQueue(BaseList[_GeneratorT]):
+class ContextGenerator(
+    BaseGenerator[_YieldT_co, _SendT_contra, _ReturnT_co],
+    ContextManager
+):
     
-    def __init__(
+    def __enter__(self) -> Any:
+        """
+        Call ``next`` and return the yield value from the generator.
+        """
+        return self()
+    
+    def __exit__(
         self,
-        __generators: Union[Iterable[_GeneratorT], NoneOrNothing] = None,
-        *,
-        reverse: bool = False
-    ):
-        super().__init__(__generators)
-        self.reverse = reverse
-    
-    def pop_gen__(self):
-        while len(self) > 0:
-            yield self.pop(
-                -1 if self.reverse else 0
+        __exc_type: Union[Type[BaseException], None],
+        __exc_value: Union[BaseException, None],
+        __traceback: Union[TracebackType, None]
+    ) -> Union[bool, None]:
+        if (
+            __exc_type is None and 
+            __exc_value is None and 
+            __traceback is None
+        ):
+            # Directly call ``next`` and return.
+            self()
+            return False
+        
+        # Throw the exception to the generator.
+        exception = (__exc_type, __exc_value, __traceback)
+        try:
+            self.gen.throw(*exception)
+        except Exception as e:
+            exception = (
+                e.__class__,
+                e,
+                e.__traceback__
             )
-    
-    def __enter__(self):
-        return self
-    
-    def __exit__(self, __type, __val, __tb):
-        if not __type and not __val and not __tb:
-            return True
-        
-        exception = (__type, __val, __tb)
-        for gen in self.pop_gen__():
-            try:
-                gen.throw(*exception)
-            except Exception as e:
-                exception = (
-                    e.__class__,
-                    e,
-                    e.__traceback__
-                )
-            else:
-                exception = NOTHING
-                break
-        
+        else:
+            exception = NOTHING
+        # Suppress or re-raise the exception.
         if is_none_or_nothing(exception):
             return True
-        elif exception[1] is __val:
+        elif exception[1] is __exc_value:
             return False
         else:
             raise exception[1]
+
+
+_BaseGeneratorT = TypeVar('_BaseGeneratorT', bound=BaseGenerator)
+
+class BaseGeneratorQueue(BaseList[_BaseGeneratorT], ContextManager):
+    """
+    NOTE: ``BaseGeneratorQueue`` DOES NOT process any exception in the block.
+    """
+    
+    def __init__(
+        self,
+        __generators: Union[Iterable[_BaseGeneratorT], NoneOrNothing] = None
+    ):
+        BaseList.__init__(self, __generators)
+    
+    def __enter__(self) -> Tuple:
+        # Sequentially call BaseGenerator and return the yield values.
+        return (gen() for gen in self)
+    
+    def __exit__(
+        self,
+        __exc_type: Union[Type[BaseException], None],
+        __exc_value: Union[BaseException, None],
+        __traceback: Union[TracebackType, None]
+    ) -> Union[bool, None]:
+        if (
+            __exc_type is None and 
+            __exc_value is None and 
+            __traceback is None
+        ):
+            # Sequentially call BaseGenerator and return.
+            for gen in self:
+                gen()
+            return False
+        # If an exception occurred, re-raise the exception.
+        return False
+
+
+_ContextGeneratorT = TypeVar('_ContextGeneratorT', bound=ContextGenerator)
+
+class ContextGeneratorStack(BaseList[_ContextGeneratorT], ContextManager):
+    
+    def __init__(
+        self,
+        __generators: Union[Iterable[_ContextGeneratorT], NoneOrNothing] = None
+    ):
+        BaseList.__init__(self, __generators)
+        self.exit_stack = ExitStack()
+    
+    def __enter__(self) -> Tuple:
+        self.exit_stack.__enter__()
+        # yielded values
+        vals = []
+        for gen in self:
+            val = self.exit_stack.enter_context(gen)
+            vals.append(val)
+            # If the generator yields ``STOP``, then directly break.
+            if val is STOP:
+                break
+        return tuple(vals)
+    
+    def __exit__(
+        self,
+        __exc_type: Union[Type[BaseException], None],
+        __exc_value: Union[BaseException, None],
+        __traceback: Union[TracebackType, None]
+    ) -> Union[bool, None]:
+        # Use ``ExitStack`` to correctly process exceptions.
+        return self.exit_stack.__exit__(
+            __exc_type,
+            __exc_value,
+            __traceback
+        )
 
 #
 # Composite Structure
@@ -741,10 +814,10 @@ class AttrObserver(InitOnceBase):
     ) -> bool:
         return (
             # ``None`` or ``NOTHING`` namespace won't match any function.
-            not is_none_or_nothing(namespaces) and \
+            not is_none_or_nothing(namespaces) and 
             (
                 # ``MISSING`` namespace will match all the functions.
-                namespaces is MISSING or \
+                namespaces is MISSING or 
                 # Otherwise check if the function's namespace exists in ``namespaces``.
                 getattr(unwrap_method(func), OBSERVE_NAMESPACE, MISSING) in namespaces
             )
@@ -1033,10 +1106,10 @@ class Singleton(metaclass=SingletonMetaclass):
     print(B() is B())  # True
     print(A() is B())  # False
     
-    \"\"\"
+    \"""
     These two values are different, because ``SingletonMetaclass`` sets ``__instance`` 
     separately for each class it creates.
-    \"\"\"
+    \"""
     print(A._SingletonMetaclass__instance)
     print(B._SingletonMetaclass__instance)
     ```
@@ -1090,8 +1163,10 @@ class ReadonlyAttr(metaclass=_ReadonlyAttrMetaclass):
         attr__ = getattr(self, __name, MISSING)
 
         # Whether empty value or ``NOTHING`` value is readonly.
-        if (not hasattr__ and not self.empty_readonly__) or \
-                (attr__ is NOTHING and not self.nothing_readonly__):
+        if (
+            (not hasattr__ and not self.empty_readonly__) or 
+            (attr__ is NOTHING and not self.nothing_readonly__)
+        ):
             return __mod_func()
         else:
             from .exception import APIMisused

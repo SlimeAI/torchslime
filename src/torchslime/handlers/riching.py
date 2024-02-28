@@ -196,6 +196,10 @@ def _terminate_wrap(group: Group, handler: "Handler") -> Group:
 
 class HandlerWrapperContainerProfiler:
 
+    # When used as wrappers, these attributes won't work, so neither should they 
+    # be displayed.
+    ignored_display_attrs = ('exec_ranks', 'wrappers', 'lifecycle')
+
     def wrapper_profile(
         self,
         wrapper: Union["HandlerWrapper", "HandlerWrapperContainer"]
@@ -204,7 +208,12 @@ class HandlerWrapperContainerProfiler:
 
         class_name = wrapper.get_class_name()
 
-        display_attr_list = dict_to_key_value_str_list(wrapper.get_display_attr_dict())
+        display_attr_dict = wrapper.get_display_attr_dict()
+        # Remove the ignored display attributes.
+        for ignored_attr in self.ignored_display_attrs:
+            display_attr_dict.pop(ignored_attr, None)
+
+        display_attr_list = dict_to_key_value_str_list(display_attr_dict)
         attr = concat_format('(', display_attr_list, ')', item_sep=', ')
 
         return escape(f'{class_name}{attr}')

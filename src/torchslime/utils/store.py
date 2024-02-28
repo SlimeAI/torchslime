@@ -47,8 +47,10 @@ class ScopedStore(Base, AttrObservable):
         """
         Init attribute only when it is not set or is ``MISSING``
         """
-        if not self.hasattr__(__name) or \
-                getattr(self, __name, MISSING) is MISSING:
+        if (
+            not self.hasattr__(__name) or 
+            getattr(self, __name, MISSING) is MISSING
+        ):
             setattr(self, __name, __value)
 
 

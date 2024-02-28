@@ -78,7 +78,6 @@ class Handler(CompositeStructure, MutableBiListItem):
             if is_none_or_nothing(wrappers):
                 ctx.hook_ctx.launch.call(partial(self.handle, ctx), exec_ranks=exec_ranks)
             else:
-                wrappers: HandlerWrapperContainer
                 ctx.hook_ctx.launch.call(partial(wrappers.handle, ctx, self), exec_ranks=exec_ranks)
         #
         # Handler Interrupt
@@ -87,9 +86,9 @@ class Handler(CompositeStructure, MutableBiListItem):
             # set ``raise_handler`` to the nearest handler
             if is_none_or_nothing(ht.raise_handler):
                 ht.raise_handler = self
-            raise ht
-        except (HandlerBreak, HandlerContinue) as hi:
-            raise hi
+            raise
+        except (HandlerBreak, HandlerContinue):
+            raise
         #
         # Handler Wrapper Exception (should be in front of ``HandlerException``)
         #
@@ -100,8 +99,8 @@ class Handler(CompositeStructure, MutableBiListItem):
         #
         # Handler Exception
         #
-        except HandlerException as he:
-            raise he
+        except HandlerException:
+            raise
         #
         # other Exception(s)
         #

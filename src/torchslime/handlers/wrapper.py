@@ -1,8 +1,8 @@
 from .riching import HandlerWrapperContainerProfiler
 from . import Handler, HandlerContainer
 from torchslime.utils.base import (
-    BaseGenerator,
-    GeneratorQueue
+    ContextGenerator,
+    ContextGeneratorStack
 )
 from torchslime.utils.typing import (
     NOTHING,
@@ -13,11 +13,13 @@ from torchslime.utils.typing import (
     Callable,
     Generator,
     TypeVar,
-    NoReturn,
-    TYPE_CHECKING
+    TYPE_CHECKING,
+    STOP,
+    Iterable,
+    Pass,
+    PASS
 )
 from torchslime.utils.exception import (
-    APIMisused,
     HandlerBaseException,
     HandlerWrapperException
 )
@@ -39,88 +41,81 @@ _SendT_contra = TypeVar('_SendT_contra', contravariant=True)
 _ReturnT_co = TypeVar('_ReturnT_co', covariant=True)
 
 
-class HandlerWrapperGenerator(BaseGenerator[_YieldT_co, _SendT_contra, _ReturnT_co]):
+class HandlerWrapperGenerator(ContextGenerator[_YieldT_co, _SendT_contra, _ReturnT_co]):
+    """
+    ``HandlerWrapperGenerator`` defines custom exception handling in the ``call__`` method 
+    compared to ``ContextGenerator``.
+    """
     
     def __init__(
         self,
-        __handler: 'HandlerWrapper',
-        __ctx: "Context",
+        __gen: Generator[_YieldT_co, _SendT_contra, _ReturnT_co],
+        __wrapper: "HandlerWrapper",
         *,
         exit_allowed: bool = True
     ) -> None:
-        self.handler = __handler
-        __gen = __handler.handle_yield(__ctx)
-        super().__init__(__gen, exit_allowed=exit_allowed)
+        ContextGenerator.__init__(self, __gen, exit_allowed=exit_allowed)
+        self.wrapper = __wrapper
     
     def call__(self, __caller: Callable[[], _T]) -> _T:
         try:
             return super().call__(__caller)
         # directly raise Handler Base Exception
-        except HandlerBaseException as hbe:
-            raise hbe
+        except HandlerBaseException:
+            raise
         # wrap other Exception with Handler Wrapper Exception
         except Exception as e:
-            raise HandlerWrapperException(exception_handler=self.handler, exception=e)
+            raise HandlerWrapperException(exception_handler=self.wrapper, exception=e)
 
 
-class HandlerWrapper(Handler):
+_HandlerT = TypeVar('_HandlerT', bound=Handler)
+
+class HandlerWrapper(HandlerContainer[_HandlerT]):
     
-    def __init__(self, *, id: Union[str, NoneOrNothing] = NOTHING):
-        super().__init__(id=id)
+    def handle(self, ctx: "Context") -> None:
+        # Use ``ContextGenerator`` here rather than ``HandlerWrapperGenerator``, 
+        # because when calling ``handle`` method, ``HandlerWrapper`` works as a 
+        # normal ``HandlerContainer``.
+        # The ``wrapped`` param is set to ``self``.
+        with ContextGenerator(self.handle_yield(ctx, wrapped=self)) as val:
+            if val is not STOP:
+                super().handle(ctx)
     
-    def handle(self, ctx: "Context") -> NoReturn:
-        raise APIMisused(
-            '``HandlerWrapper`` does not support ``handle``. Please use ``handle_yield`` instead.'
+    # yield method API
+    def handle_yield(self, ctx: "Context", wrapped: Handler) -> Generator: yield
+    
+    def gen__(self, ctx: "Context", wrapped: Handler) -> HandlerWrapperGenerator:
+        """
+        Creates a new ``HandlerWrapperGenerator`` that calls ``handle_yield`` method.
+        """
+        return HandlerWrapperGenerator(
+            self.handle_yield(ctx, wrapped),
+            self
         )
-    
-    def get_display_attr_dict(self) -> dict:
-        return {
-            'id': self.get_id()
-        }
-    
-    # set and get method won't work
-    def set_exec_ranks(self, *args, **kwargs) -> None: pass
-    def get_exec_ranks(self) -> Nothing: return NOTHING
-    def set_wrappers(self, *args, **kwargs) -> None: pass
-    def get_wrappers(self) -> Nothing: return NOTHING
-    def set_lifecycle(self, *args, **kwargs): pass
-    def get_lifecycle(self) -> Nothing: return NOTHING
-    # yield method
-    def handle_yield(self, ctx: "Context") -> Generator: yield True
-    def gen__(self, ctx: "Context") -> HandlerWrapperGenerator: return HandlerWrapperGenerator(self, ctx)
 
 
-_T_HandlerWrapper = TypeVar('_T_HandlerWrapper', bound=HandlerWrapper)
+_HandlerWrapperT = TypeVar('_HandlerWrapperT', bound=HandlerWrapper)
 
-class HandlerWrapperContainer(HandlerWrapper, HandlerContainer[_T_HandlerWrapper], RenderInterface):
+class HandlerWrapperContainer(HandlerContainer[_HandlerWrapperT], RenderInterface):
     
-    def __init__(self, wrappers: List[_T_HandlerWrapper], *, id: Union[str, NoneOrNothing] = NOTHING):
+    def __init__(
+        self,
+        wrappers: List[_HandlerWrapperT],
+        *,
+        id: Union[str, NoneOrNothing] = NOTHING
+    ) -> None:
         HandlerContainer.__init__(self, wrappers, id=id)
+        # Display ``HandlerWrapper`` using ``rich``.
         self.profiler = HandlerWrapperContainerProfiler()
     
     def handle(self, ctx: "Context", wrapped: Handler) -> None:
-        # the original generator list
-        gen_list: List[HandlerWrapperGenerator] = [wrapper.gen__(ctx) for wrapper in self]
-        # generator stack
-        stack = GeneratorQueue[HandlerWrapperGenerator](reverse=True)
-        
-        with stack:
-            # yield state controlling wrapper exec
-            state = True
-            # before handle
-            for gen in gen_list:
-                state = gen()
-                stack.append(gen)
-                if not state:
-                    break
-            # handle
-            if state:
+        with ContextGeneratorStack((
+            wrapper.gen__(ctx, wrapped) for wrapper in self
+        )) as vals:
+            # Check whether the yielded value is ``STOP``
+            val = vals[-1] if len(vals) > 0 else True
+            if val is not STOP:
                 wrapped.handle(ctx)
-        
-        # after handle
-        for gen in stack.pop_gen__():
-            with stack:
-                gen.send(wrapped)
     
     def render__(self) -> RenderableType:
         return self.profiler.profile(self)
@@ -129,16 +124,27 @@ class HandlerWrapperContainer(HandlerWrapper, HandlerContainer[_T_HandlerWrapper
 # StateHandler
 #
 
-class StateWrapper(HandlerWrapper):
+class StateWrapper(HandlerWrapper[_HandlerT]):
     
     def __init__(
         self,
         state: Union[str, "ModelState"] = 'train',
         restore: bool = True,
+        handlers: Union[Iterable[_HandlerT], NoneOrNothing] = NOTHING,
         *,
-        id: Union[str, NoneOrNothing] = NOTHING
+        id: Union[str, NoneOrNothing] = NOTHING,
+        exec_ranks: Union[Iterable[int], NoneOrNothing, Pass] = PASS,
+        wrappers: Union[Iterable['HandlerWrapper'], NoneOrNothing] = NOTHING,
+        lifecycle=NOTHING
     ):
-        super().__init__(id=id)
+        HandlerWrapper.__init__(
+            self,
+            handlers,
+            id=id,
+            exec_ranks=exec_ranks,
+            wrappers=wrappers,
+            lifecycle=lifecycle
+        )
         # get state supported
         from torchslime.pipelines.state import ModelState, state_registry
         registered_states = list(state_registry.keys())
@@ -150,12 +156,12 @@ class StateWrapper(HandlerWrapper):
         self.state = state
         self.restore = restore
     
-    def handle_yield(self, ctx: "Context"):
+    def handle_yield(self, ctx: "Context", wrapped: Handler) -> Generator:
         # cache the state before state set
         self.restore_state: Union["ModelState", Nothing] = ctx.pipeline_ctx.model_state
         ctx.compile.model_state_compile__(self.state)
         # call wrapped handler
-        yield True
+        yield
         # restore
         if self.restore:
             ctx.compile.model_state_compile__(self.restore_state)
@@ -177,19 +183,30 @@ class StateWrapper(HandlerWrapper):
 # Condition Handler
 #
 
-class ConditionWrapper(HandlerWrapper):
+class ConditionWrapper(HandlerWrapper[_HandlerT]):
     
     def __init__(
         self,
         condition: Callable[["Context"], bool],
+        handlers: Union[Iterable[_HandlerT], NoneOrNothing] = NOTHING,
         *,
-        id: Union[str, NoneOrNothing] = NOTHING
+        id: Union[str, NoneOrNothing] = NOTHING,
+        exec_ranks: Union[Iterable[int], NoneOrNothing, Pass] = PASS,
+        wrappers: Union[Iterable['HandlerWrapper'], NoneOrNothing] = NOTHING,
+        lifecycle=NOTHING
     ):
-        super().__init__(id=id)
+        HandlerWrapper.__init__(
+            self,
+            handlers,
+            id=id,
+            exec_ranks=exec_ranks,
+            wrappers=wrappers,
+            lifecycle=lifecycle
+        )
         self.condition = condition
     
-    def handle_yield(self, ctx: "Context"):
-        yield self.condition(ctx)
+    def handle_yield(self, ctx: "Context", wrapped: Handler) -> Generator:
+        yield True if self.condition(ctx) else STOP
 
 #
 # Condition Operators
@@ -202,6 +219,7 @@ class _ConditionOperator:
 
     def __call__(self, ctx: "Context") -> bool: pass
 
+
 class And(_ConditionOperator):
     
     def __call__(self, ctx: "Context") -> bool:
@@ -210,6 +228,7 @@ class And(_ConditionOperator):
                 return False
         return True
 
+
 class Or(_ConditionOperator):
     
     def __call__(self, ctx: "Context") -> bool:
@@ -217,6 +236,7 @@ class Or(_ConditionOperator):
             if condition(ctx):
                 return True
         return False
+
 
 class Not(_ConditionOperator):
     

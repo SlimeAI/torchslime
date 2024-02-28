@@ -99,9 +99,11 @@ def CallDebug(
             if _exec_info is MISSING:
                 _exec_info = get_exec_info(func)
             
-            exec_name = _exec_info["full_exec_name"] if \
-                store.builtin__().call_debug_full_exec_name else \
+            exec_name = (
+                _exec_info["full_exec_name"] if 
+                store.builtin__().call_debug_full_exec_name else 
                 _exec_info["exec_name"]
+            )
             exec_info = f'Module definition -> {exec_name}:{_exec_info["lineno"]}'
             
             logger.debug(
@@ -199,10 +201,10 @@ def InitOnce(func: _T_FuncOrMethod) -> _T_FuncOrMethod:
     
     C()
     
-    \"\"\"
+    \"""
     Output:
     Example.__init__ 1 2
-    \"\"\"
+    \"""
     ```
     """
     func_id = str(id(func))

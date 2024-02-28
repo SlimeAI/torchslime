@@ -206,8 +206,10 @@ def ReadonlyAttr(attrs: list, *, _cls=NOTHING, nothing_allowed: bool = True, emp
             hasattr__ = hasattr(self, __name)
             attr__ = getattr(self, __name, None)
 
-            if (not hasattr__ and empty_allowed) or \
-                    (attr__ is NOTHING and nothing_allowed):
+            if (
+                (not hasattr__ and empty_allowed) or 
+                (attr__ is NOTHING and nothing_allowed)
+            ):
                 return setattr_cls_func(self, __name, __value)
             else:
                 raise AttributeError(f'``{__name}`` is readonly attribute')

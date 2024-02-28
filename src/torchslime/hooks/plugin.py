@@ -1,11 +1,13 @@
 from torchslime.utils.base import (
     BaseList,
-    BaseGenerator
+    BaseGenerator,
+    BaseGeneratorQueue
 )
 from torchslime.hooks.build import BuildInterface
 from torchslime.utils.typing import (
     Generator,
-    TYPE_CHECKING
+    TYPE_CHECKING,
+    TypeVar
 )
 if TYPE_CHECKING:
     from torchslime.context import Context
@@ -14,34 +16,24 @@ if TYPE_CHECKING:
 class PluginHook(BuildInterface): pass
 
 
-class PluginContainer(PluginHook, BaseList[PluginHook]):
+_PluginHookT = TypeVar('_PluginHookT', bound=PluginHook)
+
+class PluginContainer(PluginHook, BaseList[_PluginHookT]):
     
     def build_train_yield(self, ctx: "Context") -> Generator:
-        gen_list = [BaseGenerator(plugin.build_train_yield(ctx)) for plugin in self]
-        # before
-        for gen in gen_list:
-            gen()
-        yield
-        # after
-        for gen in gen_list:
-            gen()
+        with BaseGeneratorQueue((
+            BaseGenerator(plugin.build_train_yield(ctx)) for plugin in self
+        )):
+            yield
     
     def build_eval_yield(self, ctx: "Context") -> Generator:
-        gen_list = [BaseGenerator(plugin.build_eval_yield(ctx)) for plugin in self]
-        # before
-        for gen in gen_list:
-            gen()
-        yield
-        # after
-        for gen in gen_list:
-            gen()
+        with BaseGeneratorQueue((
+            BaseGenerator(plugin.build_eval_yield(ctx)) for plugin in self
+        )):
+            yield
     
     def build_predict_yield(self, ctx: "Context") -> Generator:
-        gen_list = [BaseGenerator(plugin.build_predict_yield(ctx)) for plugin in self]
-        # before
-        for gen in gen_list:
-            gen()
-        yield
-        # after
-        for gen in gen_list:
-            gen()
+        with BaseGeneratorQueue((
+            BaseGenerator(plugin.build_predict_yield(ctx)) for plugin in self
+        )):
+            yield

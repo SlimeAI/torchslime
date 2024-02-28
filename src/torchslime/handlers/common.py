@@ -96,7 +96,7 @@ class FuncHandler(Handler, BaseList[Callable[["Context"], None]]):
         Handler.__init__(self, id=id, exec_ranks=exec_ranks, wrappers=wrappers, lifecycle=lifecycle)
         BaseList.__init__(self, func_list)
     
-    def handle(self, ctx: "Context"):
+    def handle(self, ctx: "Context") -> None:
         # execute lambda functions
         for func in self:
             func(ctx)
@@ -108,7 +108,7 @@ class EpochIterationContainer(HandlerContainer, ProgressInterface):
     """
 
     @CallDebug(module_name='EpochIterationContainer')
-    def handle(self, ctx: "Context"):
+    def handle(self, ctx: "Context") -> None:
         # context check
         ctx.ctx_check('iteration_ctx.total', silent=False)
         
@@ -149,7 +149,7 @@ class IterationContainer(HandlerContainer, ProfileProgressInterface):
 
     @CallDebug(module_name='IterationContainer')
     @TorchGrad
-    def handle(self, ctx: "Context"):
+    def handle(self, ctx: "Context") -> None:
         loader = ctx.pipeline_ctx.model_state.get_loader(ctx)
         # loader check
         if is_none_or_nothing(loader):
@@ -190,7 +190,7 @@ class StepIterationContainer(HandlerContainer, ProfileProgressInterface):
     
     @CallDebug(module_name='StepIterationContainer')
     @TorchGrad
-    def handle(self, ctx: "Context"):
+    def handle(self, ctx: "Context") -> None:
         loader = ctx.pipeline_ctx.model_state.get_loader(ctx)
         # loader check
         if is_none_or_nothing(loader):
@@ -228,7 +228,7 @@ class StepIterationContainer(HandlerContainer, ProfileProgressInterface):
 class ForwardHandler(Handler):
 
     @CallDebug(module_name='ForwardHandler')
-    def handle(self, ctx: "Context"):
+    def handle(self, ctx: "Context") -> None:
         # context check
         ctx.ctx_check([
             'model',
@@ -253,7 +253,7 @@ class ForwardHandler(Handler):
 class LossHandler(Handler):
     
     @CallDebug(module_name='LossHandler')
-    def handle(self, ctx: "Context"):
+    def handle(self, ctx: "Context") -> None:
         # context check
         if ctx.ctx_check('pipeline_ctx.loss_func') is True:
             # compute loss
@@ -270,7 +270,7 @@ class LossHandler(Handler):
 class BackwardHandler(Handler):
 
     @CallDebug(module_name='BackwardHandler')
-    def handle(self, ctx: "Context"):
+    def handle(self, ctx: "Context") -> None:
         # context check
         if ctx.ctx_check(['step_ctx.loss']):
             last = ctx.step_ctx.total % ctx.pipeline_ctx.grad_acc
@@ -282,11 +282,16 @@ class BackwardHandler(Handler):
 class OptimizerContainer(HandlerContainer):
     
     @CallDebug(module_name='OptimizerContainer')
-    def handle(self, ctx: "Context"):
+    def handle(self, ctx: "Context") -> None:
         # backward handler
         super().handle(ctx)
-        if ctx.ctx_check(['pipeline_ctx.optimizer']) and \
-            ((ctx.step_ctx.current + 1) % ctx.pipeline_ctx.grad_acc == 0 or ctx.step_ctx.current + 1 == ctx.step_ctx.total):
+        if (
+            ctx.ctx_check(['pipeline_ctx.optimizer']) and 
+            (
+                (ctx.step_ctx.current + 1) % ctx.pipeline_ctx.grad_acc == 0 or 
+                ctx.step_ctx.current + 1 == ctx.step_ctx.total
+            )
+        ):
             ctx.pipeline_ctx.optimizer.step()
             ctx.pipeline_ctx.optimizer.zero_grad()
 
@@ -294,7 +299,7 @@ class OptimizerContainer(HandlerContainer):
 class MetricHandler(Handler):
     
     @CallDebug(module_name='MetricHandler')
-    def handle(self, ctx: "Context"):
+    def handle(self, ctx: "Context") -> None:
         # context check
         ctx.ctx_check('step_ctx', silent=False)
         if ctx.ctx_check('pipeline_ctx.metrics'):
@@ -304,7 +309,7 @@ class MetricHandler(Handler):
 class GatherAverageHandler(Handler):
     
     @CallDebug(module_name='GatherAverageHandler')
-    def handle(self, ctx: "Context"):
+    def handle(self, ctx: "Context") -> None:
         dist_comm = ctx.hook_ctx.launch.dist_comm
         # gather data
         gathered_loss_values: List[Dict] = dist_comm.all_gather_object(ctx.step_ctx.loss_values)
@@ -324,21 +329,21 @@ class GatherAverageHandler(Handler):
 class MeterInitHandler(Handler):
     
     @CallDebug(module_name='MeterInitHandler')
-    def handle(self, ctx: "Context"):
+    def handle(self, ctx: "Context") -> None:
         ctx.pipeline_ctx.model_state.init_meter(ctx)
 
 
 class MeterHandler(Handler):
     
     @CallDebug(module_name='MeterHandler')
-    def handle(self, ctx: "Context"):
+    def handle(self, ctx: "Context") -> None:
         ctx.pipeline_ctx.model_state.update_meter(ctx, ctx.step_ctx.loss_values, ctx.step_ctx.metrics)
 
 
 class LRScheduleHandler(Handler):
     
     @CallDebug(module_name='LRScheduleHandler')
-    def handle(self, ctx: "Context"):
+    def handle(self, ctx: "Context") -> None:
         if ctx.ctx_check(['pipeline_ctx.lr_scheduler']) is True:
             ctx.pipeline_ctx.lr_scheduler.step()
 

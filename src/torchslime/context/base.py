@@ -97,8 +97,10 @@ class BaseContext(Base):
 
     @compile.setter
     def compile(self, value: "Compile") -> None:
-        if not is_none_or_nothing(value.ctx) and \
-                value.ctx is not self:
+        if (
+            not is_none_or_nothing(value.ctx) and 
+            value.ctx is not self
+        ):
             raise APIMisused(
                 f'The property ``compile`` ({value}) being set has already been bound to another ``Context`` object ({value.ctx}). '
                 f'You should unbind it from the other ``Context`` ({value.ctx}) using ``del`` first.'

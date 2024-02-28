@@ -122,9 +122,11 @@ def bound_clip(value, _min, _max):
     """
     if _min > _max:
         return NOTHING
-    return _min if value < _min else \
-        _max if value > _max \
+    return (
+        _min if value < _min else 
+        _max if value > _max 
         else value
+    )
 
 
 def dict_merge(dict1: Dict, dict2: Dict):
