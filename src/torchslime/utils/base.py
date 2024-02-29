@@ -40,7 +40,7 @@ from .metaclass import (
     SingletonMetaclass,
     _ReadonlyAttrMetaclass
 )
-from contextlib import ContextDecorator, ExitStack
+from contextlib import ContextDecorator, ExitStack, contextmanager
 from functools import partial
 from types import TracebackType
 import re
@@ -465,21 +465,25 @@ _SendT_contra = TypeVar("_SendT_contra", contravariant=True)
 _ReturnT_co = TypeVar("_ReturnT_co", covariant=True)
 
 class BaseGenerator(Generator[_YieldT_co, _SendT_contra, _ReturnT_co]):
+    """
+    Call a generator more safely without rasing ``StopIteration``. When the 
+    generator ends, the ``stop`` attribute is set to ``True``.
+    """
 
     def __init__(
         self,
         __gen: Generator[_YieldT_co, _SendT_contra, _ReturnT_co],
         *,
-        exit_allowed: bool = True
+        stop_allowed: bool = True
     ) -> None:
         if not isinstance(__gen, Generator):
             raise TypeError(f'Argument ``__gen`` should be a generator.')
         self.gen = __gen
-        self.exit_allowed = exit_allowed
+        self.stop_allowed = stop_allowed
         
-        self.exit = False
+        self.stop = False
 
-    def __call__(self) -> Any:
+    def __call__(self) -> _YieldT_co:
         return next(self)
 
     def send(self, __value: _SendT_contra) -> _YieldT_co:
@@ -503,23 +507,45 @@ class BaseGenerator(Generator[_YieldT_co, _SendT_contra, _ReturnT_co]):
     def throw(self, __typ, __val=None, __tb=None) -> _YieldT_co:
         return self.call__(partial(self.gen.throw, __typ, __val, __tb))
 
-    def call__(self, __caller: Callable[[], _T]) -> Union[_T, Nothing]:
-        if self.exit and not self.exit_allowed:
+    def call__(self, __caller: Callable[[], _T]) -> Union[_T, Pass]:
+        if self.stop and not self.stop_allowed:
             from .exception import APIMisused
-            raise APIMisused('``exit_allowed`` is set to False, and the generator already stopped but you still try to call ``next``.')
-        elif self.exit:
-            return NOTHING
+            raise APIMisused(
+                '``stop_allowed`` is set to False, and the generator already '
+                'stopped but you still try to call ``next``.'
+            )
+        elif self.stop:
+            return PASS
 
         try:
             return __caller()
-        except (StopIteration, GeneratorExit):
-            self.exit = True
+        except StopIteration:
+            self.stop = True
 
 
 class ContextGenerator(
     BaseGenerator[_YieldT_co, _SendT_contra, _ReturnT_co],
     ContextManager
 ):
+    """
+    Make the generator a context manager. ``__enter__`` will call ``next`` 
+    to the generator and return the yielded value, while ``__exit__`` will 
+    call ``next``, send ``exit_send_value`` or process exceptions (call 
+    ``throw``) according to different situations: if no exception is raised 
+    and ``exit_send_value`` is ``MISSING``, then ``next`` is called, or if 
+    ``exit_send_value`` is NOT ``MISSING``, then ``send`` is called, or 
+    if the exception is NOT None, then ``throw`` is called.
+    """
+    
+    def __init__(
+        self,
+        __gen: Generator[_YieldT_co, _SendT_contra, _ReturnT_co],
+        *,
+        stop_allowed: bool = True,
+        exit_send_value: Union[Any, Missing] = MISSING
+    ) -> None:
+        super().__init__(__gen, stop_allowed=stop_allowed)
+        self.exit_send_value = exit_send_value
     
     def __enter__(self) -> Any:
         """
@@ -538,8 +564,12 @@ class ContextGenerator(
             __exc_value is None and 
             __traceback is None
         ):
-            # Directly call ``next`` and return.
-            self()
+            if self.exit_send_value is MISSING:
+                # Directly call ``next`` and return.
+                self()
+            else:
+                # Send ``exit_send_value``.
+                self.send(self.exit_send_value)
             return False
         
         # Throw the exception to the generator.
@@ -565,75 +595,67 @@ class ContextGenerator(
 
 _BaseGeneratorT = TypeVar("_BaseGeneratorT", bound=BaseGenerator)
 
-class BaseGeneratorQueue(BaseList[_BaseGeneratorT], ContextManager):
+@contextmanager
+def BaseGeneratorQueue(
+    __base_generators: Union[Iterable[_BaseGeneratorT], NoneOrNothing] = None
+) -> Generator[Tuple, Any, Any]:
     """
-    NOTE: ``BaseGeneratorQueue`` DOES NOT process any exception in the block.
+    Sequentially call the generators on ``__enter__`` and ``__exit__``. Tuple of 
+    yielded values from the generators will be yielded.
+    
+    NOTE: ``BaseGeneratorQueue`` simply calls ``next`` and no ``send`` values can 
+    be specified.
+    
+    NOTE: Exceptions will NOT be processed in ``BaseGeneratorQueue``.
     """
-    
-    def __init__(
-        self,
-        __generators: Union[Iterable[_BaseGeneratorT], NoneOrNothing] = None
-    ):
-        BaseList.__init__(self, __generators)
-    
-    def __enter__(self) -> Tuple:
-        # Sequentially call BaseGenerator and return the yield values.
-        return (gen() for gen in self)
-    
-    def __exit__(
-        self,
-        __exc_type: Union[Type[BaseException], None],
-        __exc_value: Union[BaseException, None],
-        __traceback: Union[TracebackType, None]
-    ) -> Union[bool, None]:
-        if (
-            __exc_type is None and 
-            __exc_value is None and 
-            __traceback is None
-        ):
-            # Sequentially call BaseGenerator and return.
-            for gen in self:
-                gen()
-            return False
-        # If an exception occurred, re-raise the exception.
-        return False
+    gen_list: BaseList[_BaseGeneratorT] = BaseList(__base_generators)
+    # call next and yield a tuple of yielded values
+    vals: Tuple = (gen() for gen in gen_list)
+    yield vals
+    # call next
+    for gen in gen_list:
+        gen()
 
+#
+# Context Manager Stack
+#
 
-_ContextGeneratorT = TypeVar("_ContextGeneratorT", bound=ContextGenerator)
+_ContextManagerT = TypeVar("_ContextManagerT", bound=ContextManager)
 
-class ContextGeneratorStack(BaseList[_ContextGeneratorT], ContextManager):
+@contextmanager
+def ContextManagerStack(
+    __context_managers: Union[Iterable[_ContextManagerT], NoneOrNothing] = None
+) -> Generator[Tuple, Any, Any]:
+    """
+    Call context managers in FILO order. Exceptions will be passed through each 
+    context manager until they are processed. Compared to the standard ``with`` 
+    statement, it can handle context managers of indefinite quantity. The below 
+    two examples are totally equivalent:
     
-    def __init__(
-        self,
-        __generators: Union[Iterable[_ContextGeneratorT], NoneOrNothing] = None
-    ):
-        BaseList.__init__(self, __generators)
-        self.exit_stack = ExitStack()
+    ```Python
+    # Example 1
+    with A(), B(), C():
+        ...
     
-    def __enter__(self) -> Tuple:
-        self.exit_stack.__enter__()
-        # yielded values
+    # Example 2
+    cm_list = [A(), B(), C()]
+    with ContextManagerStack(cm_list):
+        ...
+    ```
+    """
+    cm_list: BaseList[_ContextManagerT] = BaseList(__context_managers)
+    stack = ExitStack()
+    # Use ``ExitStack`` to correctly process exceptions.
+    with stack:
+        # returned values
         vals = []
-        for gen in self:
-            val = self.exit_stack.enter_context(gen)
+        for cm in cm_list:
+            val = stack.enter_context(cm)
             vals.append(val)
-            # If the generator yields ``STOP``, then directly break.
+            # If the context manager returns ``STOP``, then directly break.
             if val is STOP:
                 break
-        return tuple(vals)
-    
-    def __exit__(
-        self,
-        __exc_type: Union[Type[BaseException], None],
-        __exc_value: Union[BaseException, None],
-        __traceback: Union[TracebackType, None]
-    ) -> Union[bool, None]:
-        # Use ``ExitStack`` to correctly process exceptions.
-        return self.exit_stack.__exit__(
-            __exc_type,
-            __exc_value,
-            __traceback
-        )
+        yield tuple(vals)
 
 #
 # Composite Structure

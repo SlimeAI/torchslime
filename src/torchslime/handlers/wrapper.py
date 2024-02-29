@@ -2,7 +2,7 @@ from .riching import HandlerWrapperContainerProfiler
 from . import Handler, HandlerContainer
 from torchslime.utils.base import (
     ContextGenerator,
-    ContextGeneratorStack
+    ContextManagerStack
 )
 from torchslime.utils.typing import (
     NOTHING,
@@ -54,7 +54,7 @@ class HandlerWrapperGenerator(ContextGenerator[_YieldT_co, _SendT_contra, _Retur
         *,
         exit_allowed: bool = True
     ) -> None:
-        ContextGenerator.__init__(self, __gen, exit_allowed=exit_allowed)
+        ContextGenerator.__init__(self, __gen, stop_allowed=exit_allowed)
         self.wrapper = __wrapper
     
     def call__(self, __caller: Callable[[], _T]) -> _T:
@@ -109,10 +109,10 @@ class HandlerWrapperContainer(HandlerContainer[_HandlerWrapperT], RenderInterfac
         self.profiler = HandlerWrapperContainerProfiler()
     
     def handle(self, ctx: "Context", wrapped: Handler) -> None:
-        with ContextGeneratorStack((
+        with ContextManagerStack((
             wrapper.gen__(ctx, wrapped) for wrapper in self
         )) as vals:
-            # Check whether the yielded value is ``STOP``
+            # Check whether the yielded value is ``STOP``.
             val = vals[-1] if len(vals) > 0 else True
             if val is not STOP:
                 wrapped.handle(ctx)
