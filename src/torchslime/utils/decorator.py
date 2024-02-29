@@ -15,7 +15,8 @@ from .typing import (
     MISSING,
     Dict,
     Missing,
-    unwrap_method
+    unwrap_method,
+    Any
 )
 
 _T = TypeVar("_T")
@@ -26,7 +27,7 @@ def DecoratorCall(
     *,
     index: Union[int, Nothing] = NOTHING,
     keyword: Union[str, Nothing] = NOTHING
-):
+) -> Callable[[_T], _T]:
     """
     [func-decorator]
     """
@@ -165,6 +166,23 @@ def RemoveOverload(_cls=NOTHING, *, checklist: Union[NoneOrNothing, List[str]] =
             delattr(cls, attr)
         
         return cls
+    return decorator
+
+
+@overload
+def FuncSetAttr(_func: NoneOrNothing = NOTHING, *, attr_dict: Dict[str, Any]) -> Callable[[_T], _T]: pass
+@overload
+def FuncSetAttr(_func: _T, *, attr_dict: Dict[str, Any]) -> _T: pass
+
+@DecoratorCall(index=0, keyword='_func')
+def FuncSetAttr(_func=NOTHING, *, attr_dict: Dict[str, Any]):
+    """
+    Set attributes to the function in a decorator way.
+    """
+    def decorator(func: _T) -> _T:
+        for key, value in attr_dict.items():
+            setattr(func, key, value)
+        return func
     return decorator
 
 

@@ -96,6 +96,7 @@ class BuiltinScopedStore(ScopedStore, Singleton):
         # set rich default console
         rich._console = self.console_launcher
 
+
 BUILTIN_SCOPED_STORE_KEY = 'builtin__'
 _builtin_scoped_store = BuiltinScopedStore()
 _scoped_store_dict = {}

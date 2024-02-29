@@ -34,17 +34,15 @@ if TYPE_CHECKING:
 # Handler Progress Interface
 #
 
-class ProgressInterface:
-
+class _ProgressInterface:
+    
     def create_progress__(self, ctx: "Context") -> Tuple[Any, Any]: pass
     def progress_update__(self, ctx: "Context") -> None: pass
+    def remove_progress__(self, ctx: "Context") -> None: pass
 
     def add_progress__(self, ctx: "Context") -> None:
         display_ctx = ctx.display_ctx
         display_ctx.live_group.append(display_ctx.handler_progress)
-
-    def remove_progress__(self, ctx: "Context") -> None:
-        ctx.display_ctx.handler_progress.remove_self__()
 
     @contextmanager
     def progress_context__(self, ctx: "Context"):
@@ -58,9 +56,30 @@ class ProgressInterface:
             self.remove_progress__(ctx)
 
 
-class ProfileProgressInterface(ProgressInterface):
+class ProgressInterface(_ProgressInterface):
+    
+    def progress_update__(self, ctx: "Context") -> None:
+        """
+        Update the progress bar.
+        """
+        ctx.display_ctx.handler_progress.advance(
+            task_id=ctx.display_ctx.progress_task_id,
+            advance=1
+        )
+
+    def remove_progress__(self, ctx: "Context") -> None:
+        # Remove self from the ``Live`` object.
+        ctx.display_ctx.handler_progress.remove_self__()
+        # detach observer
+        store.builtin__().detach__(ctx.display_ctx.handler_progress)
+
+
+class ProfileProgressInterface(_ProgressInterface):
 
     def progress_update__(self, ctx: "Context") -> None:
+        """
+        Update the progress bar and the displayed text.
+        """
         ctx.display_ctx.handler_progress.progress.advance(
             task_id=ctx.display_ctx.progress_task_id,
             advance=1
@@ -70,7 +89,8 @@ class ProfileProgressInterface(ProgressInterface):
         )
 
     def remove_progress__(self, ctx: "Context") -> None:
-        super().remove_progress__(ctx)
+        # Remove self from the ``Live`` object.
+        ctx.display_ctx.handler_progress.remove_self__()
         # detach observer
         store.builtin__().detach__(ctx.display_ctx.handler_progress.progress)
 

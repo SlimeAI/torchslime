@@ -63,8 +63,11 @@ def TorchGrad(func):
     """
     @wraps(func)
     def grad_switch(self, ctx: "Context"):
-        # only when context status is in ['TRAIN'] is the grad enabled
-        with set_grad_enabled(str(ctx.pipeline_ctx.model_state) in ['TRAIN']):
+        with set_grad_enabled(
+            # NOTE: ``ctx.pipeline_ctx.model_state`` could be ``NOTHING``, 
+            # so it should be converted to bool.
+            bool(ctx.pipeline_ctx.model_state.is_grad_enabled())
+        ):
             func(self, ctx)
     return grad_switch
 
@@ -132,17 +135,6 @@ class EpochIterationContainer(HandlerContainer, ProgressInterface):
         progress = SlimeProgressLauncher.create__()
         task_id = progress.add_task('EpochIteration', total=ctx.iteration_ctx.total, completed=ctx.iteration_ctx.start)
         return progress, task_id
-    
-    def progress_update__(self, ctx: "Context") -> None:
-        ctx.display_ctx.handler_progress.advance(
-            task_id=ctx.display_ctx.progress_task_id,
-            advance=1
-        )
-    
-    def remove_progress__(self, ctx: "Context") -> None:
-        super().remove_progress__(ctx)
-        # detach observer
-        store.builtin__().detach__(ctx.display_ctx.handler_progress)
 
 
 class IterationContainer(HandlerContainer, ProfileProgressInterface):
@@ -368,13 +360,11 @@ class LoggingHandler(Handler):
         self.logging_states = logging_states
     
     def handle(self, ctx: "Context") -> None:
-        # get logging point (Epoch/Step, current, total)
         profiler = ctx.pipeline_ctx.pipeline_profiler
-        logging_point = profiler.logging_point_profile(ctx)
-        
+        # Respectively apply logging in different states.
         for state in self.logging_states:
             logger.info(
-                f'{logging_point} | {profiler.meter_profile(ctx, state)}'
+                profiler.logging_profile(ctx, state)
             )
     
     def get_display_attr_dict(self) -> dict:

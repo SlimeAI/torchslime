@@ -3,10 +3,12 @@ State Pattern for model state management.
 """
 from torchslime.utils.registry import Registry
 from torchslime.pipelines.metric import MeterDict
+from torchslime.utils.decorator import FuncSetAttr
 from torchslime.utils.typing import (
     Tuple,
     Mapping,
     Type,
+    Dict,
     TYPE_CHECKING
 )
 from torch.utils.data import DataLoader
@@ -25,6 +27,19 @@ class ModelState:
     def init_meter(self, ctx: "Context") -> None: pass
     def update_meter(self, ctx: "Context", loss_value: Mapping, metrics: Mapping) -> None: pass
     def get_meter(self, ctx: "Context") -> Tuple[MeterDict, MeterDict]: pass
+    
+    @FuncSetAttr(attr_dict=dict(
+        profile_keys__=()
+    ))
+    def format_logging_profile(self, ctx: "Context", profile_dict: Dict[str, str]) -> str:
+        """
+        Method that formats logging profile. ``profile_keys__`` can be set to specify 
+        the needed profile values in order to improve efficiency.
+        """
+        pass
+    
+    def is_grad_enabled(self) -> bool:
+        return False
 
     def __str__(self) -> str:
         return 'BASE STATE'
@@ -55,6 +70,15 @@ class TrainState(ModelState):
     def get_meter(self, ctx: "Context") -> Tuple[MeterDict, MeterDict]:
         return ctx.iteration_ctx.train_loss_values, ctx.iteration_ctx.train_metrics
 
+    @FuncSetAttr(attr_dict=dict(
+        profile_keys__=('logging_point', 'meter')
+    ))
+    def format_logging_profile(self, ctx: "Context", profile_dict: Dict[str, str]) -> str:
+        return f'{profile_dict["logging_point"]} | {profile_dict["meter"]}'
+
+    def is_grad_enabled(self) -> bool:
+        return True
+
     def __str__(self) -> str:
         return 'TRAIN'
 
@@ -84,6 +108,16 @@ class EvalState(ModelState):
     def get_meter(self, ctx: "Context") -> Tuple[MeterDict, MeterDict]:
         return ctx.iteration_ctx.eval_loss_values, ctx.iteration_ctx.eval_metrics
 
+    @FuncSetAttr(attr_dict=dict(
+        profile_keys__=('meter',)
+    ))
+    def format_logging_profile(self, ctx: "Context", profile_dict: Dict[str, str]) -> str:
+        # In eval state, logging point should be ignored.
+        return f'{profile_dict["meter"]}'
+
+    def is_grad_enabled(self) -> bool:
+        return False
+
     def __str__(self) -> str:
         return 'EVAL'
 
@@ -99,6 +133,12 @@ class ValState(EvalState):
         metrics = {f'val_{str(k)}':v for k, v in metrics.items()}
         super().update_meter(ctx, loss_value, metrics)
 
+    @FuncSetAttr(attr_dict=dict(
+        profile_keys__=('logging_point', 'meter')
+    ))
+    def format_logging_profile(self, ctx: "Context", profile_dict: Dict[str, str]) -> str:
+        return f'{profile_dict["logging_point"]} | {profile_dict["meter"]}'
+
     def __str__(self) -> str:
         return 'VAL'
 
@@ -108,6 +148,24 @@ class PredictState(EvalState):
 
     def __init__(self) -> None:
         super().__init__()
+
+    # NOTE: Predict state is not involved in meter computing.
+    def init_meter(self, ctx: "Context") -> None: pass
+    def update_meter(self, ctx: "Context", loss_value: Mapping, metrics: Mapping) -> None: pass
+
+    def get_meter(self, ctx: "Context") -> Tuple[MeterDict, MeterDict]:
+        """
+        Should always return empty ``MeterDict``, because predict state doesn't 
+        compute metrics or loss.
+        """
+        return MeterDict(), MeterDict()
+
+    @FuncSetAttr(attr_dict=dict(
+        profile_keys__=()
+    ))
+    def format_logging_profile(self, ctx: "Context", profile_dict: Dict[str, str]) -> str:
+        # In predict state, there is nothing to be logged.
+        return f'[{str(self)} Profile] (Empty)'
 
     def __str__(self) -> str:
         return 'PREDICT'

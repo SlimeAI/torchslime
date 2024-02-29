@@ -62,14 +62,6 @@ class BaseContext(Base):
         # display context
         self.display_ctx: DisplayContext = DisplayContext()
 
-    @property
-    def model(self):
-        return self.__model
-    
-    @model.setter
-    def model(self, value):
-        self.__model = value
-
     #
     # ``compile`` property
     #
@@ -112,6 +104,10 @@ class BaseContext(Base):
     def compile(self) -> None:
         self.compile.ctx = NOTHING
         del self.__compile
+
+    #
+    # Context check.
+    #
 
     def ctx_check(self, items: Union[str, Sequence[str]], silent: bool = True):
         # check single item
