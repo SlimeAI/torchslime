@@ -119,7 +119,7 @@ class Handler(CompositeStructure, MutableBiListItem):
             logger.warning(f'Duplicate id found in the Handler: {str(self)}.')
         return NOTHING if len(results) < 1 else results[0]
     
-    def get_by_class(self, __class: Union[type, Tuple[type]]) -> List['Handler']:
+    def get_by_class(self, __class: Union[type, Tuple[type, ...]]) -> List['Handler']:
         return CompositeDFS(self, lambda handler: isinstance(handler, __class))
     
     def get_by_filter(self, __func: Callable[["Handler"], bool]) -> List['Handler']:

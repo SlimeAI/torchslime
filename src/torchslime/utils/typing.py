@@ -225,7 +225,7 @@ class Stop(_FlagConstant):
 STOP = Stop()
 
 #
-# Other types, type checking, naming checking and type parsing.
+# Other types, type checking, naming checking, type parsing, etc.
 #
 
 FuncOrMethod = Union[FunctionType, MethodType]
@@ -260,6 +260,91 @@ def unwrap_method(func: Union[FuncOrMethod, NoneOrNothing]) -> Union[RawFunc, No
         # get the original function body of the method
         func = func.__func__
     return func
+
+
+def get_mro(cls: Type) -> Tuple[Type, ...]:
+    """
+    Safely get the mro of any given class. NOTE: If the class has the 
+    attribute ``__mro__``, then directly return it. Otherwise, call the 
+    corresponding ``mro()`` method to the the mro.
+    """
+    # If ``cls`` has ``__mro__``, then directly return.
+    if hasattr(cls, '__mro__'):
+        return cls.__mro__
+    
+    try:
+        # NOTE: Some class (e.g., typing.Sequence) doesn't support subclass 
+        # check, and ``issubclass`` will raise an exception.
+        is_type_subclass = issubclass(cls, type)
+    except Exception:
+        is_type_subclass = False
+    
+    if is_type_subclass:
+        # NOTE: If the given class is a metaclass, then the corresponding 
+        # ``mro`` method to be called should be in the 'metaclass of the 
+        # given metaclass' (i.e., type(cls)).
+        return tuple(type(cls).mro(cls))
+    else:
+        # Normal classes simply call the ``mro`` method.
+        return tuple(cls.mro())
+
+
+def get_bases(cls: Type) -> Tuple[Type, ...]:
+    """
+    Safely get the bases of any given class. NOTE: If the class has the 
+    attribute ``__bases__``, then directly return it. Otherwise (e.g., 
+    typing.Sequence), this function resolves the mro and returns the 
+    'minimal base class set'.
+    
+    The 'minimal base class set' denotes that there doesn't exist inheritance 
+    relationship in this set and the set only keeps the most subclasses classes.
+    
+    Example:
+    
+    ```Python
+    class A: pass
+    
+    class B(A): pass
+    
+    class C(B, A): pass
+    
+    # The bases of class ``C`` is (B, A)
+    print(C.__bases__)
+    # However, the 'minimal base class set' of ``C`` is (B,) according to the 
+    # definition.
+    
+    # ``get_bases(C)`` still returns (B, A) because class ``C`` has attribute 
+    # ``__bases__``
+    print(get_bases(C))
+    
+    # NOTE: ``typing.Sequence`` is different from ``collections.abc.Sequence`` 
+    # and it doesn't have ``__bases__`` or ``__mro__``.
+    from typing import Sequence
+    print(hasattr(Sequence, '__bases__'))
+    print(hasattr(Sequence, '__mro__'))
+    print(get_bases(Sequence))
+    
+    # Output:
+    # False
+    # False
+    # (<class 'collections.abc.Sequence'>,)
+    ```
+    """
+    # If ``cls`` has ``__bases__``, then directly return.
+    if hasattr(cls, '__bases__'):
+        return cls.__bases__
+
+    # Get the mro of ``cls`` (excluding itself).
+    mro_classes = list(filter(lambda _cls: _cls is not cls, get_mro(cls)))
+    bases = []
+    while len(mro_classes) > 0:
+        # NOTE: should pop the first element in the list (index=0).
+        base = mro_classes.pop(0)
+        bases.append(base)
+        # Get the mro of ``base`` and remove them from ``mro_classes``.
+        base_mro_set = set(get_mro(base))
+        mro_classes = list(filter(lambda _cls: _cls not in base_mro_set, mro_classes))
+    return tuple(bases)
 
 #
 # Torch version adapter

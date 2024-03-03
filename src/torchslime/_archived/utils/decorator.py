@@ -13,7 +13,13 @@ from torchslime.utils.typing import (
     Type,
     NoneOrNothing,
     Any,
-    overload
+    overload,
+    get_mro,
+    get_bases,
+    Tuple,
+    MISSING,
+    Missing,
+    List
 )
 from torchslime.utils.decorator import DecoratorCall
 import threading
@@ -124,7 +130,7 @@ def get_original_self_func(func):
 
 def _get_func_from_mro(cls: type, name: str, start: int=0) -> Union[RawFunc, Nothing]:
     # get attr from the mro tuple
-    mro_tuple = cls.__mro__
+    mro_tuple = get_mro(cls)
     try:
         return unwrap_method(getattr(mro_tuple[start], name, NOTHING))
     except IndexError:
@@ -214,5 +220,70 @@ def ReadonlyAttr(attrs: list, *, _cls=NOTHING, nothing_allowed: bool = True, emp
             else:
                 raise AttributeError(f'``{__name}`` is readonly attribute')
         
+        return cls
+    return decorator
+
+
+@overload
+def MetaclassCheck(
+    _cls: Missing = MISSING,
+    *,
+    ignored_metaclasses: Union[Tuple[Type[type], ...], Missing] = MISSING    
+) -> Callable[[Type[_T]], Type[_T]]: pass
+@overload
+def MetaclassCheck(
+    _cls,
+    *,
+    ignored_metaclasses: Union[Tuple[Type[type], ...], Missing] = MISSING    
+) -> Type[_T]: pass
+
+@DecoratorCall(index=0, keyword='_cls')
+def MetaclassCheck(
+    _cls=MISSING,
+    *,
+    ignored_metaclasses: Union[Tuple[Type[type], ...], Missing] = MISSING
+):
+    """
+    NOTE: Deprecated: The Python interpreter will automatically check the 
+    metaclasses.
+    
+    ---
+    
+    Check the compatibility of metaclasses between subclasses and superclasses.
+    """
+    def decorator(cls: Type[_T]) -> Type[_T]:
+        ignored = set(
+            ignored_metaclasses if ignored_metaclasses is not MISSING else ()
+        )
+        
+        # Metaclasses of ``cls``.
+        cls_metaclass = type(cls)
+        bases = get_bases(cls)
+
+        for base in bases:
+            base_metaclass_mro: List[Type] = list(get_mro(type(base)))
+            
+            while len(base_metaclass_mro) > 0:
+                metaclass = base_metaclass_mro.pop(0)
+                # Ignore the adapter metaclass.
+                if getattr(metaclass, 'metaclass_adapter__', MISSING) is True:
+                    continue
+                # Check the metaclass.
+                if metaclass not in ignored:
+                    if not issubclass(cls_metaclass, metaclass):
+                        from torchslime.utils.exception import APIMisused
+                        cls_metaclass_mro = get_mro(cls_metaclass)
+                        raise APIMisused(
+                            f'Metaclass check failed. Class: {cls} - Metaclass: {cls_metaclass} - '
+                            f'MRO of Metaclass: {cls_metaclass_mro} - Missing metaclass: {metaclass} '
+                            f'from base class {base}'
+                        )
+                # Remove the mro of ``metaclass`` from ``base_metaclass_mro`` 
+                # in order to improve running efficiency.
+                metaclass_mro_set = set(get_mro(metaclass))
+                base_metaclass_mro = list(filter(
+                    lambda _cls: _cls not in metaclass_mro_set,
+                    base_metaclass_mro
+                ))
         return cls
     return decorator

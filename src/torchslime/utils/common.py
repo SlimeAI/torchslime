@@ -275,7 +275,11 @@ class GreaterThanAnything:
     def __ge__(self, __value: Any) -> bool: return True
 
 
-def window_iter(__sequence: Sequence[_T], window_size: int = 1, step: int = 1) -> Iterator[Tuple[_T]]:
+def window_iter(
+    __sequence: Sequence[_T],
+    window_size: int = 1,
+    step: int = 1
+) -> Iterator[Tuple[_T, ...]]:
     if window_size < 1 or step < 1:
         raise ValueError('``window_size`` and ``step`` should be integers not less than 1.')
 

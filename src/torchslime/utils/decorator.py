@@ -251,7 +251,3 @@ def InitOnce(func: _FuncOrMethodT) -> _FuncOrMethodT:
         return ret
 
     return wrapper
-
-
-def MetaclassCheck():
-    pass

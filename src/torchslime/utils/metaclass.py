@@ -17,23 +17,22 @@ if TYPE_CHECKING:
     from .base import ReadonlyAttr
 
 
-class MetaclassAdapter(type):
-    """
-    This is a base class that indicates a metaclass is a ``MergedMetaclass``.
-    ``MergedMetaclass`` simply inherits multiple metaclasses and does nothing else, so it 
-    shouldn't be taken into account in the metaclass check (see 
-    ``torchslime.utils.decorator.MetaclassCheck`` for more information).
-    """
-    pass
-
-
 def Metaclasses(*args: Type[type], **kwargs) -> Type[type]:
     """
     Returns a newly created ``MergedMetaclass`` that inherits all the specified metaclasses 
     as well as ``MetaclassAdapter``. It makes the adaptation of metaclasses convenient , 
     which does not need the user manually define a new metaclass.
+    
+    NOTE: This function only applies when each of the metaclasses to be adapted is a ``class`` 
+    rather than a ``function``. Note that ``class Example(metaclass=func)`` is also accepted 
+    by the Python interpreter, but it doesn't apply here. If you want to make the ``func`` 
+    compatible with it, you can define a new metaclass and call the ``func`` in the ``__new__`` 
+    method.
     """
-    class MergedMetaclass(MetaclassAdapter, *args, **kwargs): pass
+    class MergedMetaclass(*args, **kwargs):
+        # ``metaclass_adapter__`` works as an indicator attribute that denotes the 
+        # metaclass simply inherits multiple metaclasses and does nothing else.
+        metaclass_adapter__ = True
     return MergedMetaclass
 
 
@@ -86,7 +85,7 @@ class _ReadonlyAttrMetaclass(type):
     def __new__(
         meta_cls,
         __name: str,
-        __bases: Tuple[type, ...],
+        __bases: Tuple[Type, ...],
         __namespace: Dict[str, Any],
         **kwargs: Any
     ):
