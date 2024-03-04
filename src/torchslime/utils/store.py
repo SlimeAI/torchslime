@@ -1,18 +1,16 @@
 from .typing import (
-    NOTHING,
     Any,
     Dict,
     TypeVar,
-    is_none_or_nothing,
     overload,
     is_slime_naming,
     List,
     Union,
     Nothing,
+    Missing,
     MISSING,
     TYPE_CHECKING,
-    TextIO,
-    NoneOrNothing
+    TextIO
 )
 from .base import (
     Base,
@@ -99,7 +97,7 @@ class BuiltinScopedStore(ScopedStore, Singleton):
 
 BUILTIN_SCOPED_STORE_KEY = 'builtin__'
 _builtin_scoped_store = BuiltinScopedStore()
-_scoped_store_dict = {}
+_scoped_store_dict: Dict[str, ScopedStore] = {}
 
 #
 # Store
@@ -115,7 +113,7 @@ _scoped_store_dict = {}
 ])
 class Store(ItemAttrBinding, Singleton):
     
-    def scope__(self, __key) -> Union[ScopedStore, BuiltinScopedStore]:
+    def scope__(self, __key: str) -> Union[ScopedStore, BuiltinScopedStore]:
         if __key == BUILTIN_SCOPED_STORE_KEY:
             return _builtin_scoped_store
         
@@ -130,8 +128,8 @@ class Store(ItemAttrBinding, Singleton):
     def builtin__(self) -> BuiltinScopedStore:
         return self.scope__(BUILTIN_SCOPED_STORE_KEY)
 
-    def destroy__(self, __key=NOTHING):
-        if is_none_or_nothing(__key):
+    def destroy__(self, __key: Union[str, Missing] = MISSING):
+        if __key is MISSING:
             __key = self.get_current_key__()
         
         if __key in _scoped_store_dict:
@@ -188,9 +186,9 @@ class StoreAssign(ScopedAttrAssign[_ScopedStoreT]):
     def __init__(
         self,
         attr_assign: Dict[str, Any],
-        key: Union[str, NoneOrNothing] = NOTHING
+        key: Union[str, Missing] = MISSING
     ) -> None:
-        self.key = store.get_current_key__() if is_none_or_nothing(key) else key
+        self.key = store.get_current_key__() if key is MISSING else key
         super().__init__(store.scope__(self.key), attr_assign)
 
 

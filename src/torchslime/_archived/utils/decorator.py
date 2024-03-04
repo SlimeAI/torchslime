@@ -189,12 +189,12 @@ def Singleton(cls: _T) -> _T:
 
 # type hint
 @overload
-def ReadonlyAttr(attrs: list, *, _cls: NoneOrNothing = NOTHING, nothing_allowed: bool = True, empty_allowed: bool = True) -> Callable[[Type[_T]], Type[_T]]: pass
+def ReadonlyAttr(attrs: list, *, _cls: Missing = MISSING, nothing_allowed: bool = True, empty_allowed: bool = True) -> Callable[[Type[_T]], Type[_T]]: pass
 @overload
 def ReadonlyAttr(attrs: list, *, _cls: Type[_T], nothing_allowed: bool = True, empty_allowed: bool = True) -> Type[_T]: pass
 
 @DecoratorCall(keyword='_cls')
-def ReadonlyAttr(attrs: list, *, _cls=NOTHING, nothing_allowed: bool = True, empty_allowed: bool = True):
+def ReadonlyAttr(attrs: list, *, _cls=MISSING, nothing_allowed: bool = True, empty_allowed: bool = True):
     """
     [class, level-2]
     """

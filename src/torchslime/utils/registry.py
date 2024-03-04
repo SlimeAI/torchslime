@@ -11,7 +11,9 @@ from .typing import (
     is_none_or_nothing,
     TypeVar,
     overload,
-    Callable
+    Callable,
+    Missing,
+    MISSING
 )
 
 _T = TypeVar("_T")
@@ -32,34 +34,34 @@ class Registry(BaseDict[str, _T]):
     @overload
     def __call__(
         self,
-        _cls: NoneOrNothing = NOTHING,
+        _cls: Missing = MISSING,
         *,
-        name: Union[str, NoneOrNothing] = NOTHING,
-        strict: Union[bool, NoneOrNothing] = NOTHING
+        name: Union[str, Missing] = MISSING,
+        strict: Union[bool, Missing] = MISSING
     ) -> Callable[[_T], _T]: pass
     @overload
     def __call__(
         self,
         _cls: _T,
         *,
-        name: Union[str, NoneOrNothing] = NOTHING,
-        strict: Union[bool, NoneOrNothing] = NOTHING
+        name: Union[str, Missing] = MISSING,
+        strict: Union[bool, Missing] = MISSING
     ) -> _T: pass
     
     @DecoratorCall(index=1, keyword='_cls')
     def __call__(
         self,
-        _cls: Union[_T, NoneOrNothing] = NOTHING,
+        _cls: Union[_T, Missing] = MISSING,
         *,
-        name: Union[str, NoneOrNothing] = NOTHING,
-        strict: Union[bool, NoneOrNothing] = NOTHING
+        name: Union[str, Missing] = MISSING,
+        strict: Union[bool, Missing] = MISSING
     ) -> _T:
         strict = self._get_strict(strict)
 
         def decorator(cls: _T) -> _T:
             nonlocal name
-            if is_none_or_nothing(name):
-                name = getattr(cls, '__name__', NOTHING)
+            if name is MISSING:
+                name = getattr(cls, '__name__', 'UNKNOWN NAME')
             if name in self and strict:
                 namespace = self.get_namespace()
                 raise ValueError(f'Name "{name}" already in registry "{namespace}".')
@@ -73,8 +75,8 @@ class Registry(BaseDict[str, _T]):
         self,
         names: Sequence[str],
         *,
-        _cls: NoneOrNothing = NOTHING,
-        strict: Union[bool, NoneOrNothing] = NOTHING
+        _cls: Missing = MISSING,
+        strict: Union[bool, Missing] = MISSING
     ) -> Callable[[_T], _T]: pass
     @overload
     def register_multi(
@@ -82,7 +84,7 @@ class Registry(BaseDict[str, _T]):
         names: Sequence[str],
         *,
         _cls: _T,
-        strict: Union[bool, NoneOrNothing] = NOTHING
+        strict: Union[bool, Missing] = MISSING
     ) -> _T: pass
 
     @DecoratorCall(keyword='_cls')
@@ -90,8 +92,8 @@ class Registry(BaseDict[str, _T]):
         self,
         names: Sequence[str],
         *,
-        _cls: Union[_T, NoneOrNothing] = NOTHING,
-        strict: Union[bool, NoneOrNothing] = NOTHING
+        _cls: Union[_T, Missing] = MISSING,
+        strict: Union[bool, Missing] = MISSING
     ) -> _T:
         strict = self._get_strict(strict)
 
@@ -105,5 +107,5 @@ class Registry(BaseDict[str, _T]):
     def get_namespace(self) -> str:
         return self.__namespace
 
-    def _get_strict(self, strict: Union[bool, NoneOrNothing]):
-        return strict if not is_none_or_nothing(strict) else self.strict
+    def _get_strict(self, strict: Union[bool, Missing] = MISSING):
+        return strict if strict is not MISSING else self.strict

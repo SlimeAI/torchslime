@@ -1009,7 +1009,7 @@ class AttrObservable:
 
 @overload
 def AttrObserve(
-    _func: NoneOrNothing = NOTHING,
+    _func: Missing = MISSING,
     *,
     init: bool = True,
     namespace: Union[str, Missing] = MISSING
@@ -1024,7 +1024,7 @@ def AttrObserve(
 
 @DecoratorCall(index=0, keyword='_func')
 def AttrObserve(
-    _func=NOTHING,
+    _func=MISSING,
     *,
     init: bool = True,
     namespace: Union[str, Missing] = MISSING

@@ -4,12 +4,8 @@ from .typing import (
     Callable,
     TypeVar,
     Type,
-    is_none_or_nothing,
     overload,
     FuncOrMethod,
-    NoneOrNothing,
-    NOTHING,
-    Nothing,
     List,
     overload_dummy,
     MISSING,
@@ -25,8 +21,8 @@ _FuncOrMethodT = TypeVar("_FuncOrMethodT", bound=FuncOrMethod)
 
 def DecoratorCall(
     *,
-    index: Union[int, Nothing] = NOTHING,
-    keyword: Union[str, Nothing] = NOTHING
+    index: Union[int, Missing] = MISSING,
+    keyword: Union[str, Missing] = MISSING
 ) -> Callable[[_T], _T]:
     """
     [func-decorator]
@@ -34,16 +30,16 @@ def DecoratorCall(
     def decorator(func: _T) -> _T:
         @wraps(func)
         def wrapper(*args, **kwargs):
-            arg_match = NOTHING
+            arg_match = MISSING
 
-            if not is_none_or_nothing(keyword):
-                arg_match = kwargs.get(str(keyword), NOTHING)
+            if keyword is not MISSING:
+                arg_match = kwargs.get(str(keyword), MISSING)
             
-            if not is_none_or_nothing(index) and is_none_or_nothing(arg_match):
-                arg_match = NOTHING if index >= len(args) else args[index]
+            if index is not MISSING and arg_match is MISSING:
+                arg_match = MISSING if index >= len(args) else args[index]
 
             _decorator = func(*args, **kwargs)
-            return _decorator if is_none_or_nothing(arg_match) else _decorator(arg_match)
+            return _decorator if arg_match is MISSING else _decorator(arg_match)
         return wrapper
     return decorator
 
@@ -51,22 +47,22 @@ def DecoratorCall(
 # type hint
 @overload
 def CallDebug(
-    _func: NoneOrNothing = NOTHING,
+    _func: Missing = MISSING,
     *,
-    module_name: Union[str, NoneOrNothing] = NOTHING,
+    module_name: Union[str, Missing] = MISSING,
 ) -> Callable[[_T], _T]: pass
 @overload
 def CallDebug(
     _func: _T,
     *,
-    module_name: Union[str, NoneOrNothing] = NOTHING,
+    module_name: Union[str, Missing] = MISSING,
 ) -> _T: pass
 
 @DecoratorCall(index=0, keyword='_func')
 def CallDebug(
-    _func: _T = NOTHING,
+    _func: _T = MISSING,
     *,
-    module_name: Union[str, NoneOrNothing] = NOTHING
+    module_name: Union[str, Missing] = MISSING
 ):
     """
     [func, level-2]
@@ -82,11 +78,17 @@ def CallDebug(
 
         # Inspect ``module_name``
         nonlocal module_name
-        if is_none_or_nothing(module_name):
-            module_name = getattr(func, '__qualname__', NOTHING)
-        if is_none_or_nothing(module_name):
-            module_name = getattr(func, '__name__', NOTHING)
-
+        candidate_module_names = (
+            module_name,
+            getattr(func, '__qualname__', MISSING),
+            getattr(func, '__name__', MISSING),
+            'UNKNOWN MODULE'
+        )
+        for candidate_name in candidate_module_names:
+            if candidate_name is not MISSING:
+                module_name = candidate_name
+                break
+        
         # Lazy loading.
         _exec_info = MISSING
 
@@ -146,19 +148,19 @@ def Experimental():
 
 
 @overload
-def RemoveOverload(_cls: NoneOrNothing = NOTHING, *, checklist: Union[NoneOrNothing, List[str]] = NOTHING) -> Callable[[Type[_T]], Type[_T]]: pass
+def RemoveOverload(_cls: Missing = MISSING, *, checklist: Union[Missing, List[str]] = MISSING) -> Callable[[Type[_T]], Type[_T]]: pass
 @overload
-def RemoveOverload(_cls: Type[_T], *, checklist: Union[NoneOrNothing, List[str]] = NOTHING) -> Type[_T]: pass
+def RemoveOverload(_cls: Type[_T], *, checklist: Union[Missing, List[str]] = MISSING) -> Type[_T]: pass
 
 @DecoratorCall(index=0, keyword='_cls')
-def RemoveOverload(_cls=NOTHING, *, checklist: Union[NoneOrNothing, List[str]] = NOTHING):
+def RemoveOverload(_cls=MISSING, *, checklist: Union[Missing, List[str]] = MISSING):
     def decorator(cls: Type[_T]) -> Type[_T]:
         nonlocal checklist
         
         _dict = cls.__dict__
         filter_func = lambda key: key in _dict and unwrap_method(_dict[key]) is overload_dummy
         
-        if is_none_or_nothing(checklist):
+        if checklist is MISSING:
             checklist = filter(filter_func, _dict.keys())
         else:
             checklist = filter(filter_func, checklist)
@@ -170,12 +172,12 @@ def RemoveOverload(_cls=NOTHING, *, checklist: Union[NoneOrNothing, List[str]] =
 
 
 @overload
-def FuncSetAttr(_func: NoneOrNothing = NOTHING, *, attr_dict: Dict[str, Any]) -> Callable[[_T], _T]: pass
+def FuncSetAttr(_func: Missing = MISSING, *, attr_dict: Dict[str, Any]) -> Callable[[_T], _T]: pass
 @overload
 def FuncSetAttr(_func: _T, *, attr_dict: Dict[str, Any]) -> _T: pass
 
 @DecoratorCall(index=0, keyword='_func')
-def FuncSetAttr(_func=NOTHING, *, attr_dict: Dict[str, Any]):
+def FuncSetAttr(_func=MISSING, *, attr_dict: Dict[str, Any]):
     """
     Set attributes to the function in a decorator way.
     """

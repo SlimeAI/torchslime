@@ -12,7 +12,9 @@ from torchslime.utils.typing import (
     Type,
     is_none_or_nothing,
     overload,
-    NoReturn
+    NoReturn,
+    Missing,
+    MISSING
 )
 from torchslime.utils.decorator import DecoratorCall, RemoveOverload
 from .decorator import ClassWraps, ClassFuncWrapper
@@ -57,13 +59,13 @@ class _MetaWrapper:
 
 # type hint
 @overload
-def _Meta(_cls: NoneOrNothing = NOTHING, *, directly_new_allowed: bool = True) -> Callable[[Type[_T]], Type[_T]]: pass
+def _Meta(_cls: Missing = MISSING, *, directly_new_allowed: bool = True) -> Callable[[Type[_T]], Type[_T]]: pass
 @overload
 def _Meta(_cls: Type[_T], *, directly_new_allowed: bool = True) -> Type[_T]: pass
 
 @DecoratorCall(index=0, keyword='_cls')
 def _Meta(
-    _cls: Type[_T] = NOTHING,
+    _cls: Union[Type[_T], Missing] = MISSING,
     *,
     directly_new_allowed: bool = True
 ):
