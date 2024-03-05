@@ -17,7 +17,8 @@ from torchslime.utils.typing import (
     TypeVar,
     Pass,
     PASS,
-    TYPE_CHECKING
+    TYPE_CHECKING,
+    Generic
 )
 from torchslime.logging.logger import logger
 from torchslime.logging.rich import (
@@ -37,6 +38,10 @@ from torchslime.utils.exception import (
     HandlerContinue,
     HandlerWrapperException
 )
+from slime_core.handlers import (
+    CoreHandler,
+    CoreHandlerContainer
+)
 from functools import partial
 
 if TYPE_CHECKING:
@@ -44,12 +49,16 @@ if TYPE_CHECKING:
     from torchslime.context import Context
 
 
-class Handler(CompositeStructure, MutableBiListItem):
+class Handler(
+    CompositeStructure["Handler"],
+    MutableBiListItem["Handler", "HandlerContainer"],
+    CoreHandler["Handler", "HandlerContainer", "HandlerWrapper", "HandlerWrapperContainer", "Context"]
+):
     """
     Base class for all handlers.
     """
     # for generating unique id
-    _handler_id_gen = Count()
+    gen_handler_id__ = Count()
     
     def __init__(
         self,
@@ -165,7 +174,7 @@ class Handler(CompositeStructure, MutableBiListItem):
 
     def set_id(self, __id: Union[str, NoneOrNothing]) -> None:
         if is_none_or_nothing(__id):
-            self.__id = f'handler_{self._handler_id_gen}'
+            self.__id = f'handler_{self.gen_handler_id__}'
         else:
             self.__id = __id
     
@@ -201,8 +210,12 @@ class Handler(CompositeStructure, MutableBiListItem):
 
 _HandlerT = TypeVar("_HandlerT", bound=Handler)
 
-class HandlerContainer(Handler, BiList[_HandlerT]):
-
+class HandlerContainer(
+    Handler,
+    BiList[_HandlerT],
+    CoreHandlerContainer[_HandlerT, "HandlerContainer", "HandlerWrapper", "HandlerWrapperContainer", "Context"],
+    Generic[_HandlerT]
+):
     def __init__(
         self,
         handlers: Union[Iterable[_HandlerT], NoneOrNothing] = NOTHING,

@@ -6,8 +6,6 @@ from torchslime.utils.launch import (
     LaunchUtil
 )
 from torchslime.utils.typing import (
-    NOTHING,
-    Any,
     Union,
     Missing,
     MISSING,
@@ -15,9 +13,11 @@ from torchslime.utils.typing import (
     NoneOrNothing,
     Pass
 )
-from torchslime.utils.base import BaseDict, AttrObserver, AttrObserve, AttrObservable
+from torchslime.utils.base import AttrObserver, AttrObserve, AttrObservable
 from .rich import RichHandler, SlimeRichHandler
-import sys
+# NOTE: import LoggerKwargs for compatibility.
+from slime_core.logging.logger import LoggerKwargs
+
 
 # Rich Handler Type
 RICH_HANDLER_TYPE = (
@@ -71,18 +71,6 @@ class SlimeLogger(Logger, Launcher, AttrObserver):
                 handler.setFormatter(SlimeFormatter())
             if isinstance(handler.formatter, SlimeRichFormatter):
                 handler.setFormatter((SlimeRichFormatter()))
-
-#
-# Logger Func Arg Adapter
-#
-
-class LoggerKwargs(BaseDict[str, Any]):
-    
-    def __init__(self, **kwargs):
-        # ``stacklevel`` argument was added after py3.8
-        if sys.version_info < (3, 8):
-            kwargs.pop('stacklevel', NOTHING)
-        super().__init__(**kwargs)
 
 #
 # Slime Filter

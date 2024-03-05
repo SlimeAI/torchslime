@@ -85,7 +85,7 @@ class Context(BaseContext, AttrObserver):
     @CallDebug(module_name='Context.build_train')
     @MethodChaining
     def build_train(self) -> 'Context':
-        self.hook_ctx.build._build_train(self)
+        self.hook_ctx.build.run_build_train__(self)
     
     @CallDebug(module_name='Context.display_train')
     @MethodChaining
@@ -111,7 +111,7 @@ class Context(BaseContext, AttrObserver):
     @CallDebug(module_name='Context.build_eval')
     @MethodChaining
     def build_eval(self) -> 'Context':
-        self.hook_ctx.build._build_eval(self)
+        self.hook_ctx.build.run_build_eval__(self)
     
     @CallDebug(module_name='Context.display_eval')
     @MethodChaining
@@ -137,7 +137,7 @@ class Context(BaseContext, AttrObserver):
     @CallDebug(module_name='Context.build_predict')
     @MethodChaining
     def build_predict(self) -> 'Context':
-        self.hook_ctx.build._build_predict(self)
+        self.hook_ctx.build.run_build_predict__(self)
     
     @CallDebug(module_name='Context.display_predict')
     @MethodChaining

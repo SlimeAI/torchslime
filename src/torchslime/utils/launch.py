@@ -18,6 +18,10 @@ from .typing import (
     MISSING
 )
 from .base import BaseList, AttrObserver, AttrObserve, AttrObservable
+from slime_core.utils.launch import (
+    CoreLaunchUtil,
+    CoreDistComm
+)
 import torch.distributed as dist
 from torch import Tensor
 import torch
@@ -26,7 +30,7 @@ _T = TypeVar("_T")
 launch_util_registry = Registry[Type["LaunchUtil"]]('launch_util_registry')
 
 
-class LaunchUtil:
+class LaunchUtil(CoreLaunchUtil):
     
     def __init__(self) -> None:
         self.dist_comm: Union[DistComm, NoneOrNothing] = NOTHING
@@ -149,7 +153,7 @@ class Launcher(AttrObserver):
         return self.launch__.is_exec(self.exec_ranks__)
 
 
-class DistComm:
+class DistComm(CoreDistComm):
 
     def gather(self, tensor: Tensor, dst=0, group=None, async_op=False) -> None: pass
     def gather_object(self, obj, dst=0, group=None) -> None: pass

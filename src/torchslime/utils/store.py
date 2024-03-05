@@ -2,8 +2,6 @@ from .typing import (
     Any,
     Dict,
     TypeVar,
-    overload,
-    is_slime_naming,
     List,
     Union,
     Nothing,
@@ -13,43 +11,19 @@ from .typing import (
     TextIO
 )
 from .base import (
-    Base,
-    AttrObservable,
-    ItemAttrBinding,
     Singleton
 )
-from .decorator import RemoveOverload
 from io import TextIOWrapper
-import threading
-import os
+from slime_core.utils.store import (
+    ScopedStore,
+    CoreStore
+)
 # type hint only
 if TYPE_CHECKING:
     from .launch import LaunchUtil
     from .base import (
-        AttrObserver,
-        ScopedAttrAssign,
-        ScopedAttrRestore
+        ScopedAttrAssign
     )
-
-#
-# Scoped Store
-#
-
-class ScopedStore(Base, AttrObservable):
-    
-    def __init__(self) -> None:
-        Base.__init__(self)
-        AttrObservable.__init__(self)
-    
-    def init__(self, __name: str, __value: Any):
-        """
-        Init attribute only when it is not set or is ``MISSING``
-        """
-        if (
-            not self.hasattr__(__name) or 
-            getattr(self, __name, MISSING) is MISSING
-        ):
-            setattr(self, __name, __value)
 
 
 class BuiltinScopedStore(ScopedStore, Singleton):
@@ -97,78 +71,26 @@ class BuiltinScopedStore(ScopedStore, Singleton):
 
 BUILTIN_SCOPED_STORE_KEY = 'builtin__'
 _builtin_scoped_store = BuiltinScopedStore()
-_scoped_store_dict: Dict[str, ScopedStore] = {}
 
 #
 # Store
 #
 
-@RemoveOverload(checklist=[
-    'attach__',
-    'attach_attr__',
-    'detach__',
-    'detach_attr__',
-    'assign__',
-    'restore__'
-])
-class Store(ItemAttrBinding, Singleton):
+class Store(CoreStore):
+    
+    # NOTE: ``_builtin_scoped_store`` is not contained in the 
+    # ``scoped_store_dict__``.
+    scoped_store_dict__: Dict[str, ScopedStore] = {}
     
     def scope__(self, __key: str) -> Union[ScopedStore, BuiltinScopedStore]:
         if __key == BUILTIN_SCOPED_STORE_KEY:
             return _builtin_scoped_store
         
-        if __key not in _scoped_store_dict:
-            _scoped_store_dict[__key] = ScopedStore()
-        
-        return _scoped_store_dict[__key]
-
-    def current__(self) -> ScopedStore:
-        return self.scope__(self.get_current_key__())
+        return super().scope__(__key)
 
     def builtin__(self) -> BuiltinScopedStore:
         return self.scope__(BUILTIN_SCOPED_STORE_KEY)
 
-    def destroy__(self, __key: Union[str, Missing] = MISSING):
-        if __key is MISSING:
-            __key = self.get_current_key__()
-        
-        if __key in _scoped_store_dict:
-            del _scoped_store_dict[__key]
-
-    def __getattr__(self, __name: str) -> Any:
-        return getattr(self.current__(), __name)
-
-    def __getattribute__(self, __name: str) -> Any:
-        # slime naming
-        if is_slime_naming(__name) is True:
-            return super().__getattribute__(__name)
-        # else get from ScopedStore object
-        return getattr(self.current__(), __name)
-
-    def __setattr__(self, __name: str, __value: Any) -> None:
-        setattr(self.current__(), __name, __value)
-    
-    def __delattr__(self, __name: str) -> None:
-        delattr(self.current__(), __name)
-    
-    @staticmethod
-    def get_current_key__() -> str:
-        pid = os.getpid()
-        tid = threading.get_ident()
-        return f'p{pid}-t{tid}'
-    
-    @overload
-    def attach__(self, __observer: "AttrObserver", *, init: bool = True) -> None: pass
-    @overload
-    def attach_attr__(self, __observer: "AttrObserver", __name: str, *, init: bool = True): pass
-    @overload
-    def detach__(self, __observer: "AttrObserver") -> None: pass
-    @overload
-    def detach_attr__(self, __observer: "AttrObserver", __name: str) -> None: pass
-    @overload
-    def assign__(self, **kwargs) -> "ScopedAttrAssign": pass
-    @overload
-    def restore__(self, *attrs: str) -> "ScopedAttrRestore": pass
 
 store = Store()
 # Builtin scoped store delay initialization.
@@ -180,6 +102,8 @@ store.builtin__().delay_init__()
 
 from .base import ScopedAttrAssign
 _ScopedStoreT = TypeVar("_ScopedStoreT", bound=ScopedStore)
+_BuiltinScopedStoreT = TypeVar("_BuiltinScopedStoreT", bound=BuiltinScopedStore)
+
 
 class StoreAssign(ScopedAttrAssign[_ScopedStoreT]):
     
@@ -191,8 +115,6 @@ class StoreAssign(ScopedAttrAssign[_ScopedStoreT]):
         self.key = store.get_current_key__() if key is MISSING else key
         super().__init__(store.scope__(self.key), attr_assign)
 
-
-_BuiltinScopedStoreT = TypeVar("_BuiltinScopedStoreT", bound=BuiltinScopedStore)
 
 class BuiltinStoreAssign(StoreAssign[_BuiltinScopedStoreT]):
     

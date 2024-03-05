@@ -7,6 +7,7 @@ from torchslime.utils.typing import (
     TYPE_CHECKING
 )
 from .build import BuildInterface
+from slime_core.hooks.launch import CoreLaunchHook
 from torchslime.utils.registry import Registry
 if TYPE_CHECKING:
     from torchslime.context import Context
@@ -14,7 +15,7 @@ if TYPE_CHECKING:
 launch_registry = Registry('launch_registry')
 
 
-class LaunchHook(LaunchUtil, BuildInterface):
+class LaunchHook(LaunchUtil, BuildInterface, CoreLaunchHook["Context"]):
 
     def get_device_info(self, ctx: "Context"): pass
 

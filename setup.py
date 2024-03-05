@@ -1,5 +1,5 @@
 from setuptools import setup, find_packages
-from torchslime import __version__
+from src.torchslime import __version__
 
 README = 'README.md'
 

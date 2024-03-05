@@ -218,7 +218,8 @@ class SlimeProgressLauncher(
     _StartStopObserverManager,
     MutableBiListItem,
     RichLauncher,
-    SlimeConsoleObserver
+    SlimeConsoleObserver,
+    metaclass=Metaclasses(ABCMeta, InitOnceMetaclass)
 ):
 
     def __init__(

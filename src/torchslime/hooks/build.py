@@ -9,19 +9,23 @@ from torchslime.utils.base import (
     BaseGenerator,
     BaseGeneratorQueue
 )
+from slime_core.hooks.build import (
+    CoreBuildHook,
+    CoreBuildInterface
+)
 if TYPE_CHECKING:
     from torchslime.context import Context
 
 build_registry = Registry('build_registry')
 
 
-class BuildHook:
+class BuildHook(CoreBuildHook["Context"]):
 
     def build_train(self, ctx: "Context") -> None: pass
     def build_eval(self, ctx: "Context") -> None: pass
     def build_predict(self, ctx: "Context") -> None: pass
 
-    def _build_train(self, ctx: "Context"):
+    def run_build_train__(self, ctx: "Context"):
         """
         Build order:
         Launch -> Plugin -> Build -> Launch -> Plugin
@@ -34,7 +38,7 @@ class BuildHook:
         )):
             h.build.build_train(ctx)
     
-    def _build_eval(self, ctx: "Context"):
+    def run_build_eval__(self, ctx: "Context"):
         """
         Build order:
         Launch -> Plugin -> Build -> Launch -> Plugin
@@ -47,7 +51,7 @@ class BuildHook:
         )):
             h.build.build_eval(ctx)
 
-    def _build_predict(self, ctx: "Context"):
+    def run_build_predict__(self, ctx: "Context"):
         """
         Build order:
         Launch -> Plugin -> Build -> Launch -> Plugin
@@ -61,7 +65,7 @@ class BuildHook:
             h.build.build_predict(ctx)
 
 
-class BuildInterface:
+class BuildInterface(CoreBuildInterface["Context"]):
     """
     Interface for building handlers.
     """

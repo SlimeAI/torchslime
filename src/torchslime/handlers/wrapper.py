@@ -17,7 +17,8 @@ from torchslime.utils.typing import (
     STOP,
     Iterable,
     Pass,
-    PASS
+    PASS,
+    Generic
 )
 from torchslime.utils.exception import (
     HandlerBaseException,
@@ -25,6 +26,10 @@ from torchslime.utils.exception import (
 )
 from torchslime.logging.logger import logger
 from torchslime.logging.rich import RenderInterface, RenderableType
+from slime_core.handlers.wrapper import (
+    CoreHandlerWrapper,
+    CoreHandlerWrapperContainer
+)
 if TYPE_CHECKING:
     from torchslime.pipelines.state import ModelState
     from torchslime.context import Context
@@ -70,8 +75,11 @@ class HandlerWrapperGenerator(ContextGenerator[_YieldT_co, _SendT_contra, _Retur
 
 _HandlerT = TypeVar("_HandlerT", bound=Handler)
 
-class HandlerWrapper(HandlerContainer[_HandlerT]):
-    
+class HandlerWrapper(
+    HandlerContainer[_HandlerT],
+    CoreHandlerWrapper[_HandlerT, "HandlerContainer", "HandlerWrapper", "HandlerWrapperContainer", "Context"],
+    Generic[_HandlerT]
+):
     def handle(self, ctx: "Context") -> None:
         # Use ``ContextGenerator`` here rather than ``HandlerWrapperGenerator``, 
         # because when calling ``handle`` method, ``HandlerWrapper`` works as a 
@@ -96,8 +104,12 @@ class HandlerWrapper(HandlerContainer[_HandlerT]):
 
 _HandlerWrapperT = TypeVar("_HandlerWrapperT", bound=HandlerWrapper)
 
-class HandlerWrapperContainer(HandlerContainer[_HandlerWrapperT], RenderInterface):
-    
+class HandlerWrapperContainer(
+    HandlerContainer[_HandlerWrapperT],
+    RenderInterface,
+    CoreHandlerWrapperContainer[_HandlerWrapperT, "HandlerContainer", "HandlerWrapper", "HandlerWrapperContainer", "Context"],
+    Generic[_HandlerWrapperT]
+):
     def __init__(
         self,
         wrappers: List[_HandlerWrapperT],
