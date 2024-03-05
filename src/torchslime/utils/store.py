@@ -20,7 +20,6 @@ from slime_core.utils.store import (
 )
 # type hint only
 if TYPE_CHECKING:
-    from .launch import LaunchUtil
     from .base import (
         ScopedAttrAssign
     )
@@ -43,7 +42,14 @@ class BuiltinScopedStore(ScopedStore, Singleton):
         self.log_rich_template: str = '{message}'
         self.log_dateformat: str = '%Y/%m/%d %H:%M:%S'
         # launch
-        self.launch: Union[str, "LaunchUtil"] = 'vanilla'
+        # NOTE: The ``launch`` value should ONLY be str in order to be compatible with 
+        # different LaunchUtils and Launchers (Specifically, ``Context`` uses ``LaunchHook`` 
+        # while the ``logger`` and rich launcher use the native ``LaunchUtil``, so the 
+        # ``launch`` value should ONLY be str, which can be accepted by all of them).
+        # NOTE: All the launch-related registries should share the naming to keep consistency 
+        # (e.g., the name 'vanilla' should mean the non-distributed running in all registries, 
+        # and they may have similar behaviors).
+        self.launch: str = 'vanilla'
     
     def delay_init__(self) -> None:
         """
