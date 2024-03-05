@@ -10,6 +10,11 @@ from torchslime.utils.typing import (
     Missing,
     MISSING
 )
+from torchslime.utils.metaclass import (
+    Metaclasses,
+    InitOnceMetaclass
+)
+from abc import ABCMeta
 from torchslime.pipelines.data import DataProvider
 from torchslime.utils.exception import APIMisused
 from torchslime.utils.store import store
@@ -25,8 +30,11 @@ from torch.utils.data import DataLoader
 AcceptableDataType = Union[DataLoader, DataProvider]
 
 
-class Context(BaseContext, AttrObserver):
-
+class Context(
+    BaseContext,
+    AttrObserver,
+    metaclass=Metaclasses(ABCMeta, InitOnceMetaclass)
+):
     def __init__(
         self,
         model,
@@ -37,7 +45,10 @@ class Context(BaseContext, AttrObserver):
     ):
         BaseContext.__init__(self)
         AttrObserver.__init__(self)
-        self.compile = Compile() if compile is MISSING else compile
+        # Set Compile object.
+        self.set_compile(
+            Compile() if compile is MISSING else compile
+        )
         
         # set device
         self.device = device if device is not None else get_device(model)

@@ -1,3 +1,4 @@
+from torchslime.context.compile import Compile
 from torchslime.utils.base import Base
 from torchslime.utils.typing import (
     Any,
@@ -14,6 +15,7 @@ from torchslime.utils.typing import (
 )
 from torchslime.utils.exception import APIMisused
 from torchslime.logging.logger import logger, LoggerKwargs
+from slime_core.context import CoreTempContext, CoreHookContext, CoreContext
 from torch import (
     Tensor,
     device
@@ -31,17 +33,19 @@ if TYPE_CHECKING:
     from .compile import Compile
 
 
-class BaseContext(Base):
+class TempContext(Base, CoreTempContext):
+    
+    def __init__(self):
+        Base.__init__(self)
+        CoreTempContext.__init__(self)
+
+
+class BaseContext(TempContext, CoreContext["Compile"]):
     """
     Base Context in the whole life time.
     """
-
-    def __init__(self):
-        super().__init__()
-        
-        """
-        context attribute placeholders(for code hints)
-        """
+    
+    def initialize(self) -> None:
         # TODO model shard
         # device for pytorch
         self.device: Union[str, device] = NOTHING
@@ -63,11 +67,27 @@ class BaseContext(Base):
         self.display_ctx: DisplayContext = DisplayContext()
 
     #
-    # ``compile`` property
+    # ``compile`` property binding operations.
     #
 
     @property
-    def compile(self) -> "Compile":
+    def compile(self) -> Union["Compile", Nothing]:
+        return self.get_compile()
+
+    def set_compile(self, __compile: "Compile") -> None:
+        previous_compile_ctx = __compile.ctx
+        if (
+            not is_none_or_nothing(previous_compile_ctx) and 
+            previous_compile_ctx is not self
+        ):
+            raise APIMisused(
+                f'The property ``compile`` ({__compile}) being set has already been bound to another ``Context`` object ({previous_compile_ctx}). '
+                f'You should unbind it from the other ``Context`` ({previous_compile_ctx}) using ``del`` first.'
+            )
+        __compile.set_ctx(self)
+        self.__compile = __compile
+    
+    def get_compile(self) -> Union["Compile", Nothing]:
         from .compile import Compile
         
         if not self.hasattr__('_BaseContext__compile'):
@@ -86,23 +106,9 @@ class BaseContext(Base):
                 f'while ``Context`` is {self}.'
             )
         return compile
-
-    @compile.setter
-    def compile(self, value: "Compile") -> None:
-        if (
-            not is_none_or_nothing(value.ctx) and 
-            value.ctx is not self
-        ):
-            raise APIMisused(
-                f'The property ``compile`` ({value}) being set has already been bound to another ``Context`` object ({value.ctx}). '
-                f'You should unbind it from the other ``Context`` ({value.ctx}) using ``del`` first.'
-            )
-        value.ctx = self
-        self.__compile = value
-
-    @compile.deleter
-    def compile(self) -> None:
-        self.compile.ctx = NOTHING
+    
+    def del_compile(self) -> None:
+        self.compile.del_ctx()
         del self.__compile
 
     #
@@ -130,21 +136,6 @@ class BaseContext(Base):
         else:
             # single value
             return _check(str(items))
-
-
-class TempContext(Base):
-    """Temp context that defines a initialize method to quickly reset the context.
-
-    Args:
-        Base (_type_): _description_
-    """
-    def __init__(self):
-        super().__init__()
-        # initialize
-        self.initialize()
-    
-    def initialize(self):
-        pass
 
 
 class StepContext(TempContext):
@@ -285,7 +276,7 @@ class CustomContext(TempContext):
         logger.debug('Custom context has been initialized.')
 
 
-class HookContext(TempContext):
+class HookContext(TempContext, CoreHookContext):
 
     def initialize(self):
         # hooks
