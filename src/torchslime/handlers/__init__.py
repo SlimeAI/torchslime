@@ -38,10 +38,15 @@ from torchslime.utils.exception import (
     HandlerContinue,
     HandlerWrapperException
 )
+from torchslime.utils.metaclass import (
+    Metaclasses,
+    InitOnceMetaclass
+)
 from slime_core.handlers import (
     CoreHandler,
     CoreHandlerContainer
 )
+from abc import ABCMeta
 from functools import partial
 
 if TYPE_CHECKING:
@@ -214,7 +219,8 @@ class HandlerContainer(
     Handler,
     BiList[_HandlerT],
     CoreHandlerContainer[_HandlerT, "HandlerContainer", "HandlerWrapper", "HandlerWrapperContainer", "Context"],
-    Generic[_HandlerT]
+    Generic[_HandlerT],
+    metaclass=Metaclasses(ABCMeta, InitOnceMetaclass)
 ):
     def __init__(
         self,

@@ -88,7 +88,7 @@ class PipelineProfiler:
         return state
 
 
-@profiler_registry(name='vanilla')
+@profiler_registry(key='vanilla')
 class VanillaProfiler(PipelineProfiler):
     
     def logging_point_profile(self, ctx: "Context") -> str:

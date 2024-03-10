@@ -21,6 +21,10 @@ from torchslime.utils.common import (
     get_len,
     type_cast
 )
+from torchslime.utils.metaclass import (
+    Metaclasses,
+    InitOnceMetaclass
+)
 from torchslime.utils.base import BaseList
 from torchslime.pipelines.metric import MeterDict
 from torchslime.utils.store import store
@@ -33,6 +37,7 @@ from .riching import ProgressInterface, ProfileProgressInterface
 from functools import wraps
 from itertools import cycle
 from torch import set_grad_enabled
+from abc import ABCMeta
 # Type check only
 if TYPE_CHECKING:
     from .wrapper import HandlerWrapper
@@ -85,7 +90,11 @@ class EmptyHandler(Handler):
         pass
 
 
-class FuncHandler(Handler, BaseList[Callable[["Context"], None]]):
+class FuncHandler(
+    Handler,
+    BaseList[Callable[["Context"], None]],
+    metaclass=Metaclasses(ABCMeta, InitOnceMetaclass)
+):
     
     def __init__(
         self,

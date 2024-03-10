@@ -20,14 +20,14 @@ class LaunchHook(LaunchUtil, BuildInterface, CoreLaunchHook["Context"]):
     def get_device_info(self, ctx: "Context"): pass
 
 
-@launch_registry(name='vanilla')
+@launch_registry(key='vanilla')
 class VanillaLaunch(LaunchHook, VanillaLaunchUtil):
     
     def get_device_info(self, ctx: "Context"):
         return super().get_device_info(ctx)
 
 
-@launch_registry(name='distributed')
+@launch_registry(key='distributed')
 class DistributedLaunch(LaunchHook, DistributedLaunchUtil):
 
     def build_train_yield(self, ctx: "Context") -> Generator:

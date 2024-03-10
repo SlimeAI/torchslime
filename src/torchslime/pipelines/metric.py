@@ -116,10 +116,10 @@ class LossReductionFactory:
                 'Use str, dict or (Context) -> Tensor function instead.')
 
 
-loss_reduction_registry = Registry('loss_reduction_registry')
+loss_reduction_registry = Registry[Callable[["Context"], Tensor]]('loss_reduction_registry')
 
 
-@loss_reduction_registry(name='mean')
+@loss_reduction_registry(key='mean')
 def _mean_loss_reduction(ctx: "Context"):
     loss_tensors = ctx.step_ctx.loss.values()
     tensor_len = len(loss_tensors)
@@ -133,7 +133,7 @@ def _mean_loss_reduction(ctx: "Context"):
     return result
 
 
-@loss_reduction_registry(name='sum')
+@loss_reduction_registry(key='sum')
 def _sum_loss_reduction(ctx: "Context"):
     loss_tensors = ctx.step_ctx.loss.values()
     result = sum(loss_tensors) if len(loss_tensors) > 0 else NOTHING

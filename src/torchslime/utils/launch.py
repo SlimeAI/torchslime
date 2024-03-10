@@ -50,7 +50,7 @@ def is_torch_distributed_ready():
     return dist.is_available() and dist.is_initialized()
 
 
-@launch_util_registry(name='vanilla')
+@launch_util_registry(key='vanilla')
 class VanillaLaunchUtil(LaunchUtil):
     
     def call(
@@ -81,7 +81,7 @@ class VanillaLaunchUtil(LaunchUtil):
         return NOTHING
 
 
-@launch_util_registry(name='distributed')
+@launch_util_registry(key='distributed')
 class DistributedLaunchUtil(LaunchUtil):
     
     def __init__(self) -> None:

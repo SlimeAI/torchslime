@@ -191,7 +191,7 @@ from torchslime.utils.registry import Registry
 handler_profile_wrap_func = Registry[Callable[[Group, "Handler"], Group]]('handler_profile_wrap_func')
 
 
-@handler_profile_wrap_func(name='exception')
+@handler_profile_wrap_func(key='exception')
 def _exception_wrap(group: Group, handler: "Handler") -> Group:
     _separator_len = 10
     # ×  <---------- EXCEPTION Here ----------
@@ -201,7 +201,7 @@ def _exception_wrap(group: Group, handler: "Handler") -> Group:
     return group
 
 
-@handler_profile_wrap_func(name='terminate')
+@handler_profile_wrap_func(key='terminate')
 def _terminate_wrap(group: Group, handler: "Handler") -> Group:
     _separator_len = 10
     # ||---------- Handler TERMINATE Here ----------||

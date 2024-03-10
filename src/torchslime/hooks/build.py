@@ -74,7 +74,7 @@ class BuildInterface(CoreBuildInterface["Context"]):
     def build_predict_yield(self, ctx: "Context") -> Generator: yield
 
 
-@build_registry(name='vanilla')
+@build_registry(key='vanilla')
 class VanillaBuild(BuildHook):
     
     def build_train(self, ctx: "Context"):
@@ -236,7 +236,7 @@ class VanillaBuild(BuildHook):
         return 'Epoch'
 
 
-@build_registry(name='step')
+@build_registry(key='step')
 class StepBuild(VanillaBuild):
 
     def build_train(self, ctx: "Context"):

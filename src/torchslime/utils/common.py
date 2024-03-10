@@ -256,10 +256,3 @@ def get_len(__obj: Any, *, default: _T = NOTHING) -> Union[int, _T]:
         return len(__obj)
     except TypeError:
         return default
-
-
-class FuncArgs:
-    
-    def __init__(self, *args, **kwargs) -> None:
-        self.args = args
-        self.kwargs = kwargs

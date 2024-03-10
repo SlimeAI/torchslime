@@ -15,7 +15,12 @@ from torchslime.utils.typing import (
 )
 from torchslime.utils.exception import APIMisused
 from torchslime.logging.logger import logger, LoggerKwargs
+from torchslime.utils.metaclass import (
+    Metaclasses,
+    InitOnceMetaclass
+)
 from slime_core.context import CoreTempContext, CoreHookContext, CoreContext
+from abc import ABCMeta
 from torch import (
     Tensor,
     device
@@ -33,8 +38,11 @@ if TYPE_CHECKING:
     from .compile import Compile
 
 
-class TempContext(Base, CoreTempContext):
-    
+class TempContext(
+    Base,
+    CoreTempContext,
+    metaclass=Metaclasses(ABCMeta, InitOnceMetaclass)
+):
     def __init__(self):
         Base.__init__(self)
         CoreTempContext.__init__(self)

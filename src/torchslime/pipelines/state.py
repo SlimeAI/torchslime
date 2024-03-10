@@ -45,7 +45,7 @@ class ModelState:
         return 'BASE STATE'
 
 
-@state_registry(name='train')
+@state_registry(key='train')
 class TrainState(ModelState):
 
     def __init__(self) -> None:
@@ -83,7 +83,7 @@ class TrainState(ModelState):
         return 'TRAIN'
 
 
-@state_registry(name='eval')
+@state_registry(key='eval')
 class EvalState(ModelState):
 
     def __init__(self) -> None:
@@ -122,7 +122,7 @@ class EvalState(ModelState):
         return 'EVAL'
 
 
-@state_registry(name='val')
+@state_registry(key='val')
 class ValState(EvalState):
 
     def __init__(self) -> None:
@@ -143,7 +143,7 @@ class ValState(EvalState):
         return 'VAL'
 
 
-@state_registry(name='predict')
+@state_registry(key='predict')
 class PredictState(EvalState):
 
     def __init__(self) -> None:

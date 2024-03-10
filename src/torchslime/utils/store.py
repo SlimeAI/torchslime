@@ -11,7 +11,13 @@ from .typing import (
     TextIO
 )
 from .base import (
-    Singleton
+    BaseDict
+)
+from .metabase import Singleton
+from .metaclass import (
+    Metaclasses,
+    SingletonMetaclass,
+    InitOnceMetaclass
 )
 from io import TextIOWrapper
 from slime_core.utils.store import (
@@ -25,7 +31,11 @@ if TYPE_CHECKING:
     )
 
 
-class BuiltinScopedStore(ScopedStore, Singleton):
+class BuiltinScopedStore(
+    ScopedStore,
+    Singleton,
+    metaclass=Metaclasses(SingletonMetaclass, InitOnceMetaclass)
+):
     
     def __init__(self) -> None:
         """
@@ -86,7 +96,7 @@ class Store(CoreStore):
     
     # NOTE: ``_builtin_scoped_store`` is not contained in the 
     # ``scoped_store_dict__``.
-    scoped_store_dict__: Dict[str, ScopedStore] = {}
+    scoped_store_dict__: BaseDict[str, ScopedStore] = BaseDict()
     
     def scope__(self, __key: str) -> Union[ScopedStore, BuiltinScopedStore]:
         if __key == BUILTIN_SCOPED_STORE_KEY:

@@ -305,7 +305,12 @@ class SlimeTable(Table, MutableBiListItem):
 
 _RichRenderableT = TypeVar("_RichRenderableT", bound=Union[RenderableType, MutableBiListItem])
 
-class SlimeGroup(Group, MutableBiListItem, BiList[_RichRenderableT]):
+class SlimeGroup(
+    Group,
+    MutableBiListItem,
+    BiList[_RichRenderableT],
+    metaclass=Metaclasses(ABCMeta, InitOnceMetaclass)
+):
     
     def __init__(self, *renderables: RenderableType, fit: bool = True) -> None:
         Group.__init__(self, *renderables, fit=fit)

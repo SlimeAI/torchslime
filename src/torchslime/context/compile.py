@@ -15,7 +15,6 @@ from torchslime.utils.typing import (
     EmptyFlag,
     is_empty_flag
 )
-from torchslime.utils.common import FuncArgs
 from torchslime.logging.logger import logger, LoggerKwargs
 from torchslime.pipelines.data import (
     ConstantProvider,
@@ -35,7 +34,7 @@ from torchslime.hooks.launch import LaunchHook, launch_registry
 from torchslime.pipelines.profiler import PipelineProfiler, profiler_registry
 from torchslime.pipelines.state import ModelState, state_registry
 from torchslime.utils.decorator import CallDebug, MethodChaining
-from slime_core.context.compile import CoreCompile
+from slime_core.context.compile import CoreCompile, CompileFuncParams
 from torch import Tensor
 from torch.optim import Optimizer
 # Type check only
@@ -43,9 +42,6 @@ if TYPE_CHECKING:
     from . import Context, AcceptableDataType
 
 COMPILE_FUNC_SUFFIX = '_compile__'
-
-
-class CompileFuncArgs(FuncArgs): pass
 
 
 class Compile(CoreCompile["Context"]):
@@ -91,7 +87,7 @@ class Compile(CoreCompile["Context"]):
                 )
                 continue
             
-            if isinstance(value, CompileFuncArgs):
+            if isinstance(value, CompileFuncParams):
                 func(*value.args, **value.kwargs)
             else:
                 func(value)
