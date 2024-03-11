@@ -71,9 +71,9 @@ class Context(
     @MethodChaining
     def train(
         self,
-        train_data: "AcceptableDataType",
+        train_data: AcceptableDataType,
         train_end: int = 1,
-        val_data: "AcceptableDataType" = NOTHING,
+        val_data: AcceptableDataType = NOTHING,
         grad_acc: int = 1,
         valid_freq: Union[int, List[int], Callable[[BaseContext], bool]] = 1,
         train_start: int = 0
@@ -109,7 +109,7 @@ class Context(
     @MethodChaining
     def eval(
         self,
-        data: "AcceptableDataType"
+        data: AcceptableDataType
     ) -> 'Context':
         if is_none_or_nothing(self.pipeline_ctx.eval_container):
             logger.error('``eval`` called before eval handlers are built. Call ``build_eval`` first.')
@@ -135,7 +135,7 @@ class Context(
     @MethodChaining
     def predict(
         self,
-        data: "AcceptableDataType"
+        data: AcceptableDataType
     ) -> 'Context':
         if is_none_or_nothing(self.pipeline_ctx.predict_container):
             logger.error('``predict`` called before predict handlers are built. Call ``build_predict`` first.')
