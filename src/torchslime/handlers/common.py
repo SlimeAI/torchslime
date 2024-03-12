@@ -1,3 +1,21 @@
+__all__ = (
+    'TorchGrad',
+    'EmptyHandler',
+    'FuncHandler',
+    'EpochIterationContainer',
+    'IterationContainer',
+    'StepIterationContainer',
+    'ForwardHandler',
+    'LossHandler',
+    'BackwardHandler',
+    'OptimizerContainer',
+    'MetricHandler',
+    'GatherAverageHandler',
+    'MeterInitHandler',
+    'MeterHandler',
+    'LRScheduleHandler'
+)
+
 from torchslime.utils.typing import (
     Dict,
     List,
@@ -42,24 +60,6 @@ from abc import ABCMeta
 if TYPE_CHECKING:
     from .wrapper import HandlerWrapper
     from torchslime.context import Context
-
-__all__ = [
-    'TorchGrad',
-    'EmptyHandler',
-    'FuncHandler',
-    'EpochIterationContainer',
-    'IterationContainer',
-    'StepIterationContainer',
-    'ForwardHandler',
-    'LossHandler',
-    'BackwardHandler',
-    'OptimizerContainer',
-    'MetricHandler',
-    'GatherAverageHandler',
-    'MeterInitHandler',
-    'MeterHandler',
-    'LRScheduleHandler'
-]
 
 
 def TorchGrad(func):
